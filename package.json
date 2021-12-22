@@ -1,0 +1,26 @@
+{
+  "name": "andromeda",
+  "version": "1.0.0",
+  "description": "Mico Service Bpmn generatr",
+  "main": "index.js",
+  "scripts": {
+    "start": "node node_modules/nodemon/bin/nodemon.js ./src/index.js",
+    "test": "jest "
+  },
+  "author": "Zied Ben Rhouma",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "boom": "^7.3.0",
+    "dotenv": "^10.0.0",
+    "fastify": "^3.25.0",
+    "fastify-mongodb": "^4.1.1",
+    "fastify-swagger": "^4.13.0",
+    "mongoose": "^6.1.2"
+  },
+  "devDependencies": {
+    "@shelf/jest-mongodb": "^2.1.1",
+    "nodemon": "^2.0.15",
+    "jest": "^27.4.5"
+  }
+}
