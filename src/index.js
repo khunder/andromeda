@@ -8,6 +8,7 @@ import fastify_swagger from "fastify-swagger";
 
 import {Engine} from "./engine.js";
 import {options} from "./config/swagger.js";
+import {RepositoryBase} from "./persistence/repository.base.js";
 
 
 const server = fastify({

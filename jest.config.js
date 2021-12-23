@@ -1,5 +1,5 @@
  export default {
-  testEnvironment: 'node',
+  testEnvironment: 'jest-environment-node',
   testTimeout: 600000,
   setupFiles: ['./test/post-test-init.js'],
   // modulePathIgnorePatterns: ['/deployments', 'tests/ignored'],

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node node_modules/nodemon/bin/nodemon.js ./src/index.js",
-    "test": "jest "
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",
@@ -16,11 +16,14 @@
     "fastify": "^3.25.0",
     "fastify-mongodb": "^4.1.1",
     "fastify-swagger": "^4.13.0",
-    "mongoose": "^6.1.2"
+    "log4js": "^6.3.0",
+    "mongoose": "^6.1.2",
+    "shelljs": "^0.8.4",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@shelf/jest-mongodb": "^2.1.1",
-    "nodemon": "^2.0.15",
-    "jest": "^27.4.5"
+    "jest": "^27.4.5",
+    "nodemon": "^2.0.15"
   }
 }
