@@ -1,9 +1,8 @@
 import http from "http";
 import * as fs from 'fs';
-import  {} from 'shelljs';
+import  * as shell from 'shelljs';
 import * as path from 'path';
 import {AndromedaLogger} from "../config/andromeda-logger.js";
-import {ContainerContext} from "../model/container.context.js";
 import {CommonService} from "./common.service.js";
 const Logger = new AndromedaLogger();
 

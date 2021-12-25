@@ -1,6 +1,6 @@
 
 import fastify from "fastify";
-import {routes} from "./routes/routes.js";
+import {routes} from "./bak-routes/routes.js";
 import fastify_swagger from "fastify-swagger";
 
 import {Engine} from "./engine.js";
