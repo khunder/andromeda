@@ -1,5 +1,5 @@
 
-export class ContainerContext {
+class ContainerContext {
   constructor(config) {
     this.deploymentId = config && config.deploymentId;
     this.port = config && config.port;
@@ -11,3 +11,5 @@ export class ContainerContext {
   deploymentId;
   model;
 }
+
+module.exports = ContainerContext

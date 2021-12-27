@@ -1,9 +1,9 @@
 'use strict';
 
-import { v1 } from 'uuid';
+const v1  = require ('uuid').v1;
 
 
-export class RepositoryBase {
+class RepositoryBase {
   _model;
 
   constructor(schemaModel) {
@@ -84,3 +84,5 @@ export class RepositoryBase {
     return await self._model.remove({});
   }
 }
+
+module.exports = RepositoryBase;

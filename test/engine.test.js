@@ -1,8 +1,6 @@
 
-import {Engine} from "../src/engine.js";
-import fastify from "fastify";
-import {RepositoryBase} from "../src/persistence/repository.base.js";
-import {ProcessInstance} from "../src/persistence/models/process.instance.js";
+const Engine = require("../src/modules/engine");
+
 
 
 // const test = async () => {
@@ -34,6 +32,10 @@ describe("Engine lifecycle", () => {
                 method: 'GET',
                 url: '/'
             })
+
+            console.log(response)
+
+
         }catch (e) {
             console.log(e)
         }

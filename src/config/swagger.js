@@ -1,6 +1,6 @@
-import {constants} from "./constants.js";
+let constants = require("./constants");
 
-export const options = {
+const options = {
   routePrefix: '/api',
   exposeRoute: true,
   swagger: {
@@ -14,3 +14,5 @@ export const options = {
     produces: ['application/json']
   }
 }
+
+module.exports=options;

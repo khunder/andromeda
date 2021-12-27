@@ -1,5 +1,5 @@
 // External Dependancies
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const processInstanceSchema = new mongoose.Schema({
   title: String,
@@ -12,4 +12,6 @@ const processInstanceSchema = new mongoose.Schema({
   }
 })
 
-export const ProcessInstance = mongoose.model('ProcessInstance', processInstanceSchema)
+const ProcessInstance = mongoose.model('ProcessInstance', processInstanceSchema)
+
+module.exports = ProcessInstance;

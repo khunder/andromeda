@@ -1,6 +1,5 @@
-import * as serverController from "../controllers/server.controller.js";
 
-export default function (fastify, opts, next) {
+function route (fastify, opts, next) {
     fastify.route(
         {
             schema:  {
@@ -46,3 +45,5 @@ export default function (fastify, opts, next) {
     )
     next();
 }
+
+module.exports = route;

@@ -1,4 +1,8 @@
-export const constants = {
-    APP_NAME: "Andromeda"
+const constants = {
+    APP_NAME: "Andromeda",
+    SERVER: "server",
+    PERSISTENCE: "persistence",
+
 }
 
+module.exports=constants

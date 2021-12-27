@@ -1,12 +1,12 @@
 
-import * as shell from 'shelljs';
-import * as fs from 'fs';
-import {Config} from "../config/config.js";
-import {AndromedaLogger} from "../config/andromeda-logger.js";
+const fs = require( 'fs');
+const shell = require( 'shelljs');
+const Config = require("../config/config");
+const  AndromedaLogger = require("../config/andromeda-logger");
 
 const Logger = new AndromedaLogger();
 
-export class CommonService {
+class CommonService {
 
     constructor() {
     }
@@ -56,3 +56,5 @@ export class CommonService {
         }
     }
 }
+
+module.exports = CommonService

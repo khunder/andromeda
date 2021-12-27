@@ -1,12 +1,13 @@
-import http from "http";
-import * as fs from 'fs';
-import  * as shell from 'shelljs';
-import * as path from 'path';
-import {AndromedaLogger} from "../config/andromeda-logger.js";
-import {CommonService} from "./common.service.js";
+const http = require( "http");
+const fs = require( 'fs');
+const shell = require( 'shelljs');
+const CommonService = require( "./common.service");
+
+const  AndromedaLogger = require("../config/andromeda-logger");
+
 const Logger = new AndromedaLogger();
 
-export class EngineService {
+class EngineService {
     commonService = new CommonService()
     isPortFree = (port) =>
         new Promise((resolve) => {
@@ -58,3 +59,5 @@ export class EngineService {
     }
 
 }
+
+module.exports = EngineService

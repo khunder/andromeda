@@ -1,13 +1,10 @@
 'use strict';
 
-import { v1 } from 'uuid';
 
 
-export class RepositoryBase {
-  _model;
+class FakeRepositoryBase {
   objects = []
-  constructor(schemaModel) {
-    this._model = schemaModel;
+  constructor() {
   }
 
 
@@ -65,3 +62,5 @@ export class RepositoryBase {
     this.objects=[];
   }
 }
+
+module.exports = FakeRepositoryBase;

@@ -1,20 +1,16 @@
-// Require external modules
-import mongoose from "mongoose";
 
-import {Config} from "./config/config.js";
-import {AndromedaLogger} from "./config/andromeda-logger.js";
-import fastify from "fastify";
-import fastify_swagger from "fastify-swagger";
-import {options} from "./config/swagger.js";
+
+let AndromedaLogger =  require("../config/andromeda-logger");
+let fastify = require('fastify');
+const fastify_swagger = require('fastify-swagger')
+let options=  require("../config/swagger");
 const Logger = new AndromedaLogger();
-import { join } from 'path';
-import * as autoLoad from 'fastify-autoload'
-import GracefulServer from "@gquittet/graceful-server";
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+let path = require('path');
+let autoload = require('fastify-autoload');
+const GracefulServer =require("@gquittet/graceful-server");
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-export class Engine {
+
+class Engine {
 
     app = fastify({
         logger: Logger
@@ -38,9 +34,9 @@ export class Engine {
         })
 
         this.app.register(fastify_swagger, options)
-        this.app.register(autoLoad, {
+        this.app.register(autoload, {
             fastify_swagger,
-            dir: join(__dirname, 'routes'),
+            dir: path.join(__dirname, '../routes'),
         })
     }
 
@@ -53,7 +49,6 @@ export class Engine {
     start = async (port) => {
         let startTime = new Date().getMilliseconds();
         try {
-            await mongoose.connect(Config.getInstance().mongoDbUri);
             await this.app.listen(port, "0.0.0.0")
             this.app.swagger()
             let startCompleted = new Date().getMilliseconds();
@@ -67,3 +62,5 @@ export class Engine {
     }
 
 }
+
+module.exports= Engine

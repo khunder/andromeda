@@ -23,4 +23,4 @@ _log4jsConfig.appenders['file'] = {
 _log4jsConfig.categories.default.appenders.push('stdout');
 _log4jsConfig.categories.default.appenders.push('file');
 
-export const log4jsConfig = _log4jsConfig;
+module.exports= _log4jsConfig;
