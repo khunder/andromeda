@@ -1,6 +1,6 @@
 let zmq = require("zeromq");
 const mongoose = require("mongoose");
-const Config = require("../config/config");
+const Config = require("../../config/config");
 
 class Persistence{
 
@@ -8,7 +8,7 @@ class Persistence{
 
     }
 
-    async run() {
+    async start() {
         await mongoose.connect(Config.getInstance().mongoDbUri)
         const sock = new zmq.Pull
         sock.connect("tcp://127.0.0.1:3000")

@@ -1,9 +1,10 @@
 const http = require( "http");
-const fs = require( 'fs');
-const shell = require( 'shelljs');
-const CommonService = require( "./common.service");
+const fs = require('fs');
+const shell = require("shelljs");
+const CommonService = require("./common.service");
 
 const  AndromedaLogger = require("../config/andromeda-logger");
+const path = require("path");
 
 const Logger = new AndromedaLogger();
 
@@ -15,11 +16,11 @@ class EngineService {
                 .createServer()
                 .listen(port, () => {
                     server.close();
-                    Logger.verbose(`port ${port} is free`);
+                    Logger.trace(`port ${port} is free`);
                     resolve(true);
                 })
                 .on('error', () => {
-                    Logger.verbose(`port ${port} is not free`);
+                    Logger.trace(`port ${port} is not free`);
                     resolve(false);
                 });
         });

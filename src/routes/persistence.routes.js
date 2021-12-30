@@ -8,18 +8,6 @@ function route (fastify, opts, next) {
     }
     fastify.route(
         {
-            schema:  {
-                description: 'persist probe',
-                tags: ['Persistence'],
-                summary: 'persistence probe ',
-                response: {
-                    200: {
-                        description: 'Successful response',
-                        type: 'string',
-                        example: {"persist": "number"}
-                    },
-                }
-            },
             method: 'GET',
             url: '/persist',
             handler: () => {}

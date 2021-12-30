@@ -1,24 +1,45 @@
-
-
-let AndromedaLogger =  require("../config/andromeda-logger");
+let AndromedaLogger = require("../../config/andromeda-logger");
 let fastify = require('fastify');
-const fastify_swagger = require('fastify-swagger')
-let options=  require("../config/swagger");
 const Logger = new AndromedaLogger();
 let path = require('path');
 let autoload = require('fastify-autoload');
-const GracefulServer =require("@gquittet/graceful-server");
+const GracefulServer = require("@gquittet/graceful-server");
+const multer = require("fastify-multer");
+const fastifySwagger = require('fastify-swagger');
 
+
+function ajvPlugin(ajv, options) {
+    ajv.addKeyword('isFileType', {
+        compile: (schema, parent, it) => {
+            // Change the schema type, as this is post validation it doesn't appear to error.
+            parent.type = 'file'
+            delete parent.isFileType
+            return () => true
+        },
+    })
+
+    return ajv
+}
 
 class Engine {
 
-    app = fastify({
-        logger: Logger
-    });
+    app = fastify({ logger: true, ajv: { plugins: [ajvPlugin] } })
+
     gracefulServer = GracefulServer(this.app.server)
 
     constructor() {
 
+
+        this.app.register(fastifySwagger, {
+            mode: "static",
+            routePrefix: '/api',
+            hideUntagged: true,
+            openapi: '3.0.3',
+            specification: {
+                path: './specification.yaml'
+            },
+            exposeRoute: true
+        })
 
 
         this.gracefulServer.on(GracefulServer.READY, () => {
@@ -33,15 +54,17 @@ class Engine {
             Logger.info(`Server is down because of ${error.message}`)
         })
 
-        this.app.register(fastify_swagger, options)
+        // this.app.register(multer.contentParser, {addToBody: true})
+        this.app.register(multer.contentParser)
+
         this.app.register(autoload, {
-            fastify_swagger,
-            dir: path.join(__dirname, '../routes'),
-        })
+            dir: path.join(__dirname, '../../routes'),
+        });
+
     }
 
 
-    getApp(){
+    getApp() {
         return this.app;
     }
 
@@ -63,4 +86,4 @@ class Engine {
 
 }
 
-module.exports= Engine
+module.exports = Engine

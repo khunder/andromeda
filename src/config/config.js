@@ -21,10 +21,9 @@ class Config {
     }
 
     constructor() {
-
+        Logger.trace(`Loading Config values...`)
         this.mongoDbUri = process.env.MONGODB_URI;
-        Logger.debug(`loading mongodbURI ${this.mongoDbUri}`)
-        this.deploymentPath = process.env.deploymentPath || "deployment";
+        this.deploymentPath = process.env.deploymentPath || path.join(process.cwd(), "../deployments");
         this.tempPath = process.env.tempPath || "temp";
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
     }
