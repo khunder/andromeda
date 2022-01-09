@@ -1,10 +1,11 @@
 const http = require( "http");
 const fs = require('fs');
 const shell = require("shelljs");
-const CommonService = require("./common.service");
+const CommonService = require("../../services/common.service");
 
-const  AndromedaLogger = require("../config/andromeda-logger");
+const  AndromedaLogger = require("../../config/andromeda-logger");
 const path = require("path");
+const WorkflowBuilder = require("./workflow.builder");
 
 const Logger = new AndromedaLogger();
 
@@ -29,10 +30,7 @@ class EngineService {
         return path.join(this.commonService.getDeploymentPath(), ctx.deploymentId);
     }
 
-    async generateContainer(
-        deploymentId,
-        containerContext,
-    ) {
+    async generateContainer(containerContext) {
         const deploymentPath = this.getDeploymentPath(containerContext);
         if (!fs.existsSync(deploymentPath)) {
             Logger.debug(
@@ -45,8 +43,7 @@ class EngineService {
             Logger.error(`no bpmn model found to generate`);
             throw new Error('Cannot generate container, no model found');
         }
-
-        // await this.workflowBuilder.generateCommonFiles(containerContext);
+        await new WorkflowBuilder().generateWorkflow(containerContext);
         //
         // await Promise.all(
         //     Array.from(containerContext.model.keys()).map(async (processDef) => {
@@ -59,6 +56,10 @@ class EngineService {
         // );
     }
 
+    extractWorkflowPrefix(containerContext) {
+        if(!containerContext.model )
+        return undefined;
+    }
 }
 
 module.exports = EngineService

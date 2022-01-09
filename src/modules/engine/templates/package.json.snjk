@@ -1,0 +1,24 @@
+{
+  "name": "andromeda",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "description": "Mico Service Bpmn",
+  "main": "index.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "author": "Zied Ben Rhouma",
+  "license": "ISC",
+  "dependencies": {
+    "@gquittet/graceful-server": "^2.5.2",
+    "dotenv": "^10.0.0",
+    "fastify": "^3.25.2",
+    "fastify-autoload": "^3.9.0",
+    "fastify-mongodb": "^4.1.1",
+    "fastify-multer": "^2.0.2",
+    "fastify-oas": "^3.0.8",
+    "fastify-swagger": "^4.13.0",
+    "log4js": "^6.3.0",
+    "mongoose": "^6.1.2"
+  }
+}

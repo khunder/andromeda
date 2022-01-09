@@ -23,7 +23,7 @@ const log = log4js.getLogger('engine');
 
 log4js.configure(log4jsConfig);
 
-class AndromedaLogger {
+class Logger {
     logger;
     loggerOptions;
 
@@ -72,9 +72,9 @@ class AndromedaLogger {
     }
 
     child() {
-        return new AndromedaLogger()
+        return new Logger()
     };
 
 
 }
-module.exports =AndromedaLogger
+module.exports =Logger

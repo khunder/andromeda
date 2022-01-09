@@ -63,3 +63,4 @@ typings/
 /.idea/*
 /globalConfig.json
 /uploads/*
+/deployments/*

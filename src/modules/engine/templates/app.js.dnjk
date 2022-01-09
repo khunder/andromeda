@@ -1,4 +1,4 @@
-let AndromedaLogger = require("../../config/andromeda-logger");
+let AndromedaLogger = require("./config/logger");
 let fastify = require('fastify');
 const Logger = new AndromedaLogger();
 let path = require('path');
@@ -8,7 +8,7 @@ const multer = require("fastify-multer");
 const fastifySwagger = require('fastify-swagger');
 
 
-class Engine {
+class Container {
 
     app = fastify({ logger: Logger })
 
@@ -45,7 +45,7 @@ class Engine {
         this.app.register(multer.contentParser)
 
         this.app.register(autoload, {
-            dir: path.join(__dirname, '../../routes'),
+            dir: path.join(__dirname, './routes'),
         });
 
     }
@@ -72,5 +72,5 @@ class Engine {
     }
 
 }
-
-module.exports = Engine
+new Container().start("127.0.0.1", 10000);
+module.exports = Container

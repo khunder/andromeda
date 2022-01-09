@@ -1,4 +1,4 @@
-const  AndromedaLogger = require("../config/andromeda-logger");
+const  AndromedaLogger = require("./logger");
 
 let config;
 const LoadDotEnvConfig = require('dotenv').config;

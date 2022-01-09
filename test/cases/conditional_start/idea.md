@@ -1,0 +1,1 @@
+in the main template, add a section to evaluate all start conditions just before call next  nodes 

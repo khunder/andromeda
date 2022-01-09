@@ -5,14 +5,13 @@
   "description": "Mico Service Bpmn generatr",
   "main": "index.js",
   "scripts": {
-    "start": "node node_modules/nodemon/bin/nodemon.js src/app.js",
+    "start": "node node_modules/nodemon/bin/nodemon.js app.js",
     "test": "node node_modules/jest/bin/jest.js"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",
   "dependencies": {
     "@gquittet/graceful-server": "^2.5.2",
-    "@hapi/boom": "^9.1.4",
     "bpmn-moddle": "^7.1.2",
     "dotenv": "^10.0.0",
     "fastify": "^3.25.2",

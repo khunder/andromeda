@@ -3,6 +3,9 @@ const shelljs = require("shelljs");
 const nunjucks = require("nunjucks");
 let AndromedaLogger = require("../../config/andromeda-logger");
 const path = require("path");
+const Config = require("../../config/config");
+const ProcessBuildContext = require("../../model/process-build-context");
+const ContainerBuildContext = require("../../model/container-build-context");
 const Logger = new AndromedaLogger();
 
 class WorkflowBuilder {
@@ -10,13 +13,6 @@ class WorkflowBuilder {
 
    treatedNodes= [];
 
-  getProjectDeploymentFolder(containerContext) {
-    // return `${containerContext.deploymentId}`;
-    return path.join(
-      this.commonService.getDeploymentPath(),
-      containerContext.deploymentId,
-    );
-  }
 
    createPackageJsonFile(containerContext) {
     nunjucks.configure({
@@ -71,36 +67,24 @@ class WorkflowBuilder {
    */
   createFile(sourceTemplate, destFile, containerContext) {
     try {
-      const fullDestFilePath = path.join(
-        this.getProjectDeploymentFolder(containerContext),
-        destFile,
-      );
-      const destFolder = path.dirname(fullDestFilePath);
+      const destFolder = path.dirname(destFile);
       if (!fs.existsSync(destFolder)) {
         shelljs.mkdir('-p', destFolder);
       }
-
+      //
       nunjucks.configure({
         autoescape: false,
         trimBlocks: true,
         lstripBlocks: true,
       });
       const resultText = nunjucks.renderString(
-        TemplateProvider.getTemplate(
-          path.join(
-            process.cwd().toString(),
-            'src',
-            'engine',
-            'core',
-            sourceTemplate,
-          ),
-        ),
+          fs.readFileSync(sourceTemplate, 'utf-8'),
         {
-          containerContext,
+          ...containerContext,
         },
       );
       fs.writeFileSync(
-        path.join(this.getProjectDeploymentFolder(containerContext), destFile),
+        destFile,
         resultText,
       );
     } catch (e) {
@@ -108,308 +92,31 @@ class WorkflowBuilder {
     }
   }
 
-  async generateCommonFiles(containerContext) {
-    try {
-      const dir = `${containerContext.deploymentId}`;
-      Logger.log(
-        `Directory ${this.getProjectDeploymentFolder(containerContext)}`,
-      );
-      if (!fs.existsSync(dir)) {
-        shelljs.mkdir('-p', dir);
+  generateFiles(dir, sourcePath, containerContext) {
+    let files = fs.readdirSync(dir)
+    files.forEach(function (entry) {
+      let filePath = path.join(dir, entry)
+      if (fs.statSync(filePath).isDirectory()) {
+        if (!fs.existsSync(path.join(sourcePath, "/", entry))) {
+          fs.mkdirSync(path.join(sourcePath, "/", entry));
+        }
+        this.generateFiles(filePath, path.join(sourcePath, entry))
+      } else {
+        const extension = entry.split('.').pop()
+        if(extension === "snjk"){
+          let fileName = entry.split('.').slice(0, -1).join('.');
+          fs.writeFileSync(path.join(sourcePath, fileName), fs.readFileSync(filePath, 'utf-8'));
+        }
+
+        if(extension === "dnjk"){
+          let fileName = entry.split('.').slice(0, -1).join('.');
+          this.createFile(filePath, path.join(sourcePath, fileName), containerContext);
+        }
+
       }
-
-      // this.createMain(containerContext);
-      // this.createAppModule(containerContext);
-      this.createFile(
-        '/resources/package.json.njk',
-        'package.json',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/main.ts.njk',
-        'src/main.ts',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/app.module.ts.njk',
-        'src/app.module.ts',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/shutdown.service.ts.njk',
-        'src/shutdown.service.ts',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/app.service.ts.njk',
-        'src/app.service.ts',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/app.controller.ts.njk',
-        'src/app.controller.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/rate-limiter.middleware.ts.njk',
-        'src/rate-limiter.middleware.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/container/task/task.controller.ts.njk',
-        'src/container/task/task.controller.ts',
-        containerContext,
-      );
-      this.createFile(
-        '/resources/container/task/task.module.ts.njk',
-        'src/container/task/task.module.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/container/task/task.service.ts.njk',
-        'src/container/task/task.service.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/event.interface.ts',
-        'src/persistence/interfaces/event.interface.ts',
-        containerContext,
-      );
-      this.createFile(
-        '../../persistence/repository/repository-base.ts',
-        'src/persistence/repository/repository-base.ts',
-        containerContext,
-      );
-      this.createFile(
-        '../../persistence/repository/process-instance-repository.ts',
-        'src/persistence/repository/process-instance-repository.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/repository/sequence-flow-repository.ts',
-        'src/persistence/repository/sequence-flow-repository.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/repository/event-log-repository.ts',
-        'src/persistence/repository/event-log-repository.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/repository/task-event-repository.ts',
-        'src/persistence/repository/task-event-repository.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/repository/variable-repository.ts',
-        'src/persistence/repository/variable-repository.ts',
-        containerContext,
-      );
-
-      // this.createFile(
-      //   '../../persistence/schemas/process-instance.ts',
-      //   'src/persistence/schemas/process-instance.ts',
-      //   containerContext,
-      // );
-
-      this.createFile(
-        '../../persistence/interfaces/process-instance.interface.ts',
-        'src/persistence/interfaces/process-instance.interface.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/sequence-flow.interface.ts',
-        'src/persistence/interfaces/sequence-flow.interface.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/task-event.interface.ts',
-        'src/persistence/interfaces/task-event.interface.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/variable.interface.ts',
-        'src/persistence/interfaces/variable.interface.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/process-instance-status.ts',
-        'src/persistence/interfaces/process-instance-status.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/sequence-flow-status.ts',
-        'src/persistence/interfaces/sequence-flow-status.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/interfaces/task-event-status.ts',
-        'src/persistence/interfaces/task-event-status.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/event.ts',
-        'src/persistence/eventstore/event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/event-handler.ts',
-        'src/persistence/eventstore/event-handler.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/event-store.service.ts',
-        'src/persistence/eventstore/event-store.service.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/event-types.ts',
-        'src/persistence/eventstore/event-types.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/create-process-instance-event.ts',
-        'src/persistence/eventstore/events/create-process-instance-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/close-process-instance-event.ts',
-        'src/persistence/eventstore/events/close-process-instance-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/fail-process-instance-event.ts',
-        'src/persistence/eventstore/events/fail-process-instance-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/abort-process-instance-event.ts',
-        'src/persistence/eventstore/events/abort-process-instance-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/create-sequence-flow-event.ts',
-        'src/persistence/eventstore/events/create-sequence-flow-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/bulk-create-sequence-flow-event.ts',
-        'src/persistence/eventstore/events/bulk-create-sequence-flow-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/create-task-event-event.ts',
-        'src/persistence/eventstore/events/create-task-event-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/events/bulk-create-variable-event.ts',
-        'src/persistence/eventstore/events/bulk-create-variable-event.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/handlers/aggregate.ts',
-        'src/persistence/eventstore/handlers/aggregate.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/handlers/process-instance-aggregate.ts',
-        'src/persistence/eventstore/handlers/process-instance-aggregate.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/handlers/sequence-flow-aggregate.ts',
-        'src/persistence/eventstore/handlers/sequence-flow-aggregate.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/handlers/task-event-aggregate.ts',
-        'src/persistence/eventstore/handlers/task-event-aggregate.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '../../persistence/eventstore/handlers/variable-aggregate.ts',
-        'src/persistence/eventstore/handlers/variable-aggregate.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/model/local-context.ts.njk',
-        'src/model/local-context.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/model/flow-model.ts.njk',
-        'src/model/flow-model.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/model/variable-model.ts.njk',
-        'src/model/variable-model.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/config/beeflow-logger.ts.njk',
-        'src/config/beeflow-logger.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/config/log4js.config.ts.njk',
-        'src/config/log4js.config.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/config/config.ts.njk',
-        'src/config/Config.ts',
-        containerContext,
-      );
-
-      this.createFile(
-        '/resources/services/container-service.ts.njk',
-        'src/services/container-service.ts',
-        containerContext,
-      );
-    } catch (e) {
-      Logger.error(e);
-      throw new Error(e);
-    }
+    }.bind(this));
   }
+
 
   normalizeProcessDefWithoutVersion(processDef) {
     const result = processDef;
@@ -421,142 +128,100 @@ class WorkflowBuilder {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
+  async generateEmbeddedContainer(element, processBuildContext){
+    let self = this;
+      // search start
+      // generate code
+    const startElements = this.getStartElements(element);
+    startElements.forEach(startElement => {
+      self.generate(startElement, processBuildContext);
+    })
+    let embeddedEventSubprocesses = this.getEventSubProcess(element);
+    embeddedEventSubprocesses.forEach(container => {
+      self.generateEmbeddedContainer(container, processBuildContext)
+    })
+  }
+
+  async generate(element, processBuildContext){
+    console.log(`----->${element.id}`)
+  }
+
   async generateWorkflow(
-    processDef,
-    model,
-    containerContext,
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-  ) {
-    const bpmnProcess = this.getProcessModel(model);
-    const startElements = this.getStartElements(bpmnProcess);
-    const buildContext = new ProcessInstanceBuildContext();
-    this.generateServiceClass(processDef, buildContext, containerContext);
-    // this.generateVariableContextHandlerClass(processDef, containerContext);
-    this.generateControllerClass(processDef, buildContext, containerContext);
-    this.generateVariable(
-      bpmnProcess,
-      this.normalizeProcessDefWithoutVersion(processDef),
-      buildContext,
-      containerContext,
-    );
-    // this.createWorkflowWorker(processDef, containerContext);
-    startElements.forEach((startElement) => {
-      this.generateContentForElement(startElement, buildContext);
-    });
-    buildContext.renderImports();
-    buildContext.serviceClassFile.formatText({ trimTrailingWhitespace: true });
-    buildContext.controllerClass.formatText({ trimTrailingWhitespace: true });
-    buildContext.project.saveSync();
-  }
-
-   generateServiceClass(
-    processDef,
-    buildContext,
     containerContext,
   ) {
-    const normalizedProcessDef =
-      this.normalizeProcessDefWithoutVersion(processDef);
-    const serviceFileName = this.getServiceFileName(normalizedProcessDef);
-    const serviceClassName = this.getServiceClassName(normalizedProcessDef);
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const template = nunjucks.renderString(
-      TemplateProvider.getTemplate(
-        path
-          .join(
-            process.cwd(),
-            'src/engine/core/resources/services/process-instance-service.ts.njk',
-          )
-          .toString(),
-      ),
-      {
-        serviceFileName: serviceFileName,
-        serviceClassName: serviceClassName,
-        processDef: normalizedProcessDef,
-      },
-    );
 
-    buildContext.serviceClassFile = buildContext.project.createSourceFile(
-      `deployments/${containerContext.deploymentId}/src/services/${serviceFileName}.ts`,
-      template,
-      { overwrite: true },
-    );
-    buildContext.serviceClass =
-      buildContext.serviceClassFile.getClassOrThrow(serviceClassName);
+    const bpmnProcess = this.getProcessModel(containerContext.model);
+    let self = this;
+    let templatePath = path.join( process.cwd(), "src", "modules", "engine", "templates");
+    this.generateFiles(templatePath, path.join(Config.getInstance().deploymentPath, containerContext.deploymentId), containerContext)
+
+    const containerBuildContext =  new ContainerBuildContext();
+
+    bpmnProcess.forEach(process => {
+      const processBuildContext =  new ProcessBuildContext();
+      self.generateProcess(self, process, processBuildContext);
+      containerBuildContext.routes.push(process.id)
+
+    });
+
+    let file = "specification.yaml.cnjk"
+    const filePath = path.join(templatePath, file);
+    const extension = file.split('.').pop()
+    if(extension === "cnjk"){
+      let fileName = file.split('.').slice(0, -1).join('.');
+      this.createFile(filePath, path.join(Config.getInstance().deploymentPath, containerContext.deploymentId, fileName),
+          {routes: containerBuildContext.routes, ...containerContext});
+    }
+
+
+
+
+
+    // for each process create a start method
+
+    // in each start method
+      // call event subprocess start method
+      // call start node (simple start)
+
+    // detect
+       // simple start
+       // event based start (all types) scheduled, message ....
+       // process each node and all the nodes linked to it
+       // process all the nodes in an adhoc subprocess
+
+
+
+    // const buildContext = new ProcessInstanceBuildContext();
+    // this.generateServiceClass(processDef, buildContext, containerContext);
+    // // this.generateVariableContextHandlerClass(processDef, containerContext);
+    // this.generateControllerClass(processDef, buildContext, containerContext);
+    // this.generateVariable(
+    //   bpmnProcess,
+    //   this.normalizeProcessDefWithoutVersion(processDef),
+    //   buildContext,
+    //   containerContext,
+    // );
+    // // this.createWorkflowWorker(processDef, containerContext);
+    // startElements.forEach((startElement) => {
+    //   this.generateContentForElement(startElement, buildContext);
+    // });
+    // buildContext.renderImports();
+    // buildContext.serviceClassFile.formatText({ trimTrailingWhitespace: true });
+    // buildContext.controllerClass.formatText({ trimTrailingWhitespace: true });
+    // buildContext.project.saveSync();
   }
 
-   generateControllerClass(
-    processDef,
-    buildContext,
-    containerContext,
-  ) {
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const processInstanceClassName = `${this.upperFirstChar(
-      this.normalizeProcessDefWithoutVersion(processDef),
-    )}ProcessInstanceService`;
-    const processInstanceFileName = `${this.normalizeProcessDefWithoutVersion(
-      processDef,
-    )}-process-instance.service`;
-
-    const template = nunjucks.renderString(
-      TemplateProvider.getTemplate(
-        path
-          .join(
-            process.cwd(),
-            'src/engine/core/resources/controller/process-instance-controller.ts.njk',
-          )
-          .toString(),
-      ),
-      {
-        processDef: processDef,
-        processInstanceClassName,
-      },
-    );
-
-    buildContext.addImportToController(
-      `{ ${processInstanceClassName} }`,
-      `./services/${processInstanceFileName}`,
-    );
-    buildContext.controllerClassFile = buildContext.project.addSourceFileAtPath(
-      `deployments/${containerContext.deploymentId}/src/app.controller.ts`,
-    );
-    buildContext.controllerClass =
-      buildContext.controllerClassFile.getClassOrThrow('AppController');
-
-    buildContext.controllerClass.addMember(template);
+  generateProcess(self, process, processBuildContext) {
+    let startElements = self.getStartElements(process);
+    startElements.forEach(startElement => {
+      self.generate(startElement);
+    })
+    let embeddedEventSubprocesses = self.getEventSubProcess(process);
+    embeddedEventSubprocesses.forEach(container => {
+      self.generateEmbeddedContainer(container, processBuildContext)
+    })
   }
 
-  // public createWorkflowWorker(processDef, containerContext) {
-  //   nunjucks.configure({
-  //     autoescape: false,
-  //     trimBlocks: true,
-  //     lstripBlocks: true,
-  //   });
-  //   const tmp = TemplateProvider.getTemplate(
-  //     path.join(
-  //       process.cwd(),
-  //       'src/engine/core/resources/services/worker_thread_handler.ts.njk',
-  //     ),
-  //   );
-  //   const resultText = nunjucks.renderString(tmp, {
-  //     ProcessDef: this.normalizeProcessDefWithoutVersion(processDef),
-  //   });
-  //   fs.writeFileSync(
-  //     path.join(
-  //       process.cwd(),
-  //       this.getProjectDeploymentFolder(containerContext),
-  //       `src/services/${this.normalizeProcessDefWithoutVersion(processDef)}.ts`,
-  //     ),
-  //     resultText,
-  //   );
-  // }
 
    getServiceFileName(normalizedProcessDef) {
     return normalizedProcessDef.toLowerCase() + '-process-instance.service';
@@ -566,43 +231,6 @@ class WorkflowBuilder {
     return this.upperFirstChar(normalizedProcessDef) + 'ProcessInstanceService';
   }
 
-  generateContentForElement(
-    elemen,
-    buildContext,
-  ) {
-    let nodeContext;
-    if (element.$type === 'bpmn:StartEvent') {
-      nodeContext = new StartEventProcessor().process(element, buildContext);
-    }
-
-    if (element.$type === 'bpmn:EndEvent') {
-      nodeContext = new EndEventProcessor().process(element, buildContext);
-    }
-
-    if (element.$type === 'bpmn:ScriptTask') {
-      nodeContext = new ScriptTaskProcessor().process(
-        element,
-        buildContext,
-      );
-    }
-
-    if (element.$type === 'bpmn:IntermediateCatchEvent') {
-      nodeContext = new CatchEventProcessor().process(element, buildContext);
-    }
-
-    if (nodeContext) {
-      this.buildMethod(buildContext, nodeContext, element);
-    }
-    element.outgoing?.forEach((flow) => {
-      if (!this.treatedNodes.includes(flow.targetRef.id)) {
-        this.treatedNodes.push(flow.targetRef.id);
-        Logger.log(
-          `next element id= ${flow.targetRef.id}, type =${flow.targetRef.$type}`,
-        );
-        this.generateContentForElement(flow.targetRef, buildContext);
-      }
-    });
-  }
 
   getNextNodes(
     node,
@@ -668,68 +296,47 @@ class WorkflowBuilder {
         `cannot compile file missing a process in the root elements`,
       );
     }
+    // message start event + (non interrupting)
+    // Timer start event + (non interrupting)
+    // conditional start event + (non interrupting)
+    // signal start event + (non interrupting)
+    // error start event
+    // Escalation start event + (non interrupting)
+    // Compensation start event
+
+     // search event subprocess, because they are triggered automatically
     return(
-      bpmnProcess.flowElements.filter((e) => e.$type === 'bpmn:StartEvent')
+      bpmnProcess.flowElements.filter(
+          (e) =>
+              e.$type === 'bpmn:StartEvent' ||
+              e.$type === 'bpmn:StartEvent'
+      )
+    );
+  }
+
+  getEventSubProcess(bpmnProcess) {
+    if (!bpmnProcess) {
+      throw new Error(
+          `cannot compile file missing a process in the root elements`,
+      );
+    }
+
+    // search event subprocess, because they are triggered automatically
+    return(
+        bpmnProcess.flowElements.filter(
+            (e) =>
+                e.$type === 'bpmn:SubProcess' && e.triggeredByEvent === true
+        )
     );
   }
 
    getProcessModel(model) {
-    const bpmnProcess = (
-      model.rootElement.rootElements.find((e) => e.$type === 'bpmn:Process')
-    );
+    const bpmnProcess = model.rootElement.rootElements.filter((e) => e.$type === 'bpmn:Process');
+
     return bpmnProcess;
   }
 
-   generateVariable(
-    bpmnProcess,
-    processDef,
-    buildContext,
-    containerContext,
-  ) {
-    const processVariables= [];
 
-    if (bpmnProcess.properties) {
-      bpmnProcess.properties.forEach((p) => {
-        Logger.verbose(`add variable ${p.name}`);
-        processVariables.push({
-          name: p.name,
-          type: p.itemSubjectRef.structureRef,
-        });
-      });
-      // add meta property to use it when we iterate over variables
-    }
-
-    const normalizedProcessDef =
-      this.normalizeProcessDefWithoutVersion(processDef);
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const resultText = nunjucks.renderString(
-      TemplateProvider.getTemplate(
-        path
-          .join(
-            process.cwd(),
-            'src/engine/core/resources/services/variable-context-handler.ts.njk',
-          )
-          .toString(),
-      ),
-      {
-        processDef: this.normalizeProcessDefWithoutVersion(processDef),
-        processVariables: processVariables,
-      },
-    );
-
-    fs.writeFileSync(
-      path.join(
-        process.cwd(),
-        this.getProjectDeploymentFolder(containerContext),
-        `src/services/${normalizedProcessDef}-variable-context-handler.ts`,
-      ),
-      resultText,
-    );
-
-    return buildContext;
-  }
 }
+
+module.exports = WorkflowBuilder;
