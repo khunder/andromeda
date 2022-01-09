@@ -12,6 +12,10 @@ describe("Engine lifecycle", () => {
         await mongoose.connect(process.env.MONGODB_URI);
     });
 
+    afterAll( async ()=>{
+        await mongoose.disconnect();
+    })
+
     test('Start Engine', async () => {
         try{
             let repo = new RepositoryBase(ProcessInstance);

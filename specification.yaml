@@ -54,5 +54,9 @@ paths:
               type: object
               properties:
                 bpmnFile:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                deploymentId:
                   type: string
-                  format: binary

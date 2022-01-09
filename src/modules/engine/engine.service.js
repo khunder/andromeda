@@ -6,6 +6,7 @@ const CommonService = require("../../services/common.service");
 const  AndromedaLogger = require("../../config/andromeda-logger");
 const path = require("path");
 const WorkflowBuilder = require("./workflow.builder");
+const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
 
 const Logger = new AndromedaLogger();
 
@@ -30,8 +31,8 @@ class EngineService {
         return path.join(this.commonService.getDeploymentPath(), ctx.deploymentId);
     }
 
-    async generateContainer(containerContext) {
-        const deploymentPath = this.getDeploymentPath(containerContext);
+    async generateContainer(containerParsingContext) {
+        const deploymentPath = this.getDeploymentPath(containerParsingContext);
         if (!fs.existsSync(deploymentPath)) {
             Logger.debug(
                 `Trying to create deployment folder in path: ${deploymentPath}`,
@@ -39,11 +40,15 @@ class EngineService {
             shell.mkdir('-p', deploymentPath);
         }
 
-        if (!containerContext.model || containerContext.model.size === 0) {
-            Logger.error(`no bpmn model found to generate`);
-            throw new Error('Cannot generate container, no model found');
-        }
-        await new WorkflowBuilder().generateWorkflow(containerContext);
+        // if (!containerParsingContext.workflowParsingContext.model || containerParsingContext.model.size === 0) {
+        //     Logger.error(`no bpmn model found to generate`);
+        //     throw new Error('Cannot generate container, no model found');
+        // }
+        const containerCodegenContext = new ContainerCodegenContext();
+        containerParsingContext.workflowParsingContext.forEach(parsedModel => {
+            new WorkflowBuilder().generateWorkflow(parsedModel, containerParsingContext, containerCodegenContext);
+        })
+
         //
         // await Promise.all(
         //     Array.from(containerContext.model.keys()).map(async (processDef) => {

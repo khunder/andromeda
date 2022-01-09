@@ -1,0 +1,22 @@
+const {v4} = require("uuid");
+
+let instance;
+class ContainerService{
+
+    containerId;
+
+    constructor() {
+        this.containerId = v4();
+    }
+
+    static getInstance(){
+        if(!instance){
+            instance = new ContainerService();
+        }
+        return instance;
+    }
+
+}
+
+
+module.exports = ContainerService;

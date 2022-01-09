@@ -11,8 +11,8 @@ servers:
 paths:
 
 {% for route in routes %}
-  /api/start/{{ route }}:
-    post:
+  /api/start/{{ route.path }}:
+    {{route.verb}}:
       tags:
         - engine
       description: Uploads and compile bpmn files

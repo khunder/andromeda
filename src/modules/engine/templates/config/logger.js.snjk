@@ -19,7 +19,7 @@ log4js.addLayout('json', function (config) {
         return JSON.stringify(logEvent);
     };
 });
-const log = log4js.getLogger('engine');
+const log = log4js.getLogger('container');
 
 log4js.configure(log4jsConfig);
 

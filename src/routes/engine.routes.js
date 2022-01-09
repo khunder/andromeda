@@ -9,7 +9,7 @@ function route (fastify, opts, next) {
         fastify.route(
             {
                 method: 'POST',
-                preHandler: upload.single('bpmnFile'),
+                preHandler: upload.array('bpmnFile'),
                 url: '/api/compile',
                 handler: serverController.compile
             }

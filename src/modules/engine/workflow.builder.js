@@ -4,8 +4,10 @@ const nunjucks = require("nunjucks");
 let AndromedaLogger = require("../../config/andromeda-logger");
 const path = require("path");
 const Config = require("../../config/config");
-const ProcessBuildContext = require("../../model/process-build-context");
-const ContainerBuildContext = require("../../model/container-build-context");
+const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
+const WorkflowCodegenContext = require("../../model/codegen/workflow.codegen.context");
+// const ProcessBuildContext = require("../../model/process-build-context");
+// const ContainerBuildContext = require("../../model/container-build-context");
 const Logger = new AndromedaLogger();
 
 class WorkflowBuilder {
@@ -92,7 +94,7 @@ class WorkflowBuilder {
     }
   }
 
-  generateFiles(dir, sourcePath, containerContext) {
+  generateCommonFiles(dir, sourcePath, containerContext) {
     let files = fs.readdirSync(dir)
     files.forEach(function (entry) {
       let filePath = path.join(dir, entry)
@@ -100,19 +102,13 @@ class WorkflowBuilder {
         if (!fs.existsSync(path.join(sourcePath, "/", entry))) {
           fs.mkdirSync(path.join(sourcePath, "/", entry));
         }
-        this.generateFiles(filePath, path.join(sourcePath, entry))
+        this.generateCommonFiles(filePath, path.join(sourcePath, entry))
       } else {
         const extension = entry.split('.').pop()
         if(extension === "snjk"){
           let fileName = entry.split('.').slice(0, -1).join('.');
           fs.writeFileSync(path.join(sourcePath, fileName), fs.readFileSync(filePath, 'utf-8'));
         }
-
-        if(extension === "dnjk"){
-          let fileName = entry.split('.').slice(0, -1).join('.');
-          this.createFile(filePath, path.join(sourcePath, fileName), containerContext);
-        }
-
       }
     }.bind(this));
   }
@@ -147,30 +143,32 @@ class WorkflowBuilder {
   }
 
   async generateWorkflow(
-    containerContext,
+      parsedModel,
+      containerParsingContext,
+      containerCodegenContext
   ) {
 
-    const bpmnProcess = this.getProcessModel(containerContext.model);
+    const bpmnProcess = this.getProcessModel(parsedModel.model);
     let self = this;
     let templatePath = path.join( process.cwd(), "src", "modules", "engine", "templates");
-    this.generateFiles(templatePath, path.join(Config.getInstance().deploymentPath, containerContext.deploymentId), containerContext)
+    this.generateCommonFiles(templatePath, path.join(Config.getInstance().deploymentPath, containerParsingContext.deploymentId), containerParsingContext)
 
-    const containerBuildContext =  new ContainerBuildContext();
+
 
     bpmnProcess.forEach(process => {
-      const processBuildContext =  new ProcessBuildContext();
-      self.generateProcess(self, process, processBuildContext);
-      containerBuildContext.routes.push(process.id)
+      const workflowCodegenContext =  new WorkflowCodegenContext(containerCodegenContext);
+      self.generateProcess(self, process, workflowCodegenContext);
+      workflowCodegenContext.containerCodegenContext.routes.push({verb: "get", path : "wewe"})
 
     });
 
-    let file = "specification.yaml.cnjk"
+    let file = "specification.yaml.njk"
     const filePath = path.join(templatePath, file);
     const extension = file.split('.').pop()
-    if(extension === "cnjk"){
+    if(extension === "njk"){
       let fileName = file.split('.').slice(0, -1).join('.');
-      this.createFile(filePath, path.join(Config.getInstance().deploymentPath, containerContext.deploymentId, fileName),
-          {routes: containerBuildContext.routes, ...containerContext});
+      this.createFile(filePath, path.join(Config.getInstance().deploymentPath, containerParsingContext.deploymentId, fileName),
+          {routes: containerCodegenContext.routes, ...containerParsingContext});
     }
 
 
@@ -192,16 +190,16 @@ class WorkflowBuilder {
 
 
     // const buildContext = new ProcessInstanceBuildContext();
-    // this.generateServiceClass(processDef, buildContext, containerContext);
-    // // this.generateVariableContextHandlerClass(processDef, containerContext);
-    // this.generateControllerClass(processDef, buildContext, containerContext);
+    // this.generateServiceClass(processDef, buildContext, containerParsingContext);
+    // // this.generateVariableContextHandlerClass(processDef, containerParsingContext);
+    // this.generateControllerClass(processDef, buildContext, containerParsingContext);
     // this.generateVariable(
     //   bpmnProcess,
     //   this.normalizeProcessDefWithoutVersion(processDef),
     //   buildContext,
-    //   containerContext,
+    //   containerParsingContext,
     // );
-    // // this.createWorkflowWorker(processDef, containerContext);
+    // // this.createWorkflowWorker(processDef, containerParsingContext);
     // startElements.forEach((startElement) => {
     //   this.generateContentForElement(startElement, buildContext);
     // });
