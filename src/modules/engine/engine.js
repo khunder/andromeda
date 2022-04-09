@@ -1,11 +1,13 @@
-let AndromedaLogger = require("../../config/andromeda-logger");
-let fastify = require('fastify');
+import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import path from "path";
+import fastify from "fastify";
+import GracefulServer from "@gquittet/graceful-server";
+import multer from "fastify-multer";
+import fastifySwagger from 'fastify-swagger';
+import autoload from 'fastify-autoload';
+import {fileURLToPath} from "url";
+
 const Logger = new AndromedaLogger();
-let path = require('path');
-let autoload = require('fastify-autoload');
-const GracefulServer = require("@gquittet/graceful-server");
-const multer = require("fastify-multer");
-const fastifySwagger = require('fastify-swagger');
 
 
 class Engine {
@@ -16,6 +18,8 @@ class Engine {
 
     constructor() {
 
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
 
         this.app.register(fastifySwagger, {
             mode: "static",
@@ -73,4 +77,4 @@ class Engine {
 
 }
 
-module.exports = Engine
+export  default  Engine;

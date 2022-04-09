@@ -1,8 +1,12 @@
 
-const fs = require( 'fs');
-const shell = require( 'shelljs');
-const Config = require("../config/config");
-const  AndromedaLogger = require("../config/andromeda-logger");
+// const fs = require( 'fs');
+// const shell = require( 'shelljs');
+// const Config = require("../config/config");
+// const  AndromedaLogger = require("../config/andromeda-logger");
+
+// const {Config} = require("../config/config.js");
+import {AndromedaLogger} from "../config/andromeda-logger.js";
+import {Config} from "../config/config.js";
 
 const Logger = new AndromedaLogger();
 
@@ -11,7 +15,7 @@ class CommonService {
     constructor() {
     }
 
-    getTemporaryFolder() {
+    static getTemporaryFolder() {
         let tempPath = Config.getInstance().tempPath;
         if (!tempPath) {
             tempPath = `${process.cwd()}/temp/uploads`;
@@ -19,7 +23,7 @@ class CommonService {
         return tempPath;
     }
 
-    createTemporaryFolders() {
+    static createTemporaryFolders() {
         const tempPath = this.getTemporaryFolder();
 
         const uploadFolder = `${tempPath}/bpmns`;
@@ -38,7 +42,7 @@ class CommonService {
         }
     }
 
-    getDeploymentPath() {
+    static getDeploymentPath() {
         let deploymentPath = Config.getInstance().deploymentPath;
         if (!deploymentPath) {
             deploymentPath = `${process.cwd()}/${Config.getInstance().deploymentPath}`;
@@ -46,7 +50,7 @@ class CommonService {
         return deploymentPath;
     }
 
-    createDeploymentFolder() {
+    static createDeploymentFolder() {
         const deploymentPath = this.getDeploymentPath();
         if (!fs.existsSync(deploymentPath)) {
             Logger.debug(
@@ -57,4 +61,4 @@ class CommonService {
     }
 }
 
-module.exports = CommonService
+export default CommonService

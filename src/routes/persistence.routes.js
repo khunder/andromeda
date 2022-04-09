@@ -1,5 +1,5 @@
-const Config = require("../config/config");
-const constants = require("../config/constants");
+import {Config} from "../config/config.js"
+import constants from "../config/constants.js"
 
 function route (fastify, opts, next) {
 
@@ -17,4 +17,4 @@ function route (fastify, opts, next) {
     next();
 }
 
-module.exports = route;
+export default route;

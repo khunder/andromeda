@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:drools="http://www.jboss.org/drools" xmlns="http://www.omg.org/bpmn20" xmlns:bpsim="http://www.bpsim.org/schemas/1.0" id="andromeda-v9.0" targetNamespace="http://www.omg.org/bpmn20" exporter="jBPM Process Modeler" exporterVersion="2.0" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd http://www.jboss.org/drools drools.xsd       http://www.bpsim.org/schemas/1.0 bpsim.xsd http://www.omg.org/spec/DD/20100524/DC DC.xsd http://www.omg.org/spec/DD/20100524/DI DI.xsd">
+    <bpmn2:itemDefinition id="_objItem" structureRef="object" />
+    <bpmn2:itemDefinition id="_idItem" structureRef="string" />
+    <bpmn2:itemDefinition id="Type_3383800214" structureRef="string" />
+    <bpmn2:itemDefinition id="Type_1596497785" structureRef="object" />
+    <bpmn2:signal id="Signal_3883645170" name="pod_received" />
+    <bpmn2:signal id="Signal_2603201503" name="invoice_received" />
+    <bpmn2:collaboration id="Collaboration_0cygyan" name="Lane two">
+        <bpmn2:participant id="Participant_0g0gfr3" name="lane 2" processRef="Process_0w9v9rv" />
+    </bpmn2:collaboration>
+    <bpmn2:process id="Process_0w9v9rv">
+        <bpmn2:endEvent id="Event_1nhpm7b">
+            <bpmn2:incoming>Flow_1ufwfns</bpmn2:incoming>
+        </bpmn2:endEvent>
+        <bpmn2:sequenceFlow id="Flow_1ufwfns" sourceRef="Activity_1pyl5sy" targetRef="Event_1nhpm7b" />
+        <bpmn2:sequenceFlow id="Flow_0d7w363" sourceRef="Event_1sj7kfh" targetRef="Activity_1pyl5sy" />
+        <bpmn2:startEvent id="Event_1sj7kfh">
+            <bpmn2:outgoing>Flow_0d7w363</bpmn2:outgoing>
+        </bpmn2:startEvent>
+        <bpmn2:scriptTask id="Activity_1pyl5sy" name="lane2 script">
+            <bpmn2:incoming>Flow_0d7w363</bpmn2:incoming>
+            <bpmn2:outgoing>Flow_1ufwfns</bpmn2:outgoing>
+            <bpmn2:script>console.log(`Lane 2 script`)</bpmn2:script>
+        </bpmn2:scriptTask>
+    </bpmn2:process>
+    <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+        <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0cygyan">
+            <bpmndi:BPMNShape id="Participant_0g0gfr3_di" bpmnElement="Participant_0g0gfr3" isHorizontal="true">
+                <dc:Bounds x="140" y="-140" width="530" height="530" />
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNEdge id="Flow_1ufwfns_di" bpmnElement="Flow_1ufwfns">
+                <di:waypoint x="450" y="230" />
+                <di:waypoint x="572" y="230" />
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNEdge id="Flow_0d7w363_di" bpmnElement="Flow_0d7w363">
+                <di:waypoint x="276" y="230" />
+                <di:waypoint x="350" y="230" />
+            </bpmndi:BPMNEdge>
+            <bpmndi:BPMNShape id="Event_1nhpm7b_di" bpmnElement="Event_1nhpm7b">
+                <dc:Bounds x="572" y="212" width="36" height="36" />
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Event_15vi81q_di" bpmnElement="Event_1sj7kfh">
+                <dc:Bounds x="240" y="212" width="36" height="36" />
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="Activity_0hgncwq_di" bpmnElement="Activity_1pyl5sy">
+                <dc:Bounds x="350" y="190" width="100" height="80" />
+            </bpmndi:BPMNShape>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

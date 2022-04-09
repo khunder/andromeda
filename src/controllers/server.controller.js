@@ -1,11 +1,15 @@
 
-const EngineService = require("../modules/engine/engine.service");
-const  AndromedaLogger = require("../config/andromeda-logger");
-const fs = require("fs");
-const Logger = new AndromedaLogger();
-let BPMNModdle= require('bpmn-moddle')
-const Utils = require("../utils/utils");
-const WorkflowParsingContext = require("../model/parsing/workflow.parsing.context");
+// const EngineService = require("../modules/engine/engine.service");
+// const  AndromedaLogger = require("../config/andromeda-logger");
+// const fs = require("fs");
+// const Logger = new AndromedaLogger();
+// let BPMNModdle= require('bpmn-moddle')
+// const Utils = require("../utils/utils");
+// const WorkflowParsingContext = require("../model/parsing/workflow.parsing.context");
+
+import EngineService from "../modules/engine/engine.service.js";
+import Utils from "../utils/utils.js";
+import * as fs from "fs";
 
 class ServerController {
 
@@ -35,4 +39,4 @@ class ServerController {
 
 }
 
-module.exports = ServerController
+export default ServerController

@@ -1,17 +1,19 @@
 
-const utils = require("./src/utils/utils");
-const constants = require("./src/config/constants");
+import Utils from "./src/utils/utils.js";
+import constants from "./src/config/constants.js";
 
 
+if (Utils.moduleIsActive(constants.SERVER)) {
+    // let Engine =  await import('./src/modules/engine/engine.js');
+    import ('./src/modules/engine/engine.js').then(Engine => {
+        const server =  new Engine.default().start("127.0.0.1", 5000)
+    })
 
-if (utils.moduleIsActive(constants.SERVER)) {
-    let Engine = require('./src/modules/engine/engine')
-    module.exports.server = new Engine().start("127.0.0.1", 5000)
 }
 
-if (utils.moduleIsActive(constants.PERSISTENCE)) {
-    let Persistence = require('./src/modules/persistence/persistence')
-    module.exports.persistnce = new Persistence().start();
+if (Utils.moduleIsActive(constants.PERSISTENCE)) {
+    let Persistence = await import('./src/modules/persistence/persistence.js')
+    const persistnce = new (await Persistence)().start();
 }
 
 

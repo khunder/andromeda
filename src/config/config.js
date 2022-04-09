@@ -1,12 +1,14 @@
-const  AndromedaLogger = require("../config/andromeda-logger");
-
+import {AndromedaLogger} from "../config/andromeda-logger.js"
+import path from 'path';
+import {fileURLToPath} from 'url';
 let config;
-const LoadDotEnvConfig = require('dotenv').config;
-const path = require('path')
+import {config as LoadDotEnvConfig} from "dotenv"
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 LoadDotEnvConfig({path: path.join(__dirname, '../..', '.env' )});
 const Logger = new AndromedaLogger();
-class Config {
+export class Config {
     mongoDbUri;
     deploymentPath;
     tempPath;
@@ -28,5 +30,3 @@ class Config {
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
     }
 }
-
-module.exports = Config;

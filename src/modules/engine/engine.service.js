@@ -1,17 +1,21 @@
-const http = require( "http");
-const fs = require('fs');
-const shell = require("shelljs");
-const CommonService = require("../../services/common.service");
+// const http = require( "http");
+// const fs = require('fs');
+// const shell = require("shelljs");
+// const CommonService = require("../../services/common.service");
+//
+// const  AndromedaLogger = require("../../config/andromeda-logger");
+// const path = require("path");
+// const WorkflowBuilder = require("./workflow.builder");
+// const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
 
-const  AndromedaLogger = require("../../config/andromeda-logger");
-const path = require("path");
-const WorkflowBuilder = require("./workflow.builder");
-const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
+import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import http from "http";
+import path from "path";
+import CommonService from "../../services/common.service.js";
 
 const Logger = new AndromedaLogger();
 
 class EngineService {
-    commonService = new CommonService()
     isPortFree = (port) =>
         new Promise((resolve) => {
             const server = http
@@ -28,7 +32,7 @@ class EngineService {
         });
 
     getDeploymentPath(ctx) {
-        return path.join(this.commonService.getDeploymentPath(), ctx.deploymentId);
+        return path.join(CommonService.getDeploymentPath(), ctx.deploymentId);
     }
 
     async generateContainer(containerParsingContext) {
@@ -67,4 +71,4 @@ class EngineService {
     }
 }
 
-module.exports = EngineService
+export default EngineService

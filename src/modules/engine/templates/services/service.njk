@@ -1,7 +1,14 @@
-
+const AndromedaLogger = require("./config/logger");
+const Logger = new AndromedaLogger();
+const {v1} = require("uuid");
 
 class {{ServiceClassName}} {
+    _metaInfo = {}
 
+    bootstrap(){
+    }
+    close(){
+    }
 }
 
 module.exports = {{ServiceClassName}}

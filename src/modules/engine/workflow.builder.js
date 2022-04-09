@@ -6,6 +6,8 @@ const path = require("path");
 const Config = require("../../config/config");
 const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
 const WorkflowCodegenContext = require("../../model/codegen/workflow.codegen.context");
+const commonService = require("../../services/common.service");
+const BpmnProcessor = require("./bpmn.processor");
 // const ProcessBuildContext = require("../../model/process-build-context");
 // const ContainerBuildContext = require("../../model/container-build-context");
 const Logger = new AndromedaLogger();
@@ -13,53 +15,8 @@ const Logger = new AndromedaLogger();
 class WorkflowBuilder {
   constructor(  ) {}
 
-   treatedNodes= [];
+   bpmnProcessor =new BpmnProcessor();
 
-
-   createPackageJsonFile(containerContext) {
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const resultText = nunjucks.renderString(
-      TemplateProvider.getTemplate('/resources/package.json.njk'),
-      { containerContext },
-    );
-    fs.writeFileSync(
-      this.getProjectDeploymentFolder(containerContext) + '/package.json',
-      resultText,
-    );
-  }
-
-  createMain(containerContext) {
-    const srcFolder = path.join(
-      this.getProjectDeploymentFolder(containerContext),
-      'src',
-    );
-    if (!fs.existsSync(srcFolder)) {
-      shelljs.mkdir('-p', srcFolder);
-    }
-
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const resultText = nunjucks.renderString(
-      TemplateProvider.getTemplate('resources/main.ts.njk'),
-      {
-        containerContext,
-      },
-    );
-    fs.writeFileSync(
-      path.join(
-        this.getProjectDeploymentFolder(containerContext),
-        'src/main.ts',
-      ),
-      resultText,
-    );
-  }
 
   /**
    * method to load template, evaluate it
@@ -124,55 +81,58 @@ class WorkflowBuilder {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
-  async generateEmbeddedContainer(element, processBuildContext){
+  async generateEmbeddedContainer(element, workflowCodegenContext, containerParsingContext){
     let self = this;
       // search start
       // generate code
     const startElements = this.getStartElements(element);
     startElements.forEach(startElement => {
-      self.generate(startElement, processBuildContext);
+      self.generate(startElement, workflowCodegenContext, containerParsingContext);
     })
     let embeddedEventSubprocesses = this.getEventSubProcess(element);
     embeddedEventSubprocesses.forEach(container => {
-      self.generateEmbeddedContainer(container, processBuildContext)
+      self.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
     })
   }
 
-  async generate(element, processBuildContext){
-    console.log(`----->${element.id}`)
+  /**
+   *
+   * @param element : FlowNode
+   * @param workflowCodegenContext : WorkflowCodegenContext
+   * @param containerParsingContext : ContainerParsingContext
+   * @returns {Promise<void>}
+   */
+  async generate(element, workflowCodegenContext, containerParsingContext){
+      this.bpmnProcessor.process(element,workflowCodegenContext, containerParsingContext);
   }
 
+  /**
+   * entry point for code generation
+   * @param parsedModel : WorkflowParsingContext
+   * @param containerParsingContext : ContainerParsingContext
+   * @param containerCodegenContext : ContainerCodegenContext
+   * @returns {Promise<void>}
+   */
   async generateWorkflow(
       parsedModel,
       containerParsingContext,
       containerCodegenContext
   ) {
+    // each bpmn file can contain multiple process node
+    const processesInBpmnFile = this.getProcessesModel(parsedModel.model);
 
-    const bpmnProcess = this.getProcessModel(parsedModel.model);
-    let self = this;
     let templatePath = path.join( process.cwd(), "src", "modules", "engine", "templates");
     this.generateCommonFiles(templatePath, path.join(Config.getInstance().deploymentPath, containerParsingContext.deploymentId), containerParsingContext)
 
+    const workflowCodegenContext =  new WorkflowCodegenContext( containerCodegenContext);
+    this.generateServiceClass(parsedModel, containerParsingContext, workflowCodegenContext)
 
-
-    bpmnProcess.forEach(process => {
-      const workflowCodegenContext =  new WorkflowCodegenContext(containerCodegenContext);
-      self.generateProcess(self, process, workflowCodegenContext);
-      workflowCodegenContext.containerCodegenContext.routes.push({verb: "get", path : "wewe"})
+    processesInBpmnFile.forEach(process => {
+      this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
     });
 
-    let file = "specification.yaml.njk"
-    const filePath = path.join(templatePath, file);
-    const extension = file.split('.').pop()
-    if(extension === "njk"){
-      let fileName = file.split('.').slice(0, -1).join('.');
-      this.createFile(filePath, path.join(Config.getInstance().deploymentPath, containerParsingContext.deploymentId, fileName),
-          {routes: containerCodegenContext.routes, ...containerParsingContext});
-    }
-
-
-
+    await workflowCodegenContext.project.saveSync();
 
 
     // for each process create a start method
@@ -194,7 +154,7 @@ class WorkflowBuilder {
     // // this.generateVariableContextHandlerClass(processDef, containerParsingContext);
     // this.generateControllerClass(processDef, buildContext, containerParsingContext);
     // this.generateVariable(
-    //   bpmnProcess,
+    //   processesInBpmnFile,
     //   this.normalizeProcessDefWithoutVersion(processDef),
     //   buildContext,
     //   containerParsingContext,
@@ -209,20 +169,74 @@ class WorkflowBuilder {
     // buildContext.project.saveSync();
   }
 
-  generateProcess(self, process, processBuildContext) {
-    let startElements = self.getStartElements(process);
+  generateServiceClass(
+      parsedModel,
+      workflowParsingContext,
+      workflowCodegenContext,
+  ) {
+    const normalizedProcessDef =
+        this.normalizeProcessDefWithoutVersion(parsedModel.processPrefix);
+    const serviceFileName = this.getServiceFileName(normalizedProcessDef);
+    const serviceClassName = this.getServiceClassName(normalizedProcessDef);
+    nunjucks.configure({
+      autoescape: false,
+      trimBlocks: true,
+      lstripBlocks: true,
+    });
+
+    let serviceFilePath = `${commonService.getDeploymentPath()}/${workflowParsingContext.deploymentId}/services/${serviceFileName}.js`
+
+    let template =  fs.readFileSync(
+        path
+            .join(
+                __dirname,
+                './templates/services/service.njk',
+            )
+            .toString(),
+    ).toString()
+    const renderedTemplate = nunjucks.renderString(
+       template,
+        {
+          ServiceFileName: serviceFileName,
+          ServiceClassName: serviceClassName,
+          ProcessDef: normalizedProcessDef,
+        },
+    );
+
+    workflowCodegenContext.serviceClassFile = workflowCodegenContext.project.createSourceFile(
+        serviceFilePath,
+        renderedTemplate,
+        { overwrite: true },
+    );
+    workflowCodegenContext.serviceClass =workflowCodegenContext.serviceClassFile.getClassOrThrow(serviceClassName)
+  }
+
+  /**
+   *
+   * @param process : Process
+   * @param workflowCodegenContext : WorkflowCodegenContext
+   * @param containerParsingContext : ContainerParsingContext
+   */
+  generateProcess(process, workflowCodegenContext, containerParsingContext) {
+    let startElements = this.getStartElements(process);
     startElements.forEach(startElement => {
-      self.generate(startElement);
-    })
-    let embeddedEventSubprocesses = self.getEventSubProcess(process);
-    embeddedEventSubprocesses.forEach(container => {
-      self.generateEmbeddedContainer(container, processBuildContext)
-    })
+      this.generate(startElement, workflowCodegenContext, containerParsingContext).then(r => {});
+    });
+
+    let embeddedEventSubprocesses = this.getEventSubProcess(process);
+    embeddedEventSubprocesses.forEach(async (container) => {
+      await this.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
+    });
   }
 
 
+  /**
+   *
+   * @param normalizedProcessDef : string
+   * @returns {string}
+   */
    getServiceFileName(normalizedProcessDef) {
-    return normalizedProcessDef.toLowerCase() + '-process-instance.service';
+    return normalizedProcessDef.toLowerCase() + '.process-instance.service';
   }
 
    getServiceClassName(normalizedProcessDef) {
@@ -230,63 +244,7 @@ class WorkflowBuilder {
   }
 
 
-  getNextNodes(
-    node,
-    buildContext,
-  ) {
-    if (node.outgoing !== undefined) {
-      return node.outgoing;
-    }
-    return [];
-  }
 
-  buildMethod(
-    buildContext,
-    nodeContext,
-    element,
-  ) {
-    const nextNodes = this.getNextNodes(element, buildContext);
-    Logger.verbose(`Generate method signature for node  ${element.id}`);
-    const outgoingSequenceFlows = nextNodes.map(
-      (nextNode) => {
-        const flow = {
-          ...JSON.parse(JSON.stringify(nextNode)),
-          target: JSON.parse(JSON.stringify(nextNode.targetRef)),
-          source: JSON.parse(JSON.stringify(nextNode.sourceRef)),
-        };
-        flow.targetNodeMethodSignature = `this.${EngineConstants.FUNCTION_PREFIX}_${flow.target.id}(nextFlowModel)`;
-        flow.source.$type = flow.source.$type.substr(5);
-        flow.target.$type = flow.target.$type.substr(5);
-        return flow;
-      },
-      // this.generateOutgoingSequenceFlowContext(currentElement, nextNode),
-    );
-    const templatesPath = path.join(
-      process.cwd(),
-      'src/engine/core/resources/services',
-    );
-    nunjucks.configure(templatesPath, {
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
-    const methodBody = nunjucks.renderString(
-      TemplateProvider.getTemplate(
-        path.join(
-          process.cwd(),
-          'src/engine/core/resources/services/build-method.ts.njk',
-        ),
-      ),
-      {
-        outgoingSequenceFlows: outgoingSequenceFlows,
-        nodeContext: nodeContext,
-        methodPrefix: EngineConstants.FUNCTION_PREFIX,
-        stringify: JSON.stringify,
-      },
-    );
-    // inject generated method inside service class using ts-morph
-    buildContext.serviceClass.addMember(methodBody);
-  }
 
    getStartElements(bpmnProcess) {
     if (!bpmnProcess) {
@@ -328,10 +286,8 @@ class WorkflowBuilder {
     );
   }
 
-   getProcessModel(model) {
-    const bpmnProcess = model.rootElement.rootElements.filter((e) => e.$type === 'bpmn:Process');
-
-    return bpmnProcess;
+   getProcessesModel(model) {
+     return model.rootElement.rootElements.filter((e) => e.$type === 'bpmn:Process');
   }
 
 

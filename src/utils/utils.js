@@ -1,10 +1,11 @@
-const Config = require("../config/config");
-const fs = require("fs");
-const BPMNModdle = require("bpmn-moddle");
-const  ContainerParsingContext = require("../model/parsing/container.parsing.context");
-const  WorkflowParsingContext = require("../model/parsing/workflow.parsing.context");
-const sanitize = require("./sanitize");
-class Utils{
+import {Config} from "../config/config.js";
+const fs = import ("fs");
+const BPMNModdle = await import("bpmn-moddle");
+import  ContainerParsingContext from "../model/parsing/container.parsing.context.js"
+import  WorkflowParsingContext  from "../model/parsing/workflow.parsing.context.js";
+import   sanitize from "./sanitize.js";
+
+export class Utils{
     static moduleIsActive(module) {
         return Config.getInstance().activateModules.filter(e => e === module).length > 0;
 
@@ -52,4 +53,4 @@ class Utils{
 
 }
 
-module.exports = Utils;
+export  default Utils

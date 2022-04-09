@@ -23,4 +23,4 @@ const sanitize = function (input, options) {
     }
     return _sanitize(output, '');
 };
-module.exports = sanitize;
+export default sanitize;

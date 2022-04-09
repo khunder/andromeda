@@ -12,4 +12,4 @@ class WorkflowParsingContext {
     }
 }
 
-module.exports = WorkflowParsingContext;
+export  default WorkflowParsingContext

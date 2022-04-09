@@ -1,6 +1,7 @@
-const log4js = require( "log4js");
 
-const log4jsConfig = require( "./log4js.config");
+import log4js  from "log4js"
+
+import log4jsConfig from "./log4js.config.js"
 
 log4js.addLayout('json', function (config) {
     return function (logEvent) {
@@ -23,7 +24,7 @@ const log = log4js.getLogger('engine');
 
 log4js.configure(log4jsConfig);
 
-class AndromedaLogger {
+export class AndromedaLogger {
     logger;
     loggerOptions;
 
@@ -77,4 +78,3 @@ class AndromedaLogger {
 
 
 }
-module.exports =AndromedaLogger

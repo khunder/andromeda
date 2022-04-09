@@ -1,0 +1,35 @@
+async fn_{{nodeContext.id}} (flowModel) {
+  let __localMethodContext = {
+    nodeSession: v1(), // each method has its own id execution, you can extract time from v1 uuid
+    nodeId: '{{ nodeContext.id }}',
+    nodeName: '{{ nodeContext.name }}',
+    type: '{{ nodeContext.type }}',
+    incomingFlowId: flowModel?.id
+  }
+  Logger.verbose(`visiting node {{ nodeContext.id }}, session: ${__localMethodContext.nodeSession}`);
+
+  try {
+    {% if nodeContext.args and nodeContext.args.executeBody !== null  %}
+    if(flowModel.executeBody) {
+      {% endif %}
+
+      {{ nodeContext.body }}
+      this._metaInfo.variables.saveContext();
+      {% if nodeContext.args and nodeContext.args.resumeExecution !== null  %}
+      if(flowModel.resumeExecution){
+        {% endif %}
+        {% include "build.method.next.calls.njk" %}
+        {% if nodeContext.args and nodeContext.args.resumeExecution !== null  %}
+      }
+      {% endif %}
+      {% if nodeContext.args and nodeContext.args.executeBody !== null %}
+    }else{
+      {{ nodeContext.alternateBody }}
+    }
+    {% endif %}
+  } catch (_bpmnProcessorException) {
+    const stack = _bpmnProcessorException.stack;
+    throw new Error(JSON.stringify({ stacktrace: stack, context: __localMethodContext }));
+  }
+}
+

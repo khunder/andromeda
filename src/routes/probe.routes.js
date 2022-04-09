@@ -19,4 +19,4 @@ function route (fastify, opts, next) {
     next();
 }
 
-module.exports = route;
+export default route;
