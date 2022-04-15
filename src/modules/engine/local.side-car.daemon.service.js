@@ -1,14 +1,16 @@
 import path from "path";
 import ipc from "node-ipc";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import {Config} from "../../config/config.js";
+
 const Logger = new AndromedaLogger();
 
 /**
  * A helper to kill child process via a separate daemon
  * when a process (container is started) we send his pid to the daemon
  */
-export class LocalSideCarDaemonService{
-    static socketPath = path.join(process.cwd() , '/temp/andromeda.ipc.sock');
+export class LocalSideCarDaemonService {
+    static socketPath = path.join(process.cwd(), '/temp/andromeda.ipc.sock');
 
     static initDaemon() {
         ipc.config.id = 'andromeda_engine';
@@ -31,11 +33,12 @@ export class LocalSideCarDaemonService{
 
         }
 
-        import('child_process').then(cprocess => {
-            cprocess.spawn('node', ['./dev-engine-sidecar.daemon.js'], {
+        import('child_process').then(childProcess => {
+            childProcess.spawn('node', ['./dev-engine-sidecar.daemon.js'], {
                 detached: true
             });
         })
+
         setTimeout(
             function () {
                 ipc.connectTo(
@@ -56,7 +59,7 @@ export class LocalSideCarDaemonService{
                     message: pid
                 }
             );
-        }catch (e) {
+        } catch (e) {
             Logger.warn(e);
         }
     }
@@ -70,7 +73,7 @@ export class LocalSideCarDaemonService{
                     message: pid
                 }
             );
-        }catch (e) {
+        } catch (e) {
             Logger.warn(e)
         }
     }

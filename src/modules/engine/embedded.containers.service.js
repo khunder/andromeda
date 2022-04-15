@@ -12,7 +12,6 @@ export class EmbeddedContainerService {
 
     static containers= [];
 
-    // this.containers.set(deploymentId, new ContainerModel(childProcess.child.pid, allocatedPort, deploymentId) );
 
     async startEmbeddedContainer(deploymentId, options) {
         let allocatedPort = await this.allocatePort(options);
@@ -51,10 +50,10 @@ export class EmbeddedContainerService {
 
         Logger.trace(`storing PID= ${childProcess.child.pid}, for process ${deploymentId}, on port ${allocatedPort}`)
         EmbeddedContainerService.containers.push({deploymentId, model: new EmbeddedContainerModel(childProcess.child.pid, allocatedPort, deploymentId)});
-        // if (this.enableDaemonMode) {
-        //     this.trackPid(childProcess.child.pid);
-        // }
-        LocalSideCarDaemonService.watchContainer(childProcess.child.pid)
+
+        if (Config.getInstance().isLocalMode) {
+            LocalSideCarDaemonService.watchContainer(childProcess.child.pid)
+        }
 
         await this.waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort);
         return allocatedPort;
@@ -90,17 +89,25 @@ export class EmbeddedContainerService {
             }
         };
 
-        let numberOfAttempts = 40;
-        Logger.info(`Waiting for the container ${deploymentId} to connect on port ${allocatedPort}`)
+        let numberOfAttempts = 300;
+        Logger.info(`Waiting for the embedded container ${deploymentId} to connect on port ${allocatedPort}`)
         for (let i = 0; i < numberOfAttempts; i++) {
             if (await runContainer()) {
                 break;
             }
             if (i === numberOfAttempts - 1) {
-                Logger.error(`Cannot start container:${deploymentId} Max number of attempts reached, on port ${allocatedPort}`);
-                // await this.stopContainerByDeploymentId(deploymentId)
-                throw `cannot start container`;
+                Logger.error(`Cannot start embedded container:${deploymentId} Max number of attempts reached, on port ${allocatedPort}`);
+                await this.stopEmbeddedContainer(deploymentId)
+                throw `cannot start embedded container`;
             }
         }
+    }
+
+    async stopEmbeddedContainer(deploymentId) {
+        EmbeddedContainerService.containers.forEach(e=>{
+            if(e.model.deploymentId === deploymentId){
+                forever.kill(e.model.pid)
+            }
+        })
     }
 }

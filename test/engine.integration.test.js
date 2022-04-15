@@ -4,6 +4,7 @@ import EngineService from "../src/modules/engine/engine.service.js";
 import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
+import {EmbeddedContainerService} from "../src/modules/engine/embedded.containers.service.js";
 
 
 describe("Engine lifecycle", () => {
@@ -28,9 +29,11 @@ describe("Engine lifecycle", () => {
             let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
+             let embeddedContainerService = new EmbeddedContainerService
+            await embeddedContainerService.startEmbeddedContainer(deploymentId, {});
 
-            await engineService.startEmbeddedContainer(deploymentId);
-
+            await Utils.sleep(3500);
+            await embeddedContainerService.stopEmbeddedContainer(deploymentId);
         } catch (e) {
             console.error(e)
         }

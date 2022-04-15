@@ -75,7 +75,9 @@ export class EngineModule {
                 let startCompleted = new Date().getUTCMilliseconds();
                 Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
-                LocalSideCarDaemonService.initDaemon();
+                if (Config.getInstance().isLocalMode) {
+                    LocalSideCarDaemonService.initDaemon();
+                }
                 resolve(this.app);
             } catch (err) {
                 Logger.error(err)

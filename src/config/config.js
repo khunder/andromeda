@@ -14,6 +14,7 @@ export class Config {
     tempPath;
     activateModules=[];
     environment
+    isLocalMode
 
     static getInstance() {
         if (!config) {
@@ -30,5 +31,6 @@ export class Config {
         this.tempPath = process.env.tempPath || "temp";
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
         this.environment = process.env.ENV || "local";
+        this.isLocalMode= this.environment === "local";
     }
 }
