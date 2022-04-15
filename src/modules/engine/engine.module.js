@@ -6,6 +6,9 @@ import multer from "fastify-multer";
 import fastifySwagger from 'fastify-swagger';
 import autoload from 'fastify-autoload';
 import {fileURLToPath} from "url";
+import {Config} from "../../config/config.js";
+import EngineService from "./engine.service.js";
+import {LocalSideCarDaemonService} from "./local.side-car.daemon.service.js";
 
 const Logger = new AndromedaLogger();
 
@@ -70,8 +73,9 @@ export class EngineModule {
                 await this.app.listen(this.port, this.host)
                 this.app.swagger()
                 let startCompleted = new Date().getUTCMilliseconds();
-                Logger.info(`Engine started in ${startCompleted - startTime} ms`)
+                Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
+                LocalSideCarDaemonService.initDaemon();
                 resolve(this.app);
             } catch (err) {
                 Logger.error(err)

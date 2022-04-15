@@ -6,17 +6,15 @@ import fs from "fs";
 import shelljs from "shelljs";
 import ContainerCodegenContext from "../../model/codegen/container.codegen.context.js";
 import WorkflowBuilder from "./workflow.builder.js";
-import {Config} from "../../config/config.js";
 import {fileURLToPath} from "url";
 import nunjucks from "nunjucks";
-import utils from "../../utils/utils.js";
-import forever from "forever";
+
 
 const Logger = new AndromedaLogger();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-class EngineService {
+export class EngineService {
     isPortFree = (port) =>
         new Promise((resolve) => {
             const server = http
@@ -131,12 +129,6 @@ class EngineService {
             return undefined;
     }
 
-    static sleep(ms) {
-
-        return new Promise((resolve, reject) => {
-            setTimeout(resolve, ms, [])
-        })
-    }
 
     /**
      *
@@ -164,92 +156,7 @@ class EngineService {
      * @returns {Promise<void>}
      */
 
-    async startEmbeddedContainer(deploymentId, options) {
-        let allocatedPort;
-        if (options && options.port) {
-            allocatedPort = options.port
-        } else {
-            allocatedPort = await utils.AllocatePortInRange();
-        }
 
-
-        Logger.info(`starting container on port ${allocatedPort}`)
-        let deploymentPath = `./deployments/${deploymentId}`;
-        let childProcess;
-
-
-        let executor = '';
-        let args = []
-
-
-        executor = path.join(process.cwd(), "deployments", deploymentId, "/app.js")
-
-
-        if (fs.existsSync(`${deploymentPath}/pid`)) {
-            try {
-                fs.unlinkSync(`${deploymentPath}/pid`)
-                //file removed
-            } catch (err) {
-                Logger.error(err)
-            }
-        }
-
-        try {
-            childProcess = forever.start(executor, {
-                max: 1,
-                silent: false,
-                killTree: true,
-                // sourceDir: deploymentPath ,
-                env: {
-                    container_port: String(allocatedPort),
-                    MONGODB_URI: Config.getInstance().mongoDbUri,
-                    deploymentId: deploymentId,
-                    JSFLOW_LOCAL_MODE: process.env.JSFLOW_LOCAL_MODE,
-                    ENABLE_FLUENT_BIT: process.env.ENABLE_FLUENT_BIT || "true"
-                },
-                cwd: deploymentPath,
-                args: args
-            });
-
-        } catch (e) {
-            Logger.error(e)
-        }
-
-
-        if (!childProcess || !childProcess.child || !childProcess.child.pid) {
-            throw new Error(`cannot start child process`);
-        }
-
-        Logger.trace(`storing PID= ${childProcess.child.pid}, for process ${deploymentId}, on port ${allocatedPort}`)
-        // this.containers.set(deploymentId, new ContainerModel(childProcess.child.pid, allocatedPort, deploymentId));
-        // if (this.enableDaemonMode) {
-        //     this.trackPid(childProcess.child.pid);
-        // }
-        const runContainer = async () => {
-            if (fs.existsSync(deploymentPath + "/pid")) {
-                Logger.info(`Found process id (PID), for process ${deploymentId}, on port ${allocatedPort}`)
-                return true;
-            } else {
-                Logger.trace(`waiting for the container ${deploymentId} to connect on port ${allocatedPort}`)
-                await EngineService.sleep(1000)
-                return false;
-            }
-        };
-
-        let numberOfAttempts = 40;
-        Logger.info(`Waiting for the container ${deploymentId} to connect on port ${allocatedPort}`)
-        for (let i = 0; i < numberOfAttempts; i++) {
-            if (await runContainer()) {
-                break;
-            }
-            if (i === numberOfAttempts - 1) {
-                Logger.error(`Cannot start container:${deploymentId} Max number of attempts reached, on port ${allocatedPort}`);
-                // await this.stopContainerByDeploymentId(deploymentId)
-                throw `cannot start container`;
-            }
-        }
-        return allocatedPort;
-    }
 
 }
 

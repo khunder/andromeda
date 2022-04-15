@@ -3,6 +3,8 @@ import {config} from "dotenv";
 import ipc from 'node-ipc';
 import rimraf from "rimraf";
 import psList from "ps-list";
+import {AndromedaLogger} from "./src/config/andromeda-logger.js";
+const Logger = new AndromedaLogger("dev-engine-sidecar.daemon");
 
 let enginePid
 let containers = []
@@ -20,11 +22,11 @@ function shutdown(){
     try{
         for (let i = 0; i < containers.length; i++){
             let e = containers[i];
-            console.log(`killing process ${e}`);
+            Logger.info(`killing process ${e}`);
             try {
                 process.kill(e);
             }catch (e) {
-                console.error(`Could not kill process ${e}` , e)
+                Logger.error(`Could not kill process ${e}` , e)
             }
         }
     }
@@ -43,7 +45,7 @@ ipc.serve(
         ipc.server.on(
             'watch_engine_pid', // get engine pid
             function(data,socket) {
-                console.log(`Engine init: got: `, data.message);
+                Logger.info(`Tracking Engine on port (${data.message})`);
                 enginePid = parseInt(data.message); // <---- Here exactly
                 containers=[];
             }
@@ -52,7 +54,7 @@ ipc.serve(
         ipc.server.on(
             'watch_container_pid',
             function(data,socket) {
-                console.log(`pid ${process.pid} got: `, data.message);
+                Logger.info(`Tracking container on pid ${data.message}`);
                 containers.push(data.message)
             }
         );
@@ -61,11 +63,11 @@ ipc.serve(
             'unwatch_container_pid',
             function(data,socket) {
                 try {
-                    console.log(`killing process`, data.message);
+                    Logger.info(`killing process`, data.message);
                     let containerPid = parseInt(data.message);
                     containers=containers.filter(e=> e === containerPid);
                 }catch (e) {
-                    console.error(e);
+                    Logger.error(e);
                 }
 
             }
@@ -74,7 +76,7 @@ ipc.serve(
         ipc.server.on(
             'shutdown',
             function(data,socket) {
-                console.log(`shutdown`);
+                Logger.info(`shutdown`);
                 shutdown();
             }
         );
@@ -83,21 +85,16 @@ ipc.serve(
 );
 ipc.server.start();
 
-console.info(`>>>> Sidecar tool for dev purpose started on pid '${process.pid}' as daemon process`);
-
-
-// clean ps
-
+Logger.info(`>>>> Sidecar tool for dev purpose started on pid '${process.pid}' as daemon process`);
 
 setInterval(
     async function () {
         const data = await psList();
         let pss = data.filter(e => e.pid === enginePid)
         if (pss.length === 0) {
-            console.log(`---- Shutting down daemon process ----- `)
+            Logger.info(`---- Shutting down daemon process ----- `)
             shutdown();
         }
-        console.debug(`----->`)
     },
     5000
 );

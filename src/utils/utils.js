@@ -64,6 +64,12 @@ export class Utils{
         }
     }
 
+    static sleep(ms) {
+
+        return new Promise((resolve, reject) => {
+            setTimeout(resolve, ms, [])
+        })
+    }
 
     static normalizeProcessPrefixWithoutVersion(str) {
         const result = str;

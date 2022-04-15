@@ -28,8 +28,13 @@ export class AndromedaLogger {
     logger;
     loggerOptions;
 
-    constructor(args) {
-        this.logger = log;
+    constructor(name) {
+        if(name){
+            this.logger =  log4js.getLogger(name);;
+        }else {
+            this.logger = log;
+        }
+
     }
 
     get Logger() {

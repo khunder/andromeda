@@ -18,6 +18,15 @@ function route (fastify, opts, next) {
                 handler: serverController.compile
             }
         )
+
+        fastify.route(
+            {
+                method: 'POST',
+                preHandler: upload.array('bpmnFile'),
+                url: '/api/run-embedded',
+                handler: serverController.runEmbeddedContainer
+            }
+        )
     }
 
 

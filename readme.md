@@ -20,5 +20,6 @@ npm start
 MONGODB_URI=mongodb://127.0.0.1:27017/andromeda
 #ACTIVE_MODULES=server, persistence
 ACTIVE_MODULES=server
+ENV=local
 
 ```

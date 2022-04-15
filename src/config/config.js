@@ -13,6 +13,7 @@ export class Config {
     deploymentPath;
     tempPath;
     activateModules=[];
+    environment
 
     static getInstance() {
         if (!config) {
@@ -28,5 +29,6 @@ export class Config {
         this.deploymentPath = process.env.deploymentPath || path.join(process.cwd(), "deployments");
         this.tempPath = process.env.tempPath || "temp";
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
+        this.environment = process.env.ENV || "local";
     }
 }

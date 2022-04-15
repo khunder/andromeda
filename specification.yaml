@@ -60,3 +60,20 @@ paths:
                     format: binary
                 deploymentId:
                   type: string
+  /api/run-embedded:
+    post:
+      tags:
+        - engine
+      description: run embedded container (suitable for sandbox mode)
+      responses:
+        200:
+          description: 'Process instance id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                deploymentId:
+                  type: string
