@@ -1,4 +1,5 @@
-const AndromedaLogger = require("../../../config/andromeda-logger");
+import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
+
 const Logger = new AndromedaLogger();
 class ScriptTaskNodeProcessor {
     static type = "bpmn:ScriptTask"
@@ -26,4 +27,4 @@ class ScriptTaskNodeProcessor {
     }
 }
 
-module.exports = ScriptTaskNodeProcessor;
+export default ScriptTaskNodeProcessor;

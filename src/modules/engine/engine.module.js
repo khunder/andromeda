@@ -10,14 +10,17 @@ import {fileURLToPath} from "url";
 const Logger = new AndromedaLogger();
 
 
-class Engine {
+export class EngineModule {
 
     app = fastify({ logger: Logger })
 
     gracefulServer = GracefulServer(this.app.server)
+    host
+    port
 
-    constructor() {
-
+    constructor(host, port) {
+        this.host=host
+        this.port=port
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
 
@@ -60,21 +63,23 @@ class Engine {
     }
 
     // start the server!
-    start = async (host, port) => {
-        let startTime = new Date().getMilliseconds();
-        try {
-            await this.app.listen(port, host)
-            this.app.swagger()
-            let startCompleted = new Date().getMilliseconds();
-            Logger.info(`Engine started in ${startCompleted - startTime} ms`)
-            this.gracefulServer.setReady()
-            return this.app;
-        } catch (err) {
-            Logger.error(err)
-            process.exit(1)
-        }
+    start  ()  {
+        let startTime = new Date().getUTCMilliseconds();
+        return new Promise((async (resolve, reject) => {
+            try {
+                await this.app.listen(this.port, this.host)
+                this.app.swagger()
+                let startCompleted = new Date().getUTCMilliseconds();
+                Logger.info(`Engine started in ${startCompleted - startTime} ms`)
+                this.gracefulServer.setReady()
+                resolve(this.app);
+            } catch (err) {
+                Logger.error(err)
+                reject(err)
+            }
+        }))
     }
 
 }
 
-export  default  Engine;
+export  default  EngineModule;

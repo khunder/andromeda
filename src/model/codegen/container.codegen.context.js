@@ -4,4 +4,4 @@ class ContainerCodegenContext {
 
 }
 
-module.exports = ContainerCodegenContext;
+export default ContainerCodegenContext;

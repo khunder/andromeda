@@ -1,16 +1,27 @@
-const fs = require("fs");
-const shelljs = require("shelljs");
-const nunjucks = require("nunjucks");
-let AndromedaLogger = require("../../config/andromeda-logger");
-const path = require("path");
-const Config = require("../../config/config");
-const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
-const WorkflowCodegenContext = require("../../model/codegen/workflow.codegen.context");
-const commonService = require("../../services/common.service");
-const BpmnProcessor = require("./bpmn.processor");
+// const fs = require("fs");
+// const shelljs = require("shelljs");
+// const nunjucks = require("nunjucks");
+// const path = require("path");
+// const Config = require("../../config/config");
+// const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
+// const WorkflowCodegenContext = require("../../model/codegen/workflow.codegen.context");
+// const commonService = require("../../services/common.service");
+// const BpmnProcessor = require("./bpmn.processor");
 // const ProcessBuildContext = require("../../model/process-build-context");
 // const ContainerBuildContext = require("../../model/container-build-context");
+import BpmnProcessor from "./builder/bpmn.processor.js";
+import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import shelljs from "shelljs";
+import fs from "fs";
+import nunjucks from "nunjucks";
+import WorkflowCodegenContext from "../../model/codegen/workflow.codegen.context.js";
+import {Config} from "../../config/config.js";
+import path from "path";
+import {fileURLToPath} from "url";
+
 const Logger = new AndromedaLogger();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class WorkflowBuilder {
   constructor(  ) {}
@@ -51,24 +62,7 @@ class WorkflowBuilder {
     }
   }
 
-  generateCommonFiles(dir, sourcePath, containerContext) {
-    let files = fs.readdirSync(dir)
-    files.forEach(function (entry) {
-      let filePath = path.join(dir, entry)
-      if (fs.statSync(filePath).isDirectory()) {
-        if (!fs.existsSync(path.join(sourcePath, "/", entry))) {
-          fs.mkdirSync(path.join(sourcePath, "/", entry));
-        }
-        this.generateCommonFiles(filePath, path.join(sourcePath, entry))
-      } else {
-        const extension = entry.split('.').pop()
-        if(extension === "snjk"){
-          let fileName = entry.split('.').slice(0, -1).join('.');
-          fs.writeFileSync(path.join(sourcePath, fileName), fs.readFileSync(filePath, 'utf-8'));
-        }
-      }
-    }.bind(this));
-  }
+
 
 
   normalizeProcessDefWithoutVersion(processDef) {
@@ -121,11 +115,8 @@ class WorkflowBuilder {
     // each bpmn file can contain multiple process node
     const processesInBpmnFile = this.getProcessesModel(parsedModel.model);
 
-    let templatePath = path.join( process.cwd(), "src", "modules", "engine", "templates");
-    this.generateCommonFiles(templatePath, path.join(Config.getInstance().deploymentPath, containerParsingContext.deploymentId), containerParsingContext)
-
     const workflowCodegenContext =  new WorkflowCodegenContext( containerCodegenContext);
-    this.generateServiceClass(parsedModel, containerParsingContext, workflowCodegenContext)
+    await this.generateServiceClass(parsedModel, containerParsingContext, workflowCodegenContext)
 
     processesInBpmnFile.forEach(process => {
       this.generateProcess(process, workflowCodegenContext, containerParsingContext);
@@ -169,7 +160,11 @@ class WorkflowBuilder {
     // buildContext.project.saveSync();
   }
 
-  generateServiceClass(
+  generateOpenApiYamlSpecification(){
+
+  }
+
+  async generateServiceClass(
       parsedModel,
       workflowParsingContext,
       workflowCodegenContext,
@@ -184,13 +179,13 @@ class WorkflowBuilder {
       lstripBlocks: true,
     });
 
-    let serviceFilePath = `${commonService.getDeploymentPath()}/${workflowParsingContext.deploymentId}/services/${serviceFileName}.js`
+    let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/services/${serviceFileName}.js`
 
     let template =  fs.readFileSync(
         path
             .join(
                 __dirname,
-                './templates/services/service.njk',
+                './builder/templates/services/service.njk',
             )
             .toString(),
     ).toString()
@@ -264,7 +259,6 @@ class WorkflowBuilder {
     return(
       bpmnProcess.flowElements.filter(
           (e) =>
-              e.$type === 'bpmn:StartEvent' ||
               e.$type === 'bpmn:StartEvent'
       )
     );
@@ -293,4 +287,4 @@ class WorkflowBuilder {
 
 }
 
-module.exports = WorkflowBuilder;
+export default WorkflowBuilder;

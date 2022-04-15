@@ -1,7 +1,8 @@
-const path = require("path");
-const ipc = require('node-ipc').default;
-const rimraf = require("rimraf");
-const psList = require("ps-list");
+import path from "path"
+import {config} from "dotenv";
+import ipc from 'node-ipc';
+import rimraf from "rimraf";
+import psList from "ps-list";
 
 let enginePid
 let containers = []
@@ -10,7 +11,7 @@ let containers = []
 const socketPath = path.join(process.cwd() , '/temp/andromeda.ipc.sock');
 rimraf.sync(socketPath);
 
-ipc.config.unlink = false;
+config.unlink = false;
 ipc.config.retry= 2000;
 ipc.config.id = 'andromeda_daemon';
 
@@ -23,7 +24,7 @@ function shutdown(){
             try {
                 process.kill(e);
             }catch (e) {
-                console.error(`could not kill process ${e}` , e)
+                console.error(`Could not kill process ${e}` , e)
             }
         }
     }
@@ -31,15 +32,25 @@ function shutdown(){
         rimraf.sync(socketPath);
     }
 
-
     process.exit(0);
 }
 
 ipc.serve(
     socketPath,
     function() {
+
+
         ipc.server.on(
-            'track_pid',
+            'watch_engine_pid', // get engine pid
+            function(data,socket) {
+                console.log(`Engine init: got: `, data.message);
+                enginePid = parseInt(data.message); // <---- Here exactly
+                containers=[];
+            }
+        );
+
+        ipc.server.on(
+            'watch_container_pid',
             function(data,socket) {
                 console.log(`pid ${process.pid} got: `, data.message);
                 containers.push(data.message)
@@ -47,16 +58,7 @@ ipc.serve(
         );
 
         ipc.server.on(
-            'init_engine',
-            function(data,socket) {
-                console.log(`Engine init: got: `, data.message);
-                enginePid = parseInt(data.message);
-                containers=[];
-            }
-        );
-
-        ipc.server.on(
-            'loose_track_container',
+            'unwatch_container_pid',
             function(data,socket) {
                 try {
                     console.log(`killing process`, data.message);
@@ -81,31 +83,24 @@ ipc.serve(
 );
 ipc.server.start();
 
-console.log(`pid ${process.pid} listening on ${socketPath}`);
+console.info(`>>>> Sidecar tool for dev purpose started on pid '${process.pid}' as daemon process`);
 
 
 // clean ps
 
 
-// setInterval(
-//     async function () {
-//         const lw = (await psList)()
-//         psList.then(data => {
-//             let pss = data.get().filter(e => e.pid === enginePid)
-//
-//             if (pss.length === 0) {
-//                 console.log(`---- Shutting down daemon process ----- `)
-//                 shutdown();
-//
-//             }
-//         });
-//         console.log(`----->`)
-//     },
-//     5000
-// );
-(async () => {
-    console.log(await psList());
-    //=> [{pid: 3213, name: 'node', cmd: 'node test.js', ppid: 1, uid: 501, cpu: 0.1, memory: 1.5}, …]
-})();
+setInterval(
+    async function () {
+        const data = await psList();
+        let pss = data.filter(e => e.pid === enginePid)
+        if (pss.length === 0) {
+            console.log(`---- Shutting down daemon process ----- `)
+            shutdown();
+        }
+        console.debug(`----->`)
+    },
+    5000
+);
 
-module.exports={containers};
+
+export default  containers;

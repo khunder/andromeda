@@ -25,7 +25,7 @@ describe("Engine lifecycle", () => {
     });
 
     test('Start Engine', async () => {
-        let engine = new Engine();
+        let engine = new EngineModule();
         const app = engine.getApp();
         try{
             const response = await app.inject({

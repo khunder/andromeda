@@ -1,8 +1,8 @@
 
 
 
-const ProcessInstance =  require("./models/process.instance");
-const FakeRepositoryBase= require("./fake.repository.base");
+const ProcessInstance =  require("./models/process.instance.js");
+const FakeRepositoryBase= require("./fake.repository.base.js");
 
 
 

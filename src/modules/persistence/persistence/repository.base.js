@@ -1,6 +1,5 @@
-'use strict';
 
-const v1  = require ('uuid').v1;
+import v1 from "uuid"
 
 
 class RepositoryBase {
@@ -85,4 +84,4 @@ class RepositoryBase {
   }
 }
 
-module.exports = RepositoryBase;
+export  default RepositoryBase;

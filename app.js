@@ -1,20 +1,40 @@
 
 import Utils from "./src/utils/utils.js";
 import constants from "./src/config/constants.js";
+import {AndromedaLogger} from "./src/config/andromeda-logger.js";
 
+const Logger = new AndromedaLogger();
 
-if (Utils.moduleIsActive(constants.SERVER)) {
-    // let Engine =  await import('./src/modules/engine/engine.js');
-    import ('./src/modules/engine/engine.js').then(Engine => {
-        const server =  new Engine.default().start("127.0.0.1", 5000)
-    })
+let modules=[]
 
+async function executePromisesSequentially(modulePromisesArr) {
+    for (let i=0; i < modulePromisesArr.length; i++) {
+         await modulePromisesArr[i]();
+    }
 }
 
 if (Utils.moduleIsActive(constants.PERSISTENCE)) {
-    let Persistence = await import('./src/modules/persistence/persistence.js')
-    const persistnce = new (await Persistence)().start();
+        try{
+            let Persistence = await import('./src/modules/persistence/persistence.module.js')
+            modules.push( Persistence.PersistenceModule.init)
+        }catch (e) {
+            Logger.error(e)
+        }
 }
+
+if (Utils.moduleIsActive(constants.SERVER)) {
+        try{
+            let Engine = await import ('./src/modules/engine/engine.module.js')
+            let engineModuleInstance = new Engine.EngineModule("127.0.0.1", 5000);
+            modules.push(engineModuleInstance.start.bind(engineModuleInstance));
+        }catch (e) {
+            Logger.error(e)
+        }
+
+}
+
+await executePromisesSequentially(modules);
+
 
 
 

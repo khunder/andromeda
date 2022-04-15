@@ -1,10 +1,5 @@
 
-// const fs = require( 'fs');
-// const shell = require( 'shelljs');
-// const Config = require("../config/config");
-// const  AndromedaLogger = require("../config/andromeda-logger");
 
-// const {Config} = require("../config/config.js");
 import {AndromedaLogger} from "../config/andromeda-logger.js";
 import {Config} from "../config/config.js";
 

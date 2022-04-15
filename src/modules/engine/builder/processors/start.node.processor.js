@@ -1,4 +1,5 @@
-const AndromedaLogger = require("../../../config/andromeda-logger");
+import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
+
 const Logger = new AndromedaLogger();
 class StartNodeProcessor {
     static type = "bpmn:StartEvent"
@@ -21,4 +22,4 @@ class StartNodeProcessor {
     }
 }
 
-module.exports = StartNodeProcessor;
+export default StartNodeProcessor;

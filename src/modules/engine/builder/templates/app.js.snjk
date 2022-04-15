@@ -1,15 +1,23 @@
-let AndromedaLogger = require("./config/logger");
-let fastify = require('fastify');
+import  {AndromedaLogger} from "./config/andromeda-logger.js";
+import fastify from 'fastify';
+import fs from "fs";
 const Logger = new AndromedaLogger();
-let path = require('path');
-let autoload = require('fastify-autoload');
-const GracefulServer = require("@gquittet/graceful-server");
-const multer = require("fastify-multer");
-const fastifySwagger = require('fastify-swagger');
-const ContainerService = require("./services/container.service");
+import path from 'path';
+import autoload from 'fastify-autoload';
+import GracefulServer from "@gquittet/graceful-server";
+import multer from "fastify-multer";
+import fastifySwagger from 'fastify-swagger';
+import mongoose from "mongoose";
 
+import ContainerService from "./services/container.service.js";
+import Config from "./config/config.js";
+import {fileURLToPath} from 'url';
+import PersistenceModule from "./modules/persistence/persistence.module.js";
 
-class Container {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export class Container {
 
     app = fastify({ logger: Logger })
 
@@ -35,7 +43,8 @@ class Container {
         })
 
         this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, () => {
-            Logger.info('Server is shutting down')
+            Logger.info('Server is shutting down');
+            fs.unlinkSync("./pid")
         })
 
         this.gracefulServer.on(GracefulServer.SHUTDOWN, error => {
@@ -58,13 +67,13 @@ class Container {
 
     // start the server!
     start = async (host, port) => {
-        let startTime = new Date().getMilliseconds();
+
         try {
-            Logger.info(ContainerService.getInstance().containerId);
+            Logger.info(`Starting CONTAINER_ID=${ContainerService.getInstance().containerId}`);
+            await PersistenceModule.init();
             await this.app.listen(port, host)
-            this.app.swagger()
-            let startCompleted = new Date().getMilliseconds();
-            Logger.info(`Engine started in ${startCompleted - startTime} ms`)
+            // this.app.swagger()
+            fs.writeFileSync("./pid", process.pid.toString());
             this.gracefulServer.setReady()
             return this.app;
         } catch (err) {
@@ -74,5 +83,8 @@ class Container {
     }
 
 }
-new Container().start("127.0.0.1", 10000);
-module.exports = Container
+const startTime = new Date().getUTCMilliseconds();
+await new Container().start("127.0.0.1", 10000);
+const startCompleted = new Date().getUTCMilliseconds();
+Logger.info(`Container started in ${startCompleted - startTime} ms`)
+export default Container

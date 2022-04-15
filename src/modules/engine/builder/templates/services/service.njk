@@ -1,6 +1,6 @@
-const AndromedaLogger = require("./config/logger");
+import  {AndromedaLogger} from ".config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
-const {v1} = require("uuid");
+import {v4} from "uuid";
 
 class {{ServiceClassName}} {
     _metaInfo = {}
@@ -11,4 +11,4 @@ class {{ServiceClassName}} {
     }
 }
 
-module.exports = {{ServiceClassName}}
+export default {{ServiceClassName}}

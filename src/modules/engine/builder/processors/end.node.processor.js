@@ -1,4 +1,5 @@
-const AndromedaLogger = require("../../../config/andromeda-logger");
+import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
+
 const Logger = new AndromedaLogger();
 
 class EndNodeProcessor {
@@ -14,4 +15,4 @@ class EndNodeProcessor {
     }
 }
 
-module.exports = EndNodeProcessor;
+export default EndNodeProcessor;

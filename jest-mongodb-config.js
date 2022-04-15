@@ -6,8 +6,7 @@ module.exports = {
     },
     instance: {
       dbName: 'Andromeda',
-      port: 27027,
       storageEngine: 'ephemeralForTest',
     },
-  },
+  }
 };

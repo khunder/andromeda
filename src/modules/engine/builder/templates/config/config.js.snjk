@@ -1,18 +1,18 @@
-import {AndromedaLogger} from "../config/andromeda-logger.js"
-import path from 'path';
-import {fileURLToPath} from 'url';
-import {config as LoadDotEnvConfig} from "dotenv"
+import  {AndromedaLogger} from "./andromeda-logger.js";
 
 let config;
+import {config as LoadDotEnvConfig}  from 'dotenv';
+import path from 'path'
+import {fileURLToPath} from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-LoadDotEnvConfig({path: path.join(__dirname, '../..', '.env' )});
+
+LoadDotEnvConfig({path: path.join(__dirname, '../../..', '.env' )});
 const Logger = new AndromedaLogger();
 export class Config {
     mongoDbUri;
-    deploymentPath;
     tempPath;
-    activateModules=[];
+
 
     static getInstance() {
         if (!config) {
@@ -25,8 +25,8 @@ export class Config {
     constructor() {
         Logger.trace(`Loading Config values...`)
         this.mongoDbUri = process.env.MONGODB_URI;
-        this.deploymentPath = process.env.deploymentPath || path.join(process.cwd(), "deployments");
         this.tempPath = process.env.tempPath || "temp";
-        this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
     }
 }
+
+export default Config;

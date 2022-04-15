@@ -1,7 +1,7 @@
 {
   "name": "andromeda",
   "version": "1.0.0",
-  "type": "commonjs",
+  "type": "module",
   "description": "Mico Service Bpmn",
   "main": "index.js",
   "scripts": {

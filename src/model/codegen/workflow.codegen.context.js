@@ -1,5 +1,5 @@
-const ContainerCodegenContext = require("./container.codegen.context");
-const tsMorph=  require('ts-morph');
+import * as tsMorph from "ts-morph";
+
 class WorkflowCodegenContext {
 
     processId
@@ -36,4 +36,4 @@ class WorkflowCodegenContext {
     }
 }
 
-module.exports = WorkflowCodegenContext;
+export default WorkflowCodegenContext;

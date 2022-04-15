@@ -1,11 +1,16 @@
-const StartNodeProcessor = require("./processors/start.node.processor");
-const EndNodeProcessor = require("./processors/end.node.processor");
-const AndromedaLogger = require("../../config/andromeda-logger");
-const ScriptTaskNodeProcessor = require("./processors/script.node.processor");
-const nunjucks = require("nunjucks");
-const fs = require("fs");
-const path = require("path");
+
+import {AndromedaLogger} from "../../../config/andromeda-logger.js";
+import StartNodeProcessor from "./processors/start.node.processor.js";
+import EndNodeProcessor from "./processors/end.node.processor.js";
+import ScriptTaskNodeProcessor from "./processors/script.node.processor.js";
+import path from "path";
+import nunjucks from "nunjucks";
+import fs from "fs";
+import {fileURLToPath} from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const Logger = new AndromedaLogger();
+
 class BpmnProcessor {
 
     processors = {}
@@ -104,4 +109,4 @@ class BpmnProcessor {
 
 }
 
-module.exports = BpmnProcessor;
+export default BpmnProcessor;
