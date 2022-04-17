@@ -14,55 +14,6 @@ export class Utils{
 
     }
 
-    static allocatedPorts = [];
-    static isPortFree = port =>
-        new Promise(resolve => {
-            const server = http
-                .createServer()
-                .listen(port, () => {
-                    server.close()
-                    Logger.trace(`port ${port} is free`);
-                    resolve(true)
-                })
-                .on('error', () => {
-                    Logger.trace(`port ${port} is not free`);
-                    resolve(false)
-                })
-        });
-
-    static async AllocatePortInRange(containerPort) {
-        if(containerPort){
-            if(this.allocatedPorts.includes(containerPort)){
-                if(! await this.isPortFree(containerPort)){
-                    throw new Error(`cannot allocate port ${containerPort}, already allocated`);
-                }
-            }
-            this.allocatedPorts.push(containerPort);
-            return containerPort;
-        }
-
-        let attempts = 0;
-        let maxAttemptsRange = 100;
-
-
-        const portOffset = 10000
-        let port = portOffset;
-        while (attempts < maxAttemptsRange ){
-            if(!this.allocatedPorts.includes(attempts+portOffset)){
-                port = portOffset+ attempts;
-                Logger.debug(`trying to allocate port ${port}`);
-                Logger.debug(`pushing  port ${port} to port list `);
-                this.allocatedPorts.push(port)
-                if(await this.isPortFree(port)){
-                    return parseInt(String(port));
-                }
-            }
-            attempts++;
-        }
-        if(attempts === maxAttemptsRange ){
-            throw `cannot allocate port in the range of ${maxAttemptsRange} `;
-        }
-    }
 
     static sleep(ms) {
 
@@ -97,18 +48,18 @@ export class Utils{
         return ctx;
     }
 
-    static getDeploymentId(model) {
-        if(!model){
-            return new Error(`model should not be null`);
-        }
-        return sanitize(model.rootElement.id);
-    }
+    // static getDeploymentId(model) {
+    //     if(!model){
+    //         return new Error(`model should not be null`);
+    //     }
+    //     return sanitize(model.rootElement.id);
+    // }
 
-    normalizeProcessDefWithoutVersion(processDef) {
-        const result = processDef;
-        const regex = /(\w+)(-[vV][0-9]+\.[0-9]+)/;
-        return result.replace(regex, `$1`);
-    }
+    // normalizeProcessDefWithoutVersion(processDef) {
+    //     const result = processDef;
+    //     const regex = /(\w+)(-[vV][0-9]+\.[0-9]+)/;
+    //     return result.replace(regex, `$1`);
+    // }
 
 }
 

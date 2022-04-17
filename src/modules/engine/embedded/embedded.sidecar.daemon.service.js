@@ -1,15 +1,18 @@
 import path from "path";
 import ipc from "node-ipc";
-import {AndromedaLogger} from "../../config/andromeda-logger.js";
-import {Config} from "../../config/config.js";
+import {AndromedaLogger} from "../../../config/andromeda-logger.js";
+import {Config} from "../../../config/config.js";
 
 const Logger = new AndromedaLogger();
 
 /**
- * A helper to kill child process via a separate daemon
- * when a process (container is started) we send his pid to the daemon
+ * NB: THIS HELPER IS USED ONLY LOCALLY IN DEV MODE
+ * A helper to kill child (containers aka node process) using a separate daemon when the engine is closed
+ * When the daemon detects that the engine is closed, checks pid regularly, it will close all related note processes.
+ * When the engine starts, it will start the daemon, and sends its own pid.
+ * When a container starts, it will send the pid of the created process, the daemon will store it in memory.
  */
-export class LocalSideCarDaemonService {
+export class EmbeddedSidecarDaemonService {
     static socketPath = path.join(process.cwd(), '/temp/andromeda.ipc.sock');
 
     static initDaemon() {
@@ -43,7 +46,7 @@ export class LocalSideCarDaemonService {
             function () {
                 ipc.connectTo(
                     'andromeda_daemon',
-                    LocalSideCarDaemonService.socketPath,
+                    EmbeddedSidecarDaemonService.socketPath,
                     initEngine
                 );
             }.bind(this),

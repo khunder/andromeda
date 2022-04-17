@@ -8,16 +8,15 @@ import autoload from 'fastify-autoload';
 import {fileURLToPath} from "url";
 import {Config} from "../../config/config.js";
 import EngineService from "./engine.service.js";
-import {LocalSideCarDaemonService} from "./local.side-car.daemon.service.js";
+import {EmbeddedSidecarDaemonService} from "./embedded/embedded.sidecar.daemon.service.js";
 
 const Logger = new AndromedaLogger();
 
 
 export class EngineModule {
 
-    app = fastify({ logger: Logger })
-
-    gracefulServer = GracefulServer(this.app.server)
+    app
+    gracefulServer
     host
     port
 
@@ -26,6 +25,10 @@ export class EngineModule {
         this.port=port
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
+
+
+        this.app = fastify({ logger: Logger })
+        this.gracefulServer = GracefulServer(this.app.server)
 
         this.app.register(fastifySwagger, {
             mode: "static",
@@ -76,7 +79,7 @@ export class EngineModule {
                 Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
                 if (Config.getInstance().isLocalMode) {
-                    LocalSideCarDaemonService.initDaemon();
+                    EmbeddedSidecarDaemonService.initDaemon();
                 }
                 resolve(this.app);
             } catch (err) {

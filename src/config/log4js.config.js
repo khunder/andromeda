@@ -1,26 +1,40 @@
-const _log4jsConfig = {
-  appenders: {},
-  categories: {
-    default: {
-      appenders: [],
-      level: 'trace',
+
+export class Log4jsConfig{
+
+  _log4jsConfig = {
+    appenders: {},
+    categories: {
+      default: {
+        appenders: [],
+        level: 'trace',
+      },
     },
-  },
-};
+  };
 
-_log4jsConfig.appenders.stdout = {
-  type: 'stdout',
-  layout: { type: 'colored' },
-};
+  constructor() {
+    this._log4jsConfig.appenders.console = {
+      type: 'stdout',
+      layout: { type: 'colored' },
+    };
 
-_log4jsConfig.appenders['file'] = {
-  type: 'file',
-  filename: 'logs/app.log',
-  maxLogSize: 104857600,
-  numBackups: 3,
-};
+    this._log4jsConfig.appenders['file'] = {
+      type: 'file',
+      filename: 'logs/app.log',
+      maxLogSize: 104857600,
+      numBackups: 3,
+    };
 
-_log4jsConfig.categories.default.appenders.push('stdout');
-_log4jsConfig.categories.default.appenders.push('file');
 
-export default _log4jsConfig;
+    this._log4jsConfig.categories.default.appenders.push('console');
+    this._log4jsConfig.categories.default.appenders.push('file');
+
+  }
+
+  getConfig(){
+    return this._log4jsConfig;
+  }
+
+
+}
+
+export default Log4jsConfig;

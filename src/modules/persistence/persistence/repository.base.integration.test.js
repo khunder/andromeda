@@ -1,29 +1,25 @@
 
-
-// const ProcessInstance =  require("./models/process.instance");
-// const RepositoryBase= require("./repository.base");
-// const mongoose = require("mongoose");
-
-
-
-import mongoose from "mongoose";
-import RepositoryBase from "./repository.base.js";
 import ProcessInstance from "./models/process.instance.js";
+import FakeRepositoryBase from "./fake.repository.base.js";
+import mongoose from "mongoose";
+
 
 describe("Engine lifecycle", () => {
     let server;
-    beforeAll(async () => {
+    before(async () => {
         await mongoose.connect(process.env.MONGO_URL);
     });
 
-    afterAll( async ()=>{
+    after( async ()=>{
         await mongoose.disconnect();
     })
 
-    test('Start Engine', async () => {
+
+    it('Start Engineqq', async () => {
         try{
-            let repo = new RepositoryBase(ProcessInstance);
-            let ee = await repo.count()
+            let repo = new FakeRepositoryBase(ProcessInstance);
+            await repo.count()
+
 
         }catch (e) {
             console.error(e)

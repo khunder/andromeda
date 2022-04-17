@@ -2,7 +2,7 @@
 
 
 
-class FakeRepositoryBase {
+export class FakeRepositoryBase {
   objects = []
   constructor() {
   }
@@ -63,4 +63,4 @@ class FakeRepositoryBase {
   }
 }
 
-module.exports = FakeRepositoryBase;
+export default FakeRepositoryBase;

@@ -15,21 +15,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class EngineService {
-    isPortFree = (port) =>
-        new Promise((resolve) => {
-            const server = http
-                .createServer()
-                .listen(port, () => {
-                    server.close();
-                    Logger.trace(`port ${port} is free`);
-                    resolve(true);
-                })
-                .on('error', () => {
-                    Logger.trace(`port ${port} is not free`);
-                    resolve(false);
-                });
-        });
-
     getDeploymentPath(ctx) {
         return path.join(CommonService.getDeploymentPath(), ctx.deploymentId);
     }
@@ -59,8 +44,7 @@ export class EngineService {
         }.bind(this));
     }
 
-
-    copyModule(dir, sourcePath) {
+    copyModuleIntoContainer(dir, sourcePath) {
         let files = fs.readdirSync(dir)
         files.forEach(function (entry) {
             let filePath = path.join(dir, entry)
@@ -68,7 +52,7 @@ export class EngineService {
                 if (!fs.existsSync(path.join(sourcePath, "/", entry))) {
                     fs.mkdirSync(path.join(sourcePath, "/", entry));
                 }
-                this.copyModule(filePath, path.join(sourcePath, entry))
+                this.copyModuleIntoContainer(filePath, path.join(sourcePath, entry))
             } else {
                 fs.writeFileSync(path.join(sourcePath, entry), fs.readFileSync(filePath, 'utf-8'));
             }
@@ -121,7 +105,7 @@ export class EngineService {
         if (!fs.existsSync(path.join(persistenceModulePathDestination, "persistence"))) {
             fs.mkdirSync(path.join(persistenceModulePathDestination, "persistence"));
         }
-        this.copyModule(persistenceModulePathSource, deploymentPath + "/modules/persistence")
+        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/persistence")
     }
 
     extractWorkflowPrefix(containerContext) {

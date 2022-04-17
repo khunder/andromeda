@@ -1,21 +1,16 @@
 
-
-
-const ProcessInstance =  require("./models/process.instance.js");
-const FakeRepositoryBase= require("./fake.repository.base.js");
+import ProcessInstance from "./models/process.instance.js";
+import FakeRepositoryBase from "./fake.repository.base.js";
 
 
 
-describe("Engine lifecycle", () => {
-    let server;
-    beforeAll(()=> {
+describe("Repository base", () => {
 
-    });
 
-    test('Start Engine', async () => {
+    it('Start Engine', async () => {
         try{
             let repo = new FakeRepositoryBase(ProcessInstance);
-            repo.count()
+            await repo.count()
 
 
         }catch (e) {

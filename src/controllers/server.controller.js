@@ -3,7 +3,7 @@
 import EngineService from "../modules/engine/engine.service.js";
 import Utils from "../utils/utils.js";
 import * as fs from "fs";
-import {EmbeddedContainerService} from "../modules/engine/embedded.containers.service.js";
+import {EmbeddedContainerService} from "../modules/engine/embedded/embedded.containers.service.js";
 
 class ServerController {
 

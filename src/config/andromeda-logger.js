@@ -1,7 +1,7 @@
 
 import log4js  from "log4js"
 
-import log4jsConfig from "./log4js.config.js"
+import Log4jsConfig from "./log4js.config.js"
 
 log4js.addLayout('json', function (config) {
     return function (logEvent) {
@@ -21,29 +21,25 @@ log4js.addLayout('json', function (config) {
     };
 });
 const log = log4js.getLogger('engine');
-
-log4js.configure(log4jsConfig);
+log4js.configure(new Log4jsConfig().getConfig());
 
 export class AndromedaLogger {
     logger;
-    loggerOptions;
+    name;
 
-    constructor(name) {
+    constructor(name, config) {
         if(name){
+            this.name=name;
             this.logger =  log4js.getLogger(name);;
         }else {
             this.logger = log;
         }
+        if(config){ // force configuration refresh
+            log4js.configure(config);
+        }
 
     }
 
-    get Logger() {
-        return this.logger;
-    }
-
-    static configGlobal(options) {
-        this.loggerOptions = options;
-    }
 
     info(message) {
         this.logger.info(message);

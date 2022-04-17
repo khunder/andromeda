@@ -1,16 +1,67 @@
 import {EmbeddedContainerModel} from "./embedded.container.model.js";
-import utils, {Utils} from "../../utils/utils.js";
+import utils, {Utils} from "../../../utils/utils.js";
 import path from "path";
 import fs from "fs";
 import forever from "forever";
-import {Config} from "../../config/config.js";
-import {LocalSideCarDaemonService} from "./local.side-car.daemon.service.js";
-import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import {Config} from "../../../config/config.js";
+import {EmbeddedSidecarDaemonService} from "./embedded.sidecar.daemon.service.js";
+import {AndromedaLogger} from "../../../config/andromeda-logger.js";
+import http from "http";
 const Logger = new AndromedaLogger();
 
 export class EmbeddedContainerService {
 
     static containers= [];
+
+    static allocatedPorts = [];
+    static isPortFree = port =>
+        new Promise(resolve => {
+            const server = http
+                .createServer()
+                .listen(port, () => {
+                    server.close()
+                    Logger.trace(`port ${port} is free`);
+                    resolve(true)
+                })
+                .on('error', () => {
+                    Logger.trace(`port ${port} is not free`);
+                    resolve(false)
+                })
+        });
+
+    static async AllocatePortInRange(containerPort) {
+        if(containerPort){
+            if(this.allocatedPorts.includes(containerPort)){
+                if(! await this.isPortFree(containerPort)){
+                    throw new Error(`cannot allocate port ${containerPort}, already allocated`);
+                }
+            }
+            this.allocatedPorts.push(containerPort);
+            return containerPort;
+        }
+
+        let attempts = 0;
+        let maxAttemptsRange = 100;
+
+
+        const portOffset = 10000
+        let port = portOffset;
+        while (attempts < maxAttemptsRange ){
+            if(!this.allocatedPorts.includes(attempts+portOffset)){
+                port = portOffset+ attempts;
+                Logger.debug(`trying to allocate port ${port}`);
+                Logger.debug(`pushing  port ${port} to port list `);
+                this.allocatedPorts.push(port)
+                if(await this.isPortFree(port)){
+                    return parseInt(String(port));
+                }
+            }
+            attempts++;
+        }
+        if(attempts === maxAttemptsRange ){
+            throw `cannot allocate port in the range of ${maxAttemptsRange} `;
+        }
+    }
 
 
     async startEmbeddedContainer(deploymentId, options) {
@@ -52,7 +103,7 @@ export class EmbeddedContainerService {
         EmbeddedContainerService.containers.push({deploymentId, model: new EmbeddedContainerModel(childProcess.child.pid, allocatedPort, deploymentId)});
 
         if (Config.getInstance().isLocalMode) {
-            LocalSideCarDaemonService.watchContainer(childProcess.child.pid)
+            EmbeddedSidecarDaemonService.watchContainer(childProcess.child.pid)
         }
 
         await this.waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort);
@@ -73,7 +124,7 @@ export class EmbeddedContainerService {
         if (options && options.port) {
             return options.port
         } else {
-            return await utils.AllocatePortInRange();
+            return await EmbeddedContainerService.AllocatePortInRange();
         }
     }
 
