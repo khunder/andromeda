@@ -2,6 +2,8 @@
 import {AndromedaLogger} from "./src/config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 import {Utils} from "./src/utils/utils.js";
+import constants from "./src/config/constants.js";
+
 
 
 export class App {
@@ -17,12 +19,11 @@ export class App {
     }
 
     async init() {
-        const constants =await import("./src/config/constants.js");
 
         if (Utils.moduleIsActive(constants.PERSISTENCE)) {
             await this.initPersistenceModule();
         }
-        //
+
         if (Utils.moduleIsActive(constants.SERVER)) {
             await this.initServerModule();
 

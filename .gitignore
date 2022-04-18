@@ -64,3 +64,5 @@ typings/
 /globalConfig.json
 /uploads/*
 /deployments/*
+
+/package-lock.json

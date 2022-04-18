@@ -1,7 +1,8 @@
 
 export default  {
-  testEnvironment: 'jest-environment-node',
-  transform: {},
+  transform: {
+
+  },
   testTimeout: 600000,
   setupFiles: ['./test/post-test-init.js'],
   // modulePathIgnorePatterns: ['/deployments', 'tests/ignored'],
@@ -12,5 +13,12 @@ export default  {
   "testPathIgnorePatterns" : [
     "<rootDir>/deployments",
     "<rootDir>/test/e2e",
-  ]
+
+  ],
+  "coveragePathIgnorePatterns": [
+    "node_modules",
+    "<rootDir>/app.js",
+    "embedded.sidecar.daemon.service.js",
+    "fake.*.js"
+  ],
 }

@@ -16,8 +16,8 @@ export class Config {
     environment
     isLocalMode
 
-    static getInstance() {
-        if (!config) {
+    static getInstance(force) {
+        if (!config || force) {
            Logger.info(`creating new Config instance`)
             config = new Config();
         }

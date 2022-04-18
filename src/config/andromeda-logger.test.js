@@ -1,11 +1,13 @@
-import { assert, describe, expect, it, vi } from 'vitest'
-
+import {jest} from '@jest/globals'
 import Log4jsConfigJs from "../config/log4js.config.js";
 
 describe("Logger test", () => {
 
-
-    it('Logger json to stdout', async () => {
+    /**
+     * ESM with Node <=16.13.1 cannot be unloaded, we are using separate test files for testing log4js
+     * because
+     */
+    test('Logger json to stdout', async () => {
 
         //given
         const log4jsConfigJs= new Log4jsConfigJs()
@@ -19,12 +21,14 @@ describe("Logger test", () => {
         process.env.IP = "127.0.0.1"
 
         let messagesCount = 0
-        vi.spyOn(process.stdout, 'write').mockImplementation(function () {
+        jest.spyOn(process.stdout, 'write').mockImplementation(function () {
             return true;
         });
 
         const AndromedaLogger = await import ("./andromeda-logger.js")
         const logger= new AndromedaLogger.AndromedaLogger("test logger",log4jsConfigJs.getConfig());
+
+        expect(logger.child()).not.toBeNull();
 
 
         // when

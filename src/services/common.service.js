@@ -1,57 +1,41 @@
-
-
 import {AndromedaLogger} from "../config/andromeda-logger.js";
 import {Config} from "../config/config.js";
+import {Shell} from "./shell.js";
+import fs from "fs";
+import path from "path";
+
 
 const Logger = new AndromedaLogger();
 
 class CommonService {
 
-    constructor() {
-    }
+    static async createTemporaryFolders() {
 
-    static getTemporaryFolder() {
-        let tempPath = Config.getInstance().tempPath;
-        if (!tempPath) {
-            tempPath = `${process.cwd()}/temp/uploads`;
-        }
-        return tempPath;
-    }
-
-    static createTemporaryFolders() {
-        const tempPath = this.getTemporaryFolder();
-
-        const uploadFolder = `${tempPath}/bpmns`;
-        const filesFolder = `${tempPath}/files`;
+        const tempPath = Config.getInstance().tempPath;
+        const uploadFolder = path.join(tempPath, "bpmns");
+        const filesFolder = path.join(tempPath, "files");
         if (!fs.existsSync(uploadFolder)) {
             Logger.debug(
                 `Trying to create temporary upload folder in path: ${uploadFolder}`,
             );
-            shell.mkdir('-p', uploadFolder);
+            Shell.mkdir( uploadFolder);
         }
         if (!fs.existsSync(filesFolder)) {
             Logger.debug(
                 `Trying to create temporary files folder in path: ${filesFolder}`,
             );
-            shell.mkdir('-p', filesFolder);
+            Shell.mkdir( filesFolder);
         }
     }
 
-    static getDeploymentPath() {
-        let deploymentPath = Config.getInstance().deploymentPath;
-        if (!deploymentPath) {
-            deploymentPath = `${process.cwd()}/${Config.getInstance().deploymentPath}`;
-        }
-        return deploymentPath;
-    }
 
     static createDeploymentFolder() {
-        const deploymentPath = this.getDeploymentPath();
+        const deploymentPath = Config.getInstance().deploymentPath;
         if (!fs.existsSync(deploymentPath)) {
             Logger.debug(
                 `Trying to create deployment folder in path: ${deploymentPath}`,
             );
-            shell.mkdir('-p', deploymentPath);
+            Shell.mkdir( deploymentPath);
         }
     }
 }

@@ -18,6 +18,7 @@ import WorkflowCodegenContext from "../../model/codegen/workflow.codegen.context
 import {Config} from "../../config/config.js";
 import path from "path";
 import {fileURLToPath} from "url";
+import {Shell} from "../../services/shell.js";
 
 const Logger = new AndromedaLogger();
 const __filename = fileURLToPath(import.meta.url);
@@ -29,38 +30,6 @@ class WorkflowBuilder {
    bpmnProcessor =new BpmnProcessor();
 
 
-  /**
-   * method to load template, evaluate it
-   * @param sourceTemplate: nunjucks template
-   * @param destFile: file to create
-   * @param containerContext: variables
-   */
-  createFile(sourceTemplate, destFile, containerContext) {
-    try {
-      const destFolder = path.dirname(destFile);
-      if (!fs.existsSync(destFolder)) {
-        shelljs.mkdir('-p', destFolder);
-      }
-      //
-      nunjucks.configure({
-        autoescape: false,
-        trimBlocks: true,
-        lstripBlocks: true,
-      });
-      const resultText = nunjucks.renderString(
-          fs.readFileSync(sourceTemplate, 'utf-8'),
-        {
-          ...containerContext,
-        },
-      );
-      fs.writeFileSync(
-        destFile,
-        resultText,
-      );
-    } catch (e) {
-      throw new Error(e);
-    }
-  }
 
 
 
@@ -160,9 +129,6 @@ class WorkflowBuilder {
     // buildContext.project.saveSync();
   }
 
-  generateOpenApiYamlSpecification(){
-
-  }
 
   async generateServiceClass(
       parsedModel,

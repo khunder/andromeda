@@ -6,11 +6,13 @@ import mongoose from "mongoose";
 
 describe("Engine lifecycle", () => {
     let server;
-    before(async () => {
+    let db;
+    beforeAll(async () => {
         await mongoose.connect(process.env.MONGO_URL);
+        db = mongoose.connection.db
     });
 
-    after( async ()=>{
+    afterAll( async ()=>{
         await mongoose.disconnect();
     })
 

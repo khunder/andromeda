@@ -8,6 +8,8 @@ import ContainerCodegenContext from "../../model/codegen/container.codegen.conte
 import WorkflowBuilder from "./workflow.builder.js";
 import {fileURLToPath} from "url";
 import nunjucks from "nunjucks";
+import {Config} from "../../config/config.js";
+import {Shell} from "../../services/shell.js";
 
 
 const Logger = new AndromedaLogger();
@@ -16,7 +18,7 @@ const __dirname = path.dirname(__filename);
 
 export class EngineService {
     getDeploymentPath(ctx) {
-        return path.join(CommonService.getDeploymentPath(), ctx.deploymentId);
+        return path.join(Config.getInstance().deploymentPath, ctx.deploymentId);
     }
 
     /**
@@ -65,7 +67,7 @@ export class EngineService {
             Logger.debug(
                 `Trying to create deployment folder in path: ${deploymentPath}`,
             );
-            shelljs.mkdir('-p', deploymentPath);
+            Shell.mkdir(deploymentPath);
         }
 
         // if (!containerParsingContext.workflowParsingContext.model || containerParsingContext.model.size === 0) {
@@ -108,10 +110,6 @@ export class EngineService {
         this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/persistence")
     }
 
-    extractWorkflowPrefix(containerContext) {
-        if (!containerContext.model)
-            return undefined;
-    }
 
 
     /**

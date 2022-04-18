@@ -12,6 +12,8 @@ const Logger = new AndromedaLogger();
 export class EmbeddedContainerService {
 
     static containers= [];
+    static portOffset = 10000
+    static maxAttemptsRange = 100;
 
     static allocatedPorts = [];
     static isPortFree = port =>
@@ -41,14 +43,12 @@ export class EmbeddedContainerService {
         }
 
         let attempts = 0;
-        let maxAttemptsRange = 100;
 
 
-        const portOffset = 10000
-        let port = portOffset;
-        while (attempts < maxAttemptsRange ){
-            if(!this.allocatedPorts.includes(attempts+portOffset)){
-                port = portOffset+ attempts;
+        let port = EmbeddedContainerService.portOffset;
+        while (attempts < EmbeddedContainerService.maxAttemptsRange ){
+            if(!this.allocatedPorts.includes(attempts+EmbeddedContainerService.portOffset)){
+                port = EmbeddedContainerService.portOffset+ attempts;
                 Logger.debug(`trying to allocate port ${port}`);
                 Logger.debug(`pushing  port ${port} to port list `);
                 this.allocatedPorts.push(port)
@@ -58,13 +58,13 @@ export class EmbeddedContainerService {
             }
             attempts++;
         }
-        if(attempts === maxAttemptsRange ){
-            throw `cannot allocate port in the range of ${maxAttemptsRange} `;
+        if(attempts === EmbeddedContainerService.maxAttemptsRange ){
+            throw `cannot allocate port ${port} after ${(EmbeddedContainerService.maxAttemptsRange)} attempts`;
         }
     }
 
 
-    async startEmbeddedContainer(deploymentId, options) {
+    static async startEmbeddedContainer(deploymentId, options) {
         let allocatedPort = await this.allocatePort(options);
 
         Logger.info(`starting container on port ${allocatedPort}`)
@@ -110,7 +110,7 @@ export class EmbeddedContainerService {
         return allocatedPort;
     }
 
-    deleteEmbeddedContainerPidFile(deploymentPath) {
+    static deleteEmbeddedContainerPidFile(deploymentPath) {
         if (fs.existsSync(`${deploymentPath}/pid`)) {
             try {
                 fs.unlinkSync(`${deploymentPath}/pid`)
@@ -120,7 +120,7 @@ export class EmbeddedContainerService {
         }
     }
 
-    async allocatePort(options) {
+    static async allocatePort(options) {
         if (options && options.port) {
             return options.port
         } else {
@@ -128,7 +128,7 @@ export class EmbeddedContainerService {
         }
     }
 
-    async waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort) {
+    static async waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort) {
         const runContainer = async () => {
             if (fs.existsSync(deploymentPath + "/pid")) {
                 Logger.info(`Found process id (PID), for process ${deploymentId}, on port ${allocatedPort}`)
@@ -142,7 +142,7 @@ export class EmbeddedContainerService {
 
         let numberOfAttempts = 300;
         Logger.info(`Waiting for the embedded container ${deploymentId} to connect on port ${allocatedPort}`)
-        for (let i = 0; i < numberOfAttempts; i++) {
+        for (let i = 0; i < numberOfAttempts; ++i) {
             if (await runContainer()) {
                 break;
             }
@@ -154,7 +154,7 @@ export class EmbeddedContainerService {
         }
     }
 
-    async stopEmbeddedContainer(deploymentId) {
+    static async stopEmbeddedContainer(deploymentId) {
         EmbeddedContainerService.containers.forEach(e=>{
             if(e.model.deploymentId === deploymentId){
                 forever.kill(e.model.pid)

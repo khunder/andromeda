@@ -2,11 +2,9 @@ import {Config} from "../config/config.js";
 
 import  ContainerParsingContext from "../model/parsing/container.parsing.context.js"
 import  WorkflowParsingContext  from "../model/parsing/workflow.parsing.context.js";
-import   sanitize from "./sanitize.js";
 import BPMNModdle from "bpmn-moddle";
 import {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
-import http from "http";
 
 export class Utils{
     static moduleIsActive(module) {
@@ -39,7 +37,7 @@ export class Utils{
         for(let index in filesContent){
             const workflowParsingContext = new WorkflowParsingContext()
             workflowParsingContext.bpmnContent = filesContent[index]
-            workflowParsingContext.model = await new BPMNModdle().fromXML(workflowParsingContext.bpmnContent, () => null);
+            workflowParsingContext.model = await new BPMNModdle().fromXML(workflowParsingContext.bpmnContent);
             workflowParsingContext.processPrefix= this.upperFirstChar(this.normalizeProcessPrefixWithoutVersion(workflowParsingContext.model.rootElement.id))
             ctx.workflowParsingContext.push(workflowParsingContext);
         }
