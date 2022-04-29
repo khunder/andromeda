@@ -11,14 +11,11 @@
 // const ContainerBuildContext = require("../../model/container-build-context");
 import BpmnProcessor from "./builder/bpmn.processor.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
-import shelljs from "shelljs";
 import fs from "fs";
 import nunjucks from "nunjucks";
 import WorkflowCodegenContext from "../../model/codegen/workflow.codegen.context.js";
-import {Config} from "../../config/config.js";
 import path from "path";
 import {fileURLToPath} from "url";
-import {Shell} from "../../services/shell.js";
 
 const Logger = new AndromedaLogger();
 const __filename = fileURLToPath(import.meta.url);

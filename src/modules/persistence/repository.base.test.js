@@ -1,6 +1,6 @@
 
 import ProcessInstance from "./models/process.instance.js";
-import FakeRepositoryBase from "./fake.repository.base.js";
+import FakeRepositoryBase from "./repositories/fake.repository.base.js";
 
 
 

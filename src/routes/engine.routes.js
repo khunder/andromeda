@@ -1,6 +1,6 @@
 
 import  multer from "fastify-multer";
-import serverController from "../controllers/server.controller.js";
+import serverController from "../modules/engine/embedded/controllers/embedded-server.controller.js";
 import {Config} from "../config/config.js";
 import constants from "../config/constants.js";
 

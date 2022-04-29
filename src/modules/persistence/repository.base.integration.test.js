@@ -1,14 +1,15 @@
 
 import ProcessInstance from "./models/process.instance.js";
-import FakeRepositoryBase from "./fake.repository.base.js";
+import FakeRepositoryBase from "./repositories/fake.repository.base.js";
 import mongoose from "mongoose";
 
 
-describe("Engine lifecycle", () => {
+describe("Repository Base", () => {
     let server;
     let db;
     beforeAll(async () => {
-        await mongoose.connect(process.env.MONGO_URL);
+        console.log(`---->${process.env.MONGO_URL}`);
+        await mongoose.connect(process.env.MONGO_URL, {family:4});
         db = mongoose.connection.db
     });
 
