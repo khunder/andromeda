@@ -6,16 +6,20 @@
   "main": "index.js",
   "scripts": {
     "start": "node node_modules/nodemon/bin/nodemon.js app.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js "
+    "test:setup": "node test/setup.js",
+    "posttest": "kill-port --port 27018",
+    "cover": "npm run cover:unit & npm run cover:integration",
+    "cover:unit": "c8 --clean false  --check-coverage true -r html  npm run test:unit",
+    "test:unit": "npm-run-all --parallel  test:unit:exec",
+    "test:unit:exec": "npx ava --config ava.unit-tests.config.js",
+    "cover:integration": "c8 --clean false  --check-coverage true -r html  npm run test:integration",
+    "test:integration": "npm-run-all --parallel  test:setup  test:integration:exec",
+    "test:integration:exec": "npx ava --config ava.integration-tests.config.js & npm run posttest"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",
   "dependencies": {
-    "@babel/core": "^7.17.9",
-    "@babel/preset-env": "^7.16.11",
     "@gquittet/graceful-server": "^3.0.0",
-    "@jest/globals": "^27.5.1",
-    "babel-plugin-transform-runtime": "^6.23.0",
     "bpmn-moddle": "^7.1.2",
     "dotenv": "^16.0.0",
     "fastify": "^3.28.0",
@@ -25,7 +29,7 @@
     "fastify-oas": "^3.0.8",
     "fastify-swagger": "^5.1.0",
     "forever": "^4.0.3",
-    "jest-esm-transformer": "^1.0.0",
+    "kill-port": "^1.6.1",
     "log4js": "^6.4.4",
     "mongoose": "^6.2.10",
     "nunjucks": "^3.2.3",
@@ -34,15 +38,18 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@shelf/jest-mongodb": "^2.2.1",
     "@types/bpmn-moddle": "^5.1.6",
+    "ava": "^4.2.0",
+    "c8": "^7.11.2",
     "fastify-plugin": "^3.0.1",
-    "jest": "^27.5.1",
-    "jest-mock": "^27.5.1",
+    "mongodb-memory-server": "^8.5.2",
+    "mongodb-memory-server-global": "^8.5.2",
     "node-dev": "^7.4.2",
     "node-ipc": "^10.0.2",
     "nodemon": "^2.0.15",
+    "npm-run-all": "^4.1.5",
     "ps-list": "^8.1.0",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "sinon": "^13.0.2"
   }
 }

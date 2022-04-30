@@ -44,7 +44,7 @@ export class Container {
 
         this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, () => {
             Logger.info('Server is shutting down');
-            fs.unlinkSync("./pid")
+            fs.unlinkSync(`./pid_${Config.getInstance().containerPort}`)
         })
 
         this.gracefulServer.on(GracefulServer.SHUTDOWN, error => {
@@ -73,7 +73,7 @@ export class Container {
             await PersistenceModule.init();
             await this.app.listen(port, host)
             // this.app.swagger()
-            fs.writeFileSync("./pid", process.pid.toString());
+            fs.writeFileSync(`./pid_${Config.getInstance().containerPort}`, process.pid.toString());
             this.gracefulServer.setReady()
             return this.app;
         } catch (err) {
@@ -84,7 +84,7 @@ export class Container {
 
 }
 const startTime = new Date().getUTCMilliseconds();
-await new Container().start("127.0.0.1", 10000);
+await new Container().start("127.0.0.1", Config.getInstance().containerPort);
 const startCompleted = new Date().getUTCMilliseconds();
 Logger.info(`Container started in ${startCompleted - startTime} ms`)
 export default Container

@@ -1,0 +1,7 @@
+{
+  "lines": 50,
+  "functions": 50,
+  "branches": 50,
+  "exclude": ["**/shell.js" , "**/embedded.sidecar.daemon.service.js", "**/fake.*"]
+
+}

@@ -33,6 +33,6 @@ const processInstanceSchema = new mongoose.Schema({
     },
 })
 
-const ProcessInstance = mongoose.model('ProcessInstance', processInstanceSchema ,{ collection: 'ProcessInstance' })
+const ProcessInstance = mongoose.model('ProcessInstance', processInstanceSchema , 'ProcessInstance' )
 
 export default ProcessInstance;

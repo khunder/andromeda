@@ -1,7 +1,7 @@
-import v1 from "uuid"
+import {v4} from "uuid"
 import {AndromedaLogger} from "../../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
-class RepositoryBase {
+class BaseRepository {
   /**
    * @type {Model}
    * @private
@@ -74,7 +74,7 @@ class RepositoryBase {
       new: true,
     };
     if (!item._id) {
-      item['$setOnInsert'] = { _id: v1() };
+      item['$setOnInsert'] = { _id: v4() };
     }
     return  this._model.findOneAndUpdate(cond, item, options);
   }
@@ -90,4 +90,4 @@ class RepositoryBase {
   }
 }
 
-export  default RepositoryBase;
+export  default BaseRepository;

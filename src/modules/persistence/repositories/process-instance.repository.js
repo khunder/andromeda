@@ -1,4 +1,4 @@
-import RepositoryBase from "./repository.base.js";
+import BaseRepository from "./baseRepository.js";
 import ProcessInstance from "../models/process.instance.js";
 
 import {AndromedaLogger} from "../../../config/andromeda-logger.js";
@@ -7,12 +7,12 @@ const Logger = new AndromedaLogger();
 export class ProcessInstanceRepository {
 
     /**
-     * @type {RepositoryBase}
+     * @type {BaseRepository}
      */
     repo;
 
     constructor() {
-        this.repo= new RepositoryBase(ProcessInstance)
+        this.repo= new BaseRepository(ProcessInstance)
     }
 
     /**

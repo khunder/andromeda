@@ -1,6 +1,6 @@
 
 import {ProcessInstance} from "../../../persistence/models/process.instance.js";
-import {RepositoryBase} from "../../../persistence/repositories/repository.base.js";
+import {BaseRepository} from "../../../persistence/repositories/baseRepository.js";
 // import {Engine} from "../modules/engine/engine.js";
 // import {ContainerContext} from "../model/container.context.js";
 

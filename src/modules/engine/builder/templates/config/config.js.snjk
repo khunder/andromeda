@@ -25,6 +25,7 @@ export class Config {
     constructor() {
         Logger.trace(`Loading Config values...`)
         this.mongoDbUri = process.env.MONGODB_URI;
+        this.containerPort = process.env.containerPort || 10000;
         this.tempPath = process.env.tempPath || "temp";
     }
 }

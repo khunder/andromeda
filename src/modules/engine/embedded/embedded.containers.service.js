@@ -70,7 +70,7 @@ export class EmbeddedContainerService {
         Logger.info(`starting container on port ${allocatedPort}`)
         let deploymentPath = `./deployments/${deploymentId}`;
 
-        this.deleteEmbeddedContainerPidFile(deploymentPath);
+        this.deleteEmbeddedContainerPidFile(deploymentPath, allocatedPort);
 
         let childProcess;
         let executor = '';
@@ -82,7 +82,7 @@ export class EmbeddedContainerService {
                 silent: false,
                 killTree: true,
                 env: {
-                    container_port: String(allocatedPort),
+                    containerPort: String(allocatedPort),
                     mongoDbUri: Config.getInstance().mongoDbUri,
                     deploymentId: deploymentId
                 },
@@ -110,13 +110,19 @@ export class EmbeddedContainerService {
         return allocatedPort;
     }
 
-    static deleteEmbeddedContainerPidFile(deploymentPath) {
-        if (fs.existsSync(`${deploymentPath}/pid`)) {
+    static deleteEmbeddedContainerPidFile(deploymentPath, port) {
+        const basePath = path.join(process.cwd(), "deployments", deploymentPath)
+        const pidPath= path.join(basePath , `pid_${port}`)
+        if (fs.existsSync(pidPath)) {
+            Logger.debug(`deleteEmbeddedContainerPidFile:: Found pid file`)
             try {
-                fs.unlinkSync(`${deploymentPath}/pid`)
+                Logger.debug(`deleteEmbeddedContainerPidFile:: deleting pid file`)
+                fs.unlinkSync(pidPath)
             } catch (err) {
                 Logger.error(err)
             }
+        }else{
+            Logger.debug(`deleteEmbeddedContainerPidFile:: pid file NOT FOUND at ${pidPath}`)
         }
     }
 
@@ -128,9 +134,16 @@ export class EmbeddedContainerService {
         }
     }
 
+    /**
+     *
+     * @param {string} deploymentPath
+     * @param {string} deploymentId
+     * @param {number} allocatedPort
+     * @returns {Promise<void>}
+     */
     static async waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort) {
         const runContainer = async () => {
-            if (fs.existsSync(deploymentPath + "/pid")) {
+            if (fs.existsSync(deploymentPath + `/pid_${allocatedPort}`)) {
                 Logger.info(`Found process id (PID), for process ${deploymentId}, on port ${allocatedPort}`)
                 return true;
             } else {
@@ -148,17 +161,20 @@ export class EmbeddedContainerService {
             }
             if (i === numberOfAttempts - 1) {
                 Logger.error(`Cannot start embedded container:${deploymentId} Max number of attempts reached, on port ${allocatedPort}`);
-                await this.stopEmbeddedContainer(deploymentId)
+                await this.stopEmbeddedContainer(deploymentId, allocatedPort)
                 throw `cannot start embedded container`;
             }
         }
     }
 
-    static async stopEmbeddedContainer(deploymentId) {
+    static async stopEmbeddedContainer(deploymentId, port) {
+        Logger.debug(`stopEmbeddedContainer :: ${deploymentId}`)
         EmbeddedContainerService.containers.forEach(e=>{
             if(e.model.deploymentId === deploymentId){
+                Logger.debug(`stopEmbeddedContainer :: with pid ${e.model.pid}`)
+                EmbeddedContainerService.deleteEmbeddedContainerPidFile(deploymentId, port);
                 forever.kill(e.model.pid)
             }
-        })
+        });
     }
 }
