@@ -25,6 +25,10 @@ export class GalaxyModule {
 
     }
 
+    getSpec(){
+
+    }
+
 }
 
 export  default  GalaxyModule;

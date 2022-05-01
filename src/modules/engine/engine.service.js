@@ -81,7 +81,7 @@ export class EngineService {
             this.GenerateGalaxyModule(deploymentPath);
         }
         const templatePath = path.join(process.cwd(), "src", "modules", "engine", "builder", "templates");
-        this.generateStaticFiles(templatePath, deploymentPath, containerParsingContext)
+        this.generateStaticFiles(templatePath, deploymentPath , containerParsingContext)
 
         const containerCodegenContext = new ContainerCodegenContext();
         containerParsingContext.workflowParsingContext.forEach(parsedModel => {
@@ -105,26 +105,32 @@ export class EngineService {
 
     GeneratePersistenceModule(deploymentPath) {
         const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", "persistence");
-        const persistenceModulePathDestination = path.join(deploymentPath, "modules");
+        const persistenceModulePathDestination = path.join(deploymentPath,"src", "modules");
+        if (!fs.existsSync(path.join(deploymentPath,"src"))) {
+            fs.mkdirSync(path.join(deploymentPath,"src"));
+        }
         if (!fs.existsSync(persistenceModulePathDestination)) {
             fs.mkdirSync(persistenceModulePathDestination);
         }
         if (!fs.existsSync(path.join(persistenceModulePathDestination, "persistence"))) {
             fs.mkdirSync(path.join(persistenceModulePathDestination, "persistence"));
         }
-        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/persistence")
+        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/src/modules/persistence")
     }
 
     GenerateGalaxyModule(deploymentPath) {
         const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", "galaxy");
-        const persistenceModulePathDestination = path.join(deploymentPath, "modules");
+        const persistenceModulePathDestination = path.join(deploymentPath, "src", "modules");
+        if (!fs.existsSync(path.join(deploymentPath,"src"))) {
+            fs.mkdirSync(path.join(deploymentPath,"src"));
+        }
         if (!fs.existsSync(persistenceModulePathDestination)) {
             fs.mkdirSync(persistenceModulePathDestination);
         }
         if (!fs.existsSync(path.join(persistenceModulePathDestination, "galaxy"))) {
             fs.mkdirSync(path.join(persistenceModulePathDestination, "galaxy"));
         }
-        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/galaxy")
+        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/src/modules/galaxy")
     }
 
 

@@ -142,13 +142,13 @@ class WorkflowBuilder {
       lstripBlocks: true,
     });
 
-    let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/services/${serviceFileName}.js`
+    let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/src/services/${serviceFileName}.js`
 
     let template =  fs.readFileSync(
         path
             .join(
                 __dirname,
-                './builder/templates/services/service.njk',
+                './builder/templates/src/services/service.njk',
             )
             .toString(),
     ).toString()
