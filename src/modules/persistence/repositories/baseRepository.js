@@ -62,11 +62,6 @@ class BaseRepository {
     return this._model.count(cond);
   }
 
-  save(item) {
-    Logger.trace(`Base repository: save item:${JSON.stringify(item)}`);
-    return item.save(item);
-  }
-
   async upsert(cond, item){
     Logger.trace(`Base repository: upsert: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
     const options = {

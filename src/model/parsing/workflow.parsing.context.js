@@ -1,5 +1,6 @@
-
-
+/**
+ * Model used for bpmn parsing
+ */
 class WorkflowParsingContext {
     model;
     bpmnContent;

@@ -58,6 +58,11 @@ export class EngineService {
         }.bind(this));
     }
 
+    /**
+     *
+     * @param {ContainerParsingContext} containerParsingContext
+     * @returns {Promise<void>}
+     */
     async generateContainer(containerParsingContext) {
         const deploymentPath = this.getDeploymentPath(containerParsingContext);
         if (!fs.existsSync(deploymentPath)) {
@@ -72,6 +77,9 @@ export class EngineService {
         //     throw new Error('Cannot generate container, no model found');
         // }
         this.GeneratePersistenceModule(deploymentPath);
+        if(containerParsingContext.includeGalaxyModule){
+            this.GenerateGalaxyModule(deploymentPath);
+        }
         const templatePath = path.join(process.cwd(), "src", "modules", "engine", "builder", "templates");
         this.generateStaticFiles(templatePath, deploymentPath, containerParsingContext)
 
@@ -105,6 +113,18 @@ export class EngineService {
             fs.mkdirSync(path.join(persistenceModulePathDestination, "persistence"));
         }
         this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/persistence")
+    }
+
+    GenerateGalaxyModule(deploymentPath) {
+        const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", "galaxy");
+        const persistenceModulePathDestination = path.join(deploymentPath, "modules");
+        if (!fs.existsSync(persistenceModulePathDestination)) {
+            fs.mkdirSync(persistenceModulePathDestination);
+        }
+        if (!fs.existsSync(path.join(persistenceModulePathDestination, "galaxy"))) {
+            fs.mkdirSync(path.join(persistenceModulePathDestination, "galaxy"));
+        }
+        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/modules/galaxy")
     }
 
 

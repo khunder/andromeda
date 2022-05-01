@@ -11,15 +11,29 @@ class ServerController {
             throw new Error("at least a bpmn file must be specified");
         }
         if(!req.body.deploymentId){
-            throw new Error("DeploymentId must be specified");
+            throw new Error("deploymentId must be specified");
         }
+
+        if(!req.body.deploymentId){
+            throw new Error("deploymentId must be specified");
+        }
+        //
+        let includeGalaxyModule;
+        if(req.body.includeGalaxyModule){
+            includeGalaxyModule = req.body.includeGalaxyModule === "true";
+        }else{
+            includeGalaxyModule = false;
+        }
+
         try {
             let fileContents = [];
             for(let fileIndex in req.files){
                 fileContents.push(fs.readFileSync(req.files[fileIndex].path, {encoding: 'utf8'}));
             }
-            let ctx = await Utils.prepareContainerContext(fileContents, req.body.deploymentId);
-            await new EngineService().generateContainer(ctx);
+            const containerParsingContext = await Utils.prepareContainerContext(fileContents, req.body.deploymentId);
+            containerParsingContext.includeGalaxyModule = includeGalaxyModule;
+
+            await new EngineService().generateContainer(containerParsingContext);
             return {};
         } catch (err) {
             const returnError = new Error();

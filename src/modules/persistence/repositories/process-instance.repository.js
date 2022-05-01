@@ -17,19 +17,35 @@ export class ProcessInstanceRepository {
 
     /**
      *
-     * @param {string} id
+     * @param {string} processInstanceId
      * @param {string} processDef
      * @param {string} deploymentId
+     * @param {string} containerId
      * @returns {Promise<void>}
      */
-    async createNewProcessInstance(id,deploymentId, processDef) {
-        Logger.info(`create new process instance ${id}`);
+    async createNewProcessInstance(processInstanceId,deploymentId, processDef, containerId) {
+        Logger.info(`create new process instance ${processInstanceId}`);
+        // @type {ProcessInstance}
         let processInstance= {
-            _id: id,
+            _id: processInstanceId,
             processDef: processDef,
             deploymentId: deploymentId,
-            status: 0
+            status: 0,
+            lock: {
+                containerId: containerId,
+                date: new Date()
+            }
         }
         await this.repo.create(processInstance)
     }
+
+    /**
+     *
+     * @param {string} processInstanceId
+     * @returns {Promise<void>}
+     */
+    async removeLock(processInstanceId){
+        await this.repo.upsert({_id: processInstanceId}, {lock: null})
+    }
+
 }

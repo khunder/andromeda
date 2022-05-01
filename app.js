@@ -3,10 +3,19 @@ import {AndromedaLogger} from "./src/config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 import {Utils} from "./src/utils/utils.js";
 import constants from "./src/config/constants.js";
+import {Config} from "./src/config/config.js";
 
 
 
 export class App {
+
+    host
+    ip
+
+    constructor(host, port) {
+       this.host = host || Config.getInstance().host
+       this.port  = port || Config.getInstance().port
+    }
 
     modules = []
 
@@ -24,6 +33,8 @@ export class App {
             await this.initPersistenceModule();
         }
 
+        // server should be initialised last, to load all changes made by other modules
+        // - exp: specification yaml file
         if (Utils.moduleIsActive(constants.SERVER)) {
             await this.initServerModule();
 
@@ -44,7 +55,7 @@ export class App {
     async initServerModule() {
         try {
             let Engine = await import ('./src/modules/engine/engine.module.js')
-            let engineModuleInstance = new Engine.EngineModule("127.0.0.1", 5000);
+            let engineModuleInstance = new Engine.EngineModule(this.host, this.port);
             this.modules.push(engineModuleInstance.start.bind(engineModuleInstance));
         } catch (e) {
             Logger.error(e)

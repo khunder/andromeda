@@ -5,21 +5,19 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
+import test from 'ava';
 
 
-describe("e2e-", () => {
-    let server;
-    beforeAll(async () => {
+    test.before(async () => {
 
-        await mongoose.connect(process.env.MONGO_URL);
+        await mongoose.connect(process.env.MONGODB_URI);
     });
 
-    afterAll(async () => {
+    test.after(async () => {
         await mongoose.disconnect();
     })
 
-    test('Start Engine', async () => {
-        try {
+    test('Start/Stop Embedded container', async (t) => {
             let deploymentId = "test";
             let fileContents = [];
             const __filename = fileURLToPath(import.meta.url);
@@ -29,14 +27,7 @@ describe("e2e-", () => {
             let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-             let embeddedContainerService = new EmbeddedContainerService
-            await embeddedContainerService.startEmbeddedContainer(deploymentId, {port:10000});
-            await embeddedContainerService.stopEmbeddedContainer(deploymentId);
-        } catch (e) {
-            console.error(e)
-        }
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port:10000});
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10000);
 
-    })
-
-
-})
+    });

@@ -1,6 +1,7 @@
 
 import  multer from "fastify-multer";
 import serverController from "../modules/engine/embedded/controllers/embedded-server.controller.js";
+import commonServerController from "../modules/engine/common/controllers/server.controller.js";
 import {Config} from "../config/config.js";
 import constants from "../config/constants.js";
 
@@ -15,7 +16,8 @@ function route (fastify, opts, next) {
                 method: 'POST',
                 preHandler: upload.array('bpmnFile'),
                 url: '/api/compile',
-                handler: serverController.compile
+                handler: commonServerController.compile,
+                consumes: ['multipart/form-data']
             }
         )
 

@@ -15,8 +15,7 @@ class EmbeddedServerController {
         }
         const deploymentId =req.body.deploymentId
         try {
-
-            await new EmbeddedContainerService().startEmbeddedContainer(deploymentId, {});
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {});
             return {};
         } catch (err) {
             const returnError = new Error();

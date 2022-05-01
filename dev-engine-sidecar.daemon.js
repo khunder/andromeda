@@ -11,7 +11,7 @@ let containers = []
 /**
  * NB: THIS HELPER IS USED ONLY LOCALLY IN DEV MODE, it's called sidecar daemon
  * This helper will kill child (containers aka node process) when the engine is closed
- * When the daemon detects that the engine is closed, checks pid regularly, it will close all related note processes.
+ * When the daemon detects that the engine is closed, checks pid regularly, it will close all related node processes.
  * When the engine starts, it will start the daemon, and pass its own pid.
  * When a container starts, it will send the pid of the created process, the daemon will store it in memory.
  *

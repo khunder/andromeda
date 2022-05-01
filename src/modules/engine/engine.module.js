@@ -3,11 +3,10 @@ import path from "path";
 import fastify from "fastify";
 import GracefulServer from "@gquittet/graceful-server";
 import multer from "fastify-multer";
-import fastifySwagger from 'fastify-swagger';
-import autoload from 'fastify-autoload';
+import fastifySwagger from '@fastify/swagger';
+import autoload from '@fastify/autoload';
 import {fileURLToPath} from "url";
 import {Config} from "../../config/config.js";
-import EngineService from "./engine.service.js";
 import {EmbeddedSidecarDaemonService} from "./embedded/embedded.sidecar.daemon.service.js";
 
 const Logger = new AndromedaLogger();
@@ -79,7 +78,8 @@ export class EngineModule {
                 Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
                 if (Config.getInstance().isLocalMode) {
-                    EmbeddedSidecarDaemonService.initDaemon();
+                    const daemon = await import("./embedded/embedded.sidecar.daemon.service.js");
+                    daemon.EmbeddedSidecarDaemonService.initDaemon();
                 }
                 resolve(this.app);
             } catch (err) {

@@ -15,6 +15,8 @@ export class Config {
     activateModules=[];
     environment
     isLocalMode
+    host
+    port
 
     static getInstance(force) {
         if (!config || force) {
@@ -32,5 +34,7 @@ export class Config {
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
         this.environment = process.env.ENV || "local";
         this.isLocalMode= this.environment === "local";
+        this.host= process.env.host || "127.0.0.1";
+        this.port= process.env.port || "5000";
     }
 }

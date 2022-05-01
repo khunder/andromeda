@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import forever from "forever";
 import {Config} from "../../../config/config.js";
-import {EmbeddedSidecarDaemonService} from "./embedded.sidecar.daemon.service.js";
+
 import {AndromedaLogger} from "../../../config/andromeda-logger.js";
 import http from "http";
 const Logger = new AndromedaLogger();
@@ -103,7 +103,8 @@ export class EmbeddedContainerService {
         EmbeddedContainerService.containers.push({deploymentId, model: new EmbeddedContainerModel(childProcess.child.pid, allocatedPort, deploymentId)});
 
         if (Config.getInstance().isLocalMode) {
-            EmbeddedSidecarDaemonService.watchContainer(childProcess.child.pid)
+            const daemon = await import("../embedded/embedded.sidecar.daemon.service.js");
+            daemon.EmbeddedSidecarDaemonService.watchContainer(childProcess.child.pid)
         }
 
         await this.waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort);
@@ -168,6 +169,10 @@ export class EmbeddedContainerService {
     }
 
     static async stopEmbeddedContainer(deploymentId, port) {
+        if(!port){
+            Logger.error(`to stop embedded container port must not specified `)
+            throw new Error(`to stop embedded container port must not specified `)
+        }
         Logger.debug(`stopEmbeddedContainer :: ${deploymentId}`)
         EmbeddedContainerService.containers.forEach(e=>{
             if(e.model.deploymentId === deploymentId){

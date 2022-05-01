@@ -1,4 +1,6 @@
-
+/**
+ * Model used using container code-gen phase
+ */
 class ContainerParsingContext {
   constructor(config) {
     this.deploymentId = config && config.deploymentId;
@@ -8,6 +10,7 @@ class ContainerParsingContext {
   }
 
   isTestContainer;
+  includeGalaxyModule;
   deploymentId;
   workflowParsingContext;
 
