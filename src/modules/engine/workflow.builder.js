@@ -84,6 +84,7 @@ class WorkflowBuilder {
 
         await this.generateServiceClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
         await this.generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
+        containerCodegenContext.openApiCodegen.addPath("/start" , "post")
 
         containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 

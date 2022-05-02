@@ -2,14 +2,28 @@ import nunjucks from "nunjucks";
 import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
+import {OpenApiGenerator} from "../../utils/open-api.generator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class ContainerCodegenContext {
+   openApiCodegen = new OpenApiGenerator()
    routes = [];
 
-   /**
+
+    constructor() {
+        this.openApiCodegen
+            .setInfo({
+                description: "Container swagger specification",
+                version: "0.0.0",
+                title: "Container swagger specification",
+            })
+            .setInfoVersion("1.0.0")
+            .setInfoContactEmail("benrhoumazied@gmail.com")
+    }
+
+    /**
     *
     * @param {string} normalizedProcessDef
     * @param {ContainerParsingContext} containerParsingContext

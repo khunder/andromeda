@@ -86,13 +86,16 @@ export class EngineService {
         // common codegen context, contains common things such as routes
         const containerCodegenContext = new ContainerCodegenContext();
 
+        this.addLivelinessProbe(containerCodegenContext);
+
+
         for (const bpmnModel of containerParsingContext.workflowParsingContext) {
             await new WorkflowBuilder().generateWorkflow(bpmnModel, containerParsingContext, containerCodegenContext);
 
         }
 
 
-        this.generateOpenApiYaml(containerParsingContext);
+        this.generateOpenApiYaml(containerParsingContext, containerCodegenContext);
         //
         // await Promise.all(
         //     Array.from(containerContext.model.keys()).map(async (processDef) => {
@@ -103,6 +106,27 @@ export class EngineService {
         //         );
         //     }),
         // );
+    }
+
+    addLivelinessProbe(containerCodegenContext) {
+        containerCodegenContext.openApiCodegen.addPath("/live", "get")
+            .addPathDescription("/live", "get", "Liveliness probe (health check)")
+            .addPathTags("/live", "get", ["Startup probe"])
+            .addResponse("/live", "get", {
+                "200": {
+                    "description": "Server is alive",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "example": {
+                                    "status": "..."
+                                }
+                            }
+                        }
+                    }
+                }
+            })
     }
 
     GeneratePersistenceModule(deploymentPath) {
@@ -140,22 +164,24 @@ export class EngineService {
     /**
      *
      * @param ctx : ContainerParsingContext
+     * @param containerCodegenContext : ContainerCodegenContext
      */
-    generateOpenApiYaml(ctx) {
-        let template = fs.readFileSync(
-            path
-                .join(
-                    __dirname,
-                    './builder/templates/specification.yaml.njk',
-                )
-                .toString(),
-        ).toString();
+    generateOpenApiYaml(ctx, containerCodegenContext) {
+        // let template = fs.readFileSync(
+        //     path
+        //         .join(
+        //             __dirname,
+        //             './builder/templates/specification.yaml.njk',
+        //         )
+        //         .toString(),
+        // ).toString();
+        //
+        // const renderedTemplate = nunjucks.renderString(
+        //     template,
+        //     {},
+        // );
 
-        const renderedTemplate = nunjucks.renderString(
-            template,
-            {},
-        );
-        fs.writeFileSync(path.join(this.getDeploymentPath(ctx), "specification.yaml"), renderedTemplate);
+        fs.writeFileSync(path.join(this.getDeploymentPath(ctx), "specification.yaml"), containerCodegenContext.openApiCodegen.render());
     }
 
     /**
