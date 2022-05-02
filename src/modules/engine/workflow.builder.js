@@ -22,230 +22,281 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class WorkflowBuilder {
-  constructor(  ) {}
+    constructor() {
+    }
 
-   bpmnProcessor =new BpmnProcessor();
-
-
-
+    bpmnProcessor = new BpmnProcessor();
 
 
+    normalizeProcessDefWithoutVersion(processDef) {
+        const result = processDef;
+        const regex = /(\w+)(-[vV][0-9]+\.[0-9]+)/;
+        return result.replace(regex, `$1`);
+    }
 
-  normalizeProcessDefWithoutVersion(processDef) {
-    const result = processDef;
-    const regex = /(\w+)(-[vV][0-9]+\.[0-9]+)/;
-    return result.replace(regex, `$1`);
-  }
+    upperFirstChar(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
 
-  upperFirstChar(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-  }
+    async generateEmbeddedContainer(element, workflowCodegenContext, containerParsingContext) {
+        let self = this;
+        // search start
+        // generate code
+        const startElements = this.getStartElements(element);
+        startElements.forEach(startElement => {
+            self.generate(startElement, workflowCodegenContext, containerParsingContext);
+        })
+        let embeddedEventSubprocesses = this.getEventSubProcess(element);
+        embeddedEventSubprocesses.forEach(container => {
+            self.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
+        })
+    }
 
-  async generateEmbeddedContainer(element, workflowCodegenContext, containerParsingContext){
-    let self = this;
-      // search start
-      // generate code
-    const startElements = this.getStartElements(element);
-    startElements.forEach(startElement => {
-      self.generate(startElement, workflowCodegenContext, containerParsingContext);
-    })
-    let embeddedEventSubprocesses = this.getEventSubProcess(element);
-    embeddedEventSubprocesses.forEach(container => {
-      self.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
-    })
-  }
+    /**
+     *
+     * @param element : FlowNode
+     * @param workflowCodegenContext : WorkflowCodegenContext
+     * @param containerParsingContext : ContainerParsingContext
+     * @returns {Promise<void>}
+     */
+    async generate(element, workflowCodegenContext, containerParsingContext) {
+        this.bpmnProcessor.process(element, workflowCodegenContext, containerParsingContext);
+    }
 
-  /**
-   *
-   * @param element : FlowNode
-   * @param workflowCodegenContext : WorkflowCodegenContext
-   * @param containerParsingContext : ContainerParsingContext
-   * @returns {Promise<void>}
-   */
-  async generate(element, workflowCodegenContext, containerParsingContext){
-      this.bpmnProcessor.process(element,workflowCodegenContext, containerParsingContext);
-  }
+    /**
+     * entry point for code generation
+     * @param bpmnModel : WorkflowParsingContext
+     * @param containerParsingContext : ContainerParsingContext
+     * @param containerCodegenContext : ContainerCodegenContext
+     * @returns {Promise<void>}
+     */
+    async generateWorkflow(
+        bpmnModel,
+        containerParsingContext,
+        containerCodegenContext
+    ) {
+        // each bpmn file can contain multiple process node
+        const processesInBpmnFile = this.getProcessesModel(bpmnModel.model);
 
-  /**
-   * entry point for code generation
-   * @param parsedModel : WorkflowParsingContext
-   * @param containerParsingContext : ContainerParsingContext
-   * @param containerCodegenContext : ContainerCodegenContext
-   * @returns {Promise<void>}
-   */
-  async generateWorkflow(
-      parsedModel,
-      containerParsingContext,
-      containerCodegenContext
-  ) {
-    // each bpmn file can contain multiple process node
-    const processesInBpmnFile = this.getProcessesModel(parsedModel.model);
+        const normalizedProcessDef = this.normalizeProcessDefWithoutVersion(bpmnModel.processPrefix);
 
-    const workflowCodegenContext =  new WorkflowCodegenContext( containerCodegenContext);
-    await this.generateServiceClass(parsedModel, containerParsingContext, workflowCodegenContext)
+        const workflowCodegenContext = new WorkflowCodegenContext(containerCodegenContext);
 
-    processesInBpmnFile.forEach(process => {
-      this.generateProcess(process, workflowCodegenContext, containerParsingContext);
+        await this.generateServiceClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
+        await this.generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
 
-    });
+        containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 
-    await workflowCodegenContext.project.saveSync();
+        processesInBpmnFile.forEach(process => {
+            this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
+        });
 
-    // for each process create a start method
-
-    // in each start method
-      // call event subprocess start method
-      // call start node (simple start)
-
-    // detect
-       // simple start
-       // event based start (all types) scheduled, message ....
-       // process each node and all the nodes linked to it
-       // process all the nodes in an adhoc subprocess
+        containerCodegenContext.renderRoutes(normalizedProcessDef, containerParsingContext);
+        await workflowCodegenContext.project.saveSync();
 
 
+        // for each process create a start method
 
-    // const buildContext = new ProcessInstanceBuildContext();
-    // this.generateServiceClass(processDef, buildContext, containerParsingContext);
-    // // this.generateVariableContextHandlerClass(processDef, containerParsingContext);
-    // this.generateControllerClass(processDef, buildContext, containerParsingContext);
-    // this.generateVariable(
-    //   processesInBpmnFile,
-    //   this.normalizeProcessDefWithoutVersion(processDef),
-    //   buildContext,
-    //   containerParsingContext,
-    // );
-    // // this.createWorkflowWorker(processDef, containerParsingContext);
-    // startElements.forEach((startElement) => {
-    //   this.generateContentForElement(startElement, buildContext);
-    // });
-    // buildContext.renderImports();
-    // buildContext.serviceClassFile.formatText({ trimTrailingWhitespace: true });
-    // buildContext.controllerClass.formatText({ trimTrailingWhitespace: true });
-    // buildContext.project.saveSync();
-  }
+        // in each start method
+        // call event subprocess start method
+        // call start node (simple start)
+
+        // detect
+        // simple start
+        // event based start (all types) scheduled, message ....
+        // process each node and all the nodes linked to it
+        // process all the nodes in an adhoc subprocess
 
 
-  async generateServiceClass(
-      parsedModel,
-      workflowParsingContext,
-      workflowCodegenContext,
-  ) {
-    const normalizedProcessDef =
-        this.normalizeProcessDefWithoutVersion(parsedModel.processPrefix);
-    const serviceFileName = this.getServiceFileName(normalizedProcessDef);
-    const serviceClassName = this.getServiceClassName(normalizedProcessDef);
-    nunjucks.configure({
-      autoescape: false,
-      trimBlocks: true,
-      lstripBlocks: true,
-    });
+        // const buildContext = new ProcessInstanceBuildContext();
+        // this.generateServiceClass(processDef, buildContext, containerParsingContext);
+        // // this.generateVariableContextHandlerClass(processDef, containerParsingContext);
+        // this.generateControllerClass(processDef, buildContext, containerParsingContext);
+        // this.generateVariable(
+        //   processesInBpmnFile,
+        //   this.normalizeProcessDefWithoutVersion(processDef),
+        //   buildContext,
+        //   containerParsingContext,
+        // );
+        // // this.createWorkflowWorker(processDef, containerParsingContext);
+        // startElements.forEach((startElement) => {
+        //   this.generateContentForElement(startElement, buildContext);
+        // });
+        // buildContext.renderImports();
+        // buildContext.serviceClassFile.formatText({ trimTrailingWhitespace: true });
+        // buildContext.controllerClass.formatText({ trimTrailingWhitespace: true });
+        // buildContext.project.saveSync();
+    }
 
-    let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/src/services/${serviceFileName}.js`
+    /**
+     *
+     * @param {string} normalizedProcessDef
+     * @param parsedModel
+     * @param {WorkflowParsingContext} workflowParsingContext
+     * @param {WorkflowCodegenContext} workflowCodegenContext
+     * @returns {Promise<void>}
+     */
+    async generateServiceClass(
+        normalizedProcessDef,
+        parsedModel,
+        workflowParsingContext,
+        workflowCodegenContext,
+    ) {
 
-    let template =  fs.readFileSync(
-        path
-            .join(
-                __dirname,
-                './builder/templates/src/services/service.njk',
+        const serviceFileName = this.getServiceFileName(normalizedProcessDef);
+        const serviceClassName = this.getServiceClassName(normalizedProcessDef);
+        nunjucks.configure({
+            autoescape: false,
+            trimBlocks: true,
+            lstripBlocks: true,
+        });
+
+        let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/src/services/${serviceFileName}.js`
+
+        let template = fs.readFileSync(
+            path
+                .join(
+                    __dirname,
+                    './builder/templates/src/services/service.njk',
+                )
+                .toString(),
+        ).toString()
+        const renderedTemplate = nunjucks.renderString(
+            template,
+            {
+                ServiceFileName: serviceFileName,
+                ServiceClassName: serviceClassName,
+                ProcessDef: normalizedProcessDef,
+            },
+        );
+
+        workflowCodegenContext.serviceClassFile = workflowCodegenContext.project.createSourceFile(
+            serviceFilePath,
+            renderedTemplate,
+            {overwrite: true},
+        );
+        workflowCodegenContext.serviceClass = workflowCodegenContext.serviceClassFile.getClassOrThrow(serviceClassName)
+    }
+
+    /**
+     *
+     * @param process : Process
+     * @param workflowCodegenContext : WorkflowCodegenContext
+     * @param containerParsingContext : ContainerParsingContext
+     */
+    generateProcess(process, workflowCodegenContext, containerParsingContext) {
+        let startElements = this.getStartElements(process);
+        startElements.forEach(startElement => {
+            this.generate(startElement, workflowCodegenContext, containerParsingContext).then(r => {
+            });
+        });
+
+        let embeddedEventSubprocesses = this.getEventSubProcess(process);
+        embeddedEventSubprocesses.forEach(async (container) => {
+            await this.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
+        });
+    }
+
+
+    /**
+     *
+     * @param normalizedProcessDef : string
+     * @returns {string}
+     */
+    getServiceFileName(normalizedProcessDef) {
+        return normalizedProcessDef.toLowerCase() + '.process-instance.service';
+    }
+
+    getServiceClassName(normalizedProcessDef) {
+        return this.upperFirstChar(normalizedProcessDef) + 'ProcessInstanceService';
+    }
+
+
+    getStartElements(bpmnProcess) {
+        if (!bpmnProcess) {
+            throw new Error(
+                `cannot compile file missing a process in the root elements`,
+            );
+        }
+        // message start event + (non interrupting)
+        // Timer start event + (non interrupting)
+        // conditional start event + (non interrupting)
+        // signal start event + (non interrupting)
+        // error start event
+        // Escalation start event + (non interrupting)
+        // Compensation start event
+
+        // search event subprocess, because they are triggered automatically
+        return (
+            bpmnProcess.flowElements.filter(
+                (e) =>
+                    e.$type === 'bpmn:StartEvent'
             )
-            .toString(),
-    ).toString()
-    const renderedTemplate = nunjucks.renderString(
-       template,
-        {
-          ServiceFileName: serviceFileName,
-          ServiceClassName: serviceClassName,
-          ProcessDef: normalizedProcessDef,
-        },
-    );
-
-    workflowCodegenContext.serviceClassFile = workflowCodegenContext.project.createSourceFile(
-        serviceFilePath,
-        renderedTemplate,
-        { overwrite: true },
-    );
-    workflowCodegenContext.serviceClass =workflowCodegenContext.serviceClassFile.getClassOrThrow(serviceClassName)
-  }
-
-  /**
-   *
-   * @param process : Process
-   * @param workflowCodegenContext : WorkflowCodegenContext
-   * @param containerParsingContext : ContainerParsingContext
-   */
-  generateProcess(process, workflowCodegenContext, containerParsingContext) {
-    let startElements = this.getStartElements(process);
-    startElements.forEach(startElement => {
-      this.generate(startElement, workflowCodegenContext, containerParsingContext).then(r => {});
-    });
-
-    let embeddedEventSubprocesses = this.getEventSubProcess(process);
-    embeddedEventSubprocesses.forEach(async (container) => {
-      await this.generateEmbeddedContainer(container, workflowCodegenContext, containerParsingContext)
-    });
-  }
-
-
-  /**
-   *
-   * @param normalizedProcessDef : string
-   * @returns {string}
-   */
-   getServiceFileName(normalizedProcessDef) {
-    return normalizedProcessDef.toLowerCase() + '.process-instance.service';
-  }
-
-   getServiceClassName(normalizedProcessDef) {
-    return this.upperFirstChar(normalizedProcessDef) + 'ProcessInstanceService';
-  }
-
-
-
-
-   getStartElements(bpmnProcess) {
-    if (!bpmnProcess) {
-      throw new Error(
-        `cannot compile file missing a process in the root elements`,
-      );
-    }
-    // message start event + (non interrupting)
-    // Timer start event + (non interrupting)
-    // conditional start event + (non interrupting)
-    // signal start event + (non interrupting)
-    // error start event
-    // Escalation start event + (non interrupting)
-    // Compensation start event
-
-     // search event subprocess, because they are triggered automatically
-    return(
-      bpmnProcess.flowElements.filter(
-          (e) =>
-              e.$type === 'bpmn:StartEvent'
-      )
-    );
-  }
-
-  getEventSubProcess(bpmnProcess) {
-    if (!bpmnProcess) {
-      throw new Error(
-          `cannot compile file missing a process in the root elements`,
-      );
+        );
     }
 
-    // search event subprocess, because they are triggered automatically
-    return(
-        bpmnProcess.flowElements.filter(
-            (e) =>
-                e.$type === 'bpmn:SubProcess' && e.triggeredByEvent === true
-        )
-    );
-  }
+    getEventSubProcess(bpmnProcess) {
+        if (!bpmnProcess) {
+            throw new Error(
+                `cannot compile file missing a process in the root elements`,
+            );
+        }
 
-   getProcessesModel(model) {
-     return model.rootElement.rootElements.filter((e) => e.$type === 'bpmn:Process');
-  }
+        // search event subprocess, because they are triggered automatically
+        return (
+            bpmnProcess.flowElements.filter(
+                (e) =>
+                    e.$type === 'bpmn:SubProcess' && e.triggeredByEvent === true
+            )
+        );
+    }
+
+    getProcessesModel(model) {
+        return model.rootElement.rootElements.filter((e) => e.$type === 'bpmn:Process');
+    }
+
+    /**
+     *
+     * @param {string} normalizedProcessDef
+     * @param {WorkflowParsingContext} bpmnModel
+     * @param {ContainerParsingContext} containerParsingContext
+     * @param {WorkflowCodegenContext} workflowCodegenContext
+     */
+    generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
+            const controllerName= `${normalizedProcessDef}Controller`
+        nunjucks.configure({
+            autoescape: false,
+            trimBlocks: true,
+            lstripBlocks: true,
+        });
+
+        let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`
+
+        let template = fs.readFileSync(
+            path
+                .join(
+                    __dirname,
+                    './builder/templates/src/controllers/controller.njk',
+                )
+                .toString(),
+        ).toString()
+        const renderedTemplate = nunjucks.renderString(
+            template,
+            {
+                ControllerFileName: controllerName,
+                ControllerClassName: controllerName,
+                ProcessDef: normalizedProcessDef,
+            },
+        );
+
+        workflowCodegenContext.controllerClassFile = workflowCodegenContext.project.createSourceFile(
+            serviceFilePath,
+            renderedTemplate,
+            {overwrite: true},
+        );
+
+    }
 
 
 }

@@ -35,10 +35,16 @@ export class App {
 
         // server should be initialised last, to load all changes made by other modules
         // - exp: specification yaml file
+        if (Utils.moduleIsActive(constants.WEB)) {
+            await this.initWebModule();
+
+        }
+
         if (Utils.moduleIsActive(constants.SERVER)) {
             await this.initServerModule();
 
         }
+
 
         await this.executePromisesSequentially(this.modules);
     }
@@ -55,8 +61,18 @@ export class App {
     async initServerModule() {
         try {
             let Engine = await import ('./src/modules/engine/engine.module.js')
-            let engineModuleInstance = new Engine.EngineModule(this.host, this.port);
+            let engineModuleInstance = new Engine.EngineModule();
             this.modules.push(engineModuleInstance.start.bind(engineModuleInstance));
+        } catch (e) {
+            Logger.error(e)
+        }
+    }
+
+    async initWebModule() {
+        try {
+            let web = await import ('./src/modules/web/web.module.js')
+            let webModule = new web.WebModule(this.host, this.port);
+            this.modules.push(webModule.start.bind(webModule));
         } catch (e) {
             Logger.error(e)
         }

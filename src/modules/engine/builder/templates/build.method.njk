@@ -1,6 +1,6 @@
 async fn_{{nodeContext.id}} (flowModel) {
   let __localMethodContext = {
-    nodeSession: v1(), // each method has its own id execution, you can extract time from v1 uuid
+    nodeSession: v4(),
     nodeId: '{{ nodeContext.id }}',
     nodeName: '{{ nodeContext.name }}',
     type: '{{ nodeContext.type }}',

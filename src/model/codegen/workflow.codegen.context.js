@@ -3,13 +3,25 @@ import * as tsMorph from "ts-morph";
 class WorkflowCodegenContext {
 
     processId
+    /**
+     * @param {ContainerCodegenContext} containerCodegenContext
+     */
     containerCodegenContext
+    /**
+     * @type {Project}
+     */
     project = new tsMorph.Project({});
 
     serviceClass;
     controllerClass;
 
+    /**
+     * @type {SourceFile}
+     */
     serviceClassFile;
+    /**
+     * @type {SourceFile}
+     */
     controllerClassFile;
 
     controllerClassImports =[];

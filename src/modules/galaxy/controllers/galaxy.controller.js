@@ -1,6 +1,6 @@
 
 
-class EmbeddedGalaxyController {
+class GalaxyController {
 
 
     static getProcessInstances = async (req, reply) => {
@@ -19,4 +19,4 @@ class EmbeddedGalaxyController {
 
 }
 
-export default EmbeddedGalaxyController
+export default GalaxyController

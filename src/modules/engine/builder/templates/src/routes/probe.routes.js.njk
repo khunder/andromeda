@@ -1,0 +1,28 @@
+import {{ normalizedProcessDef }}Controller from "../controllers/{{ normalizedProcessDef }}Controller.js"
+
+
+function route (fastify, opts, next) {
+
+    {% for item in routes %}
+    fastify.route(
+    {%  if item.verb.toLowerCase() === "post" %}
+        {
+            method: '{{ item.verb }}',
+            url: '{{ item.path }}',
+            handler: {{ normalizedProcessDef }}Controller.{{ item.method }},
+            consumes: ['multipart/form-data']
+        }
+    {% else %}
+        {
+            method: '{{ item.verb }}',
+            url: '{{ item.path }}',
+            handler: {{ normalizedProcessDef }}Controller.{{ item.method }}
+        }
+    {%  endif %}
+    )
+    {% endfor %}
+
+    next();
+}
+
+export default route;

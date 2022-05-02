@@ -83,14 +83,16 @@ export class EngineService {
         const templatePath = path.join(process.cwd(), "src", "modules", "engine", "builder", "templates");
         this.generateStaticFiles(templatePath, deploymentPath , containerParsingContext)
 
+        // common codegen context, contains common things such as routes
         const containerCodegenContext = new ContainerCodegenContext();
-        containerParsingContext.workflowParsingContext.forEach(parsedModel => {
-            new WorkflowBuilder().generateWorkflow(parsedModel, containerParsingContext, containerCodegenContext);
-        })
+
+        for (const bpmnModel of containerParsingContext.workflowParsingContext) {
+            await new WorkflowBuilder().generateWorkflow(bpmnModel, containerParsingContext, containerCodegenContext);
+
+        }
 
 
         this.generateOpenApiYaml(containerParsingContext);
-
         //
         // await Promise.all(
         //     Array.from(containerContext.model.keys()).map(async (processDef) => {
