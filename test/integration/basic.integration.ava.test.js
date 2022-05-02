@@ -6,6 +6,7 @@ import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
 import test from 'ava';
+import utils from "../../src/utils/utils.js";
 
 
     test.before('database', async () => {
@@ -30,6 +31,8 @@ import test from 'ava';
              */
             let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
             ctx.includeGalaxyModule = true;
+            ctx.includeWebModule = true;
+            ctx.includePersistenceModule = true;
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);

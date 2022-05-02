@@ -1,4 +1,6 @@
 import {v4} from "uuid";
+import  {AndromedaLogger} from "../../config/andromeda-logger.js";
+const Logger = new AndromedaLogger();
 
 let instance;
 class ContainerService{
@@ -14,6 +16,10 @@ class ContainerService{
             instance = new ContainerService();
         }
         return instance;
+    }
+
+    static init(){
+        Logger.info(`Init Container module`)
     }
 
 }

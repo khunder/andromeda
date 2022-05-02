@@ -75,7 +75,7 @@ export class EmbeddedContainerService {
         let childProcess;
         let executor = '';
         let args = []
-        executor = path.join(process.cwd(), "deployments", deploymentId, "/app.js")
+        executor = path.join(process.cwd(), "deployments", deploymentId, "/bootstrap.js")
         try {
             childProcess = forever.start(executor, {
                 max: 1,

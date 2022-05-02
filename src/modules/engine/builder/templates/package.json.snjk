@@ -5,7 +5,8 @@
   "description": "Mico Service Bpmn",
   "main": "index.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node bootstrap.js",
+    "start:container:local": "dotenv -e ../../../.env node bootstrap.js"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",

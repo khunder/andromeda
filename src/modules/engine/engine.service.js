@@ -76,10 +76,18 @@ export class EngineService {
         //     Logger.error(`no bpmn model found to generate`);
         //     throw new Error('Cannot generate container, no model found');
         // }
-        this.GeneratePersistenceModule(deploymentPath);
-        if(containerParsingContext.includeGalaxyModule){
-            this.GenerateGalaxyModule(deploymentPath);
+        if(containerParsingContext.includePersistenceModule){
+            this.GenerateModule(deploymentPath, "persistence");
         }
+
+        if(containerParsingContext.includeGalaxyModule){
+            this.GenerateModule(deploymentPath, "galaxy");
+        }
+
+        if(containerParsingContext.includeWebModule){
+            this.GenerateModule(deploymentPath, "web");
+        }
+
         const templatePath = path.join(process.cwd(), "src", "modules", "engine", "builder", "templates");
         this.generateStaticFiles(templatePath, deploymentPath , containerParsingContext)
 
@@ -129,23 +137,9 @@ export class EngineService {
             })
     }
 
-    GeneratePersistenceModule(deploymentPath) {
-        const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", "persistence");
-        const persistenceModulePathDestination = path.join(deploymentPath,"src", "modules");
-        if (!fs.existsSync(path.join(deploymentPath,"src"))) {
-            fs.mkdirSync(path.join(deploymentPath,"src"));
-        }
-        if (!fs.existsSync(persistenceModulePathDestination)) {
-            fs.mkdirSync(persistenceModulePathDestination);
-        }
-        if (!fs.existsSync(path.join(persistenceModulePathDestination, "persistence"))) {
-            fs.mkdirSync(path.join(persistenceModulePathDestination, "persistence"));
-        }
-        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/src/modules/persistence")
-    }
 
-    GenerateGalaxyModule(deploymentPath) {
-        const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", "galaxy");
+    GenerateModule(deploymentPath, moduleName) {
+        const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", moduleName);
         const persistenceModulePathDestination = path.join(deploymentPath, "src", "modules");
         if (!fs.existsSync(path.join(deploymentPath,"src"))) {
             fs.mkdirSync(path.join(deploymentPath,"src"));
@@ -153,10 +147,10 @@ export class EngineService {
         if (!fs.existsSync(persistenceModulePathDestination)) {
             fs.mkdirSync(persistenceModulePathDestination);
         }
-        if (!fs.existsSync(path.join(persistenceModulePathDestination, "galaxy"))) {
-            fs.mkdirSync(path.join(persistenceModulePathDestination, "galaxy"));
+        if (!fs.existsSync(path.join(persistenceModulePathDestination, moduleName))) {
+            fs.mkdirSync(path.join(persistenceModulePathDestination, moduleName));
         }
-        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + "/src/modules/galaxy")
+        this.copyModuleIntoContainer(persistenceModulePathSource, deploymentPath + `/src/modules/${moduleName}`)
     }
 
 

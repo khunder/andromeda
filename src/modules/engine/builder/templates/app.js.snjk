@@ -2,89 +2,64 @@ import  {AndromedaLogger} from "./src/config/andromeda-logger.js";
 import fastify from 'fastify';
 import fs from "fs";
 const Logger = new AndromedaLogger();
-import path from 'path';
-import autoload from '@fastify/autoload';
-import GracefulServer from "@gquittet/graceful-server";
-import multer from "fastify-multer";
-import fastifySwagger from '@fastify/swagger';
-import mongoose from "mongoose";
-
-import ContainerService from "./src/services/container.service.js";
 import Config from "./src/config/config.js";
-import {fileURLToPath} from 'url';
-import PersistenceModule from "./src/modules/persistence/persistence.module.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export class Container {
-
-    app = fastify({ logger: Logger })
-
-    gracefulServer = GracefulServer(this.app.server)
-
-    constructor() {
 
 
-        this.app.register(fastifySwagger, {
-            mode: "static",
-            routePrefix: '/api',
-            hideUntagged: true,
-            openapi: '3.0.3',
-            specification: {
-                path: './specification.yaml'
-            },
-            exposeRoute: true
-        })
+export class App {
+    modules = []
+    loadedModules = 0;
 
+    host
+    containerPort
 
-        this.gracefulServer.on(GracefulServer.READY, () => {
-            Logger.info('Server is ready')
-        })
-
-        this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, () => {
-            Logger.info('Server is shutting down');
-            fs.unlinkSync(`./pid_${Config.getInstance().containerPort}`)
-        })
-
-        this.gracefulServer.on(GracefulServer.SHUTDOWN, error => {
-            Logger.info(`Server is down because of ${error.message}`)
-        })
-
-        // this.app.register(multer.contentParser, {addToBody: true})
-        this.app.register(multer.contentParser)
-
-        this.app.register(autoload, {
-            dir: path.join(__dirname, './src/routes'),
-        });
-
+    constructor(host, containerPort) {
+        this.host = host || Config.getInstance().host
+        this.containerPort  = containerPort || Config.getInstance().containerPort
     }
 
-
-    getApp() {
-        return this.app;
-    }
-
-    // start the server!
-    start = async (host, port) => {
-
-        try {
-            Logger.info(`Starting CONTAINER_ID=${ContainerService.getInstance().containerId}`);
-            await PersistenceModule.init();
-            await this.app.listen(port, host)
-            // this.app.swagger()
-            fs.writeFileSync(`./pid_${Config.getInstance().containerPort}`, process.pid.toString());
-            this.gracefulServer.setReady()
-            return this.app;
-        } catch (err) {
-            Logger.error(err)
-            process.exit(1)
+    async  executePromisesSequentially(modulePromisesArr) {
+        for (let i=0; i < modulePromisesArr.length; i++) {
+            await modulePromisesArr[i]();
+            this.loadedModules = this.loadedModules +1;
         }
     }
 
+    async  initPersistenceModule() {
+        try {
+            const Persistence = await import('./src/modules/persistence/persistence.module.js')
+            this.modules.push(Persistence.PersistenceModule.init)
+        } catch (e) {
+            Logger.error(e)
+        }
+    }
+
+    async  initContainerModule() {
+        try {
+            const ContainerModulePromise = await import ('./src/modules/container/container.module.js')
+            let containerModule = new ContainerModulePromise.ContainerModule();
+            this.modules.push(containerModule.start.bind(containerModule));
+        } catch (e) {
+            Logger.error(e)
+        }
+    }
+
+    async  initWebModule() {
+        try {
+            let web = await import ('./src/modules/web/web.module.js')
+            let webModule = new web.WebModule(this.host, this.containerPort);
+            this.modules.push(webModule.start.bind(webModule));
+        } catch (e) {
+            Logger.error(e)
+        }
+    }
+
+    async init(){
+        await this.initPersistenceModule();
+        await this.initContainerModule();
+        await this.initWebModule();
+        await this.executePromisesSequentially(this.modules);
+        fs.writeFileSync(`./pid_${this.containerPort}`, process.pid.toString());
+    }
+
 }
-const startTime = new Date().getUTCMilliseconds();
-await new Container().start("127.0.0.1", Config.getInstance().containerPort);
-const startCompleted = new Date().getUTCMilliseconds();
-Logger.info(`Container started in ${startCompleted - startTime} ms`)
-export default Container
+

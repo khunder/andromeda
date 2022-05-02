@@ -11,6 +11,8 @@ class ContainerParsingContext {
 
   isTestContainer;
   includeGalaxyModule;
+  includeWebModule;
+  includePersistenceModule;
   deploymentId;
   workflowParsingContext;
 
