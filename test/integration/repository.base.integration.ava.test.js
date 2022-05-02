@@ -1,12 +1,12 @@
 
-import ProcessInstance from "./models/process.instance.js";
-import FakeRepositoryBase from "./repositories/fake.repository.base.js";
+import ProcessInstance from "../../src/modules/persistence/models/process.instance.js";
+import FakeRepositoryBase from "../../src/modules/persistence/repositories/fake.repository.base.js";
 import mongoose from "mongoose";
 import test from "ava";
-import {ProcessInstanceRepository} from "./repositories/process-instance.repository.js";
-import BaseRepository from "./repositories/baseRepository.js";
+import {ProcessInstanceRepository} from "../../src/modules/persistence/repositories/process-instance.repository.js";
+import BaseRepository from "../../src/modules/persistence/repositories/baseRepository.js";
 import {v4} from "uuid";
-import TestModel from "./models/test-model.js";
+import TestModel from "../../src/modules/persistence/models/test-model.js";
 
 
     let db;

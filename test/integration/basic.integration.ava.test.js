@@ -20,7 +20,7 @@ import test from 'ava';
     test('Start Embedded container', async (t) => {
 
         try {
-            let deploymentId = "scenario_script";
+            let deploymentId = "cov/scenario_script";
             let fileContents = [];
             const __filename = fileURLToPath(import.meta.url);
             const __dirname = path.dirname(__filename);

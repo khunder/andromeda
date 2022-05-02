@@ -1,7 +1,7 @@
-import ProcessInstance from "../models/process.instance.js";
+import ProcessInstance from "../../src/modules/persistence/models/process.instance.js";
 import mongoose from "mongoose";
 import {v4} from 'uuid';
-import {ProcessInstanceRepository} from "./process-instance.repository.js";
+import {ProcessInstanceRepository} from "../../src/modules/persistence/repositories/process-instance.repository.js";
 import test from "ava";
 
 

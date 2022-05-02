@@ -4,8 +4,10 @@
   "branches": 50,
   "exclude": [
     "**/shell.js" ,
+    "**/*.ava.test.js",
     "**/embedded.sidecar.daemon.service.js",
-    "**/fake.*", "deployments/**"
+    "**/fake.*",
+    "deployments/test/**"
   ]
 
 }
