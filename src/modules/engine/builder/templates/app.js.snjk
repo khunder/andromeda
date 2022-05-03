@@ -6,6 +6,8 @@ import Config from "./src/config/config.js";
 
 
 export class App {
+
+
     modules = []
     loadedModules = 0;
 
@@ -58,6 +60,9 @@ export class App {
         await this.initContainerModule();
         await this.initWebModule();
         await this.executePromisesSequentially(this.modules);
+    }
+
+    static async close(){
     }
 
 }

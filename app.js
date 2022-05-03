@@ -1,6 +1,7 @@
 
 import {AndromedaLogger} from "./src/config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
+
 import {Utils} from "./src/utils/utils.js";
 import constants from "./src/config/constants.js";
 import {Config} from "./src/config/config.js";
@@ -15,6 +16,7 @@ export class App {
     constructor(host, port) {
        this.host = host || Config.getInstance().host
        this.port  = port || Config.getInstance().port
+
     }
 
     modules = []
@@ -77,6 +79,14 @@ export class App {
             Logger.error(e)
         }
     }
+
+    static async close() {
+        if (Config.getInstance().isLocalMode) {
+            const daemon = await import("./src/modules/engine/embedded/embedded.sidecar.daemon.service.js");
+            daemon.EmbeddedSidecarDaemonService.shutdownDaemon();
+        }
+    }
+
 }
 
 

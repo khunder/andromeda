@@ -43,6 +43,9 @@ export class EmbeddedSidecarDaemonService {
             child.stdout.on('data', data => {
                 console.log(`${data}`);
             });
+            child.stderr.on('data', data => {
+                console.log(`${data}`);
+            });
         })
 
         setTimeout(
@@ -85,6 +88,7 @@ export class EmbeddedSidecarDaemonService {
     }
 
     static shutdownDaemon() {
+        Logger.warn(`Signal to shutdown the daemon was received`);
         ipc.of.andromeda_daemon.emit('shutdown', {});
     }
 }

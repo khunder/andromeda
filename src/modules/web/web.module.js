@@ -9,7 +9,9 @@ import autoload from "@fastify/autoload";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {Config} from "../../config/config.js";
 import fs from "fs";
+import App from "../../../app.js";
 const Logger = new AndromedaLogger();
+
 
 export class WebModule {
 
@@ -45,11 +47,13 @@ export class WebModule {
             fs.writeFileSync(path.join(process.cwd(),`./.pid_${Config.getInstance().port}`), process.pid.toString());
         })
 
-        this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, () => {
+        this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, async () => {
             Logger.info('Server is shutting down')
             try {
-                fs.unlinkSync(path.join(process.cwd(),`./.pid_${Config.getInstance().port}`))
-            }catch (e) {
+                fs.unlinkSync(path.join(process.cwd(), `./.pid_${Config.getInstance().port}`));
+                await App.close()
+
+            } catch (e) {
                 Logger.warn(`GracefulServer SHUTTING_DOWN cannot delete pid file`)
             }
         })
