@@ -14,9 +14,11 @@ export class Config {
     tempPath;
     activateModules=[];
     environment
-    isLocalMode
     host
     port
+
+    isLocalMode
+    isUnitTestMode
 
     static getInstance(force) {
         if (!config || force) {
@@ -34,6 +36,7 @@ export class Config {
         this.activateModules = process.env.ACTIVE_MODULES.split(',').map( e => e.trim());
         this.environment = process.env.ENV || "local";
         this.isLocalMode= this.environment === "local";
+        this.isUnitTestMode= process.env.isUnitTestMode === "true";
         this.host= process.env.host || "127.0.0.1";
         this.port= process.env.port || "5000";
     }

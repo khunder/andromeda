@@ -1,8 +1,6 @@
  import mongoose from "mongoose";
 import {Config} from "../../config/config.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
- import {EventStore} from "./event-store/event-store.js";
- import {ProcessInstanceAggregator} from "./event-store/aggregator/process-intance.aggregator.js";
 
 const Logger = new AndromedaLogger();
 
@@ -15,7 +13,7 @@ export class PersistenceModule {
     static async init() {
         return new Promise( (async (resolve, reject) => {
             try {
-                Logger.info(`Trying to start Mongoose`)
+                Logger.info(`Mongoose trying to connect...`)
                 await mongoose.connect(Config.getInstance().mongoDbUri, {
                     useNewUrlParser: true,
                     useUnifiedTopology: true,

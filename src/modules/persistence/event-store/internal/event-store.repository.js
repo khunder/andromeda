@@ -2,6 +2,8 @@ import BaseRepository from "../../baseRepository.js";
 
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 import EventStoreModel from "../../models/event-store.orm-model.js";
+import FakeRepositoryBase from "../../fake.repository.base.js";
+import {Config} from "../../../../config/config.js";
 
 const Logger = new AndromedaLogger();
 
@@ -13,7 +15,11 @@ export class EventStoreRepository {
     repo;
 
     constructor() {
-        this.repo = new BaseRepository(EventStoreModel)
+        if(Config.getInstance().isUnitTestMode){
+            this.repo = new FakeRepositoryBase(EventStoreModel)
+        }else {
+            this.repo = new BaseRepository(EventStoreModel)
+        }
     }
 
     /**

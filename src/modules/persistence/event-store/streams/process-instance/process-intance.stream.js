@@ -13,11 +13,9 @@ export class ProcessInstanceStream {
     aggregate(event){
         switch (event.type){
             case ProcessInstanceStream.events.CREATE_PROCESS_INSTANCE:
-                Logger.info(`----> create`)
                 break;
             default:
                 throw new Error(`event type (${event.type}) not supported `)
         }
-        Logger.info(`----->>>`)
     }
 }

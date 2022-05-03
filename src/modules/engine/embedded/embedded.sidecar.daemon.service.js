@@ -37,8 +37,11 @@ export class EmbeddedSidecarDaemonService {
         }
 
         import('child_process').then(childProcess => {
-            childProcess.spawn('node', ['./dev-engine-sidecar.daemon.js'], {
+            const child = childProcess.spawn('node', ['./dev-engine-sidecar.daemon.js'], {
                 detached: true
+            });
+            child.stdout.on('data', data => {
+                console.log(`${data}`);
             });
         })
 

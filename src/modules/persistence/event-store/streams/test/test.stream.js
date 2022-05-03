@@ -6,7 +6,7 @@ export class TestStream {
     static streamId = StreamAggregatorIds.TEST
 
     aggregate(event){
-        Logger.info(`TEST AGGREGATOR`)
+        Logger.info(`FAKE TEST Stream aggregator`)
         Logger.trace(event)
     }
 }

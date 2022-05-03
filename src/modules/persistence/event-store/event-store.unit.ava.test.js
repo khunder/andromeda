@@ -7,6 +7,7 @@ import {StreamAggregatorIds} from "./streams/stream-aggregator-ids.js";
 
 
 test.before(async () => {
+    process.env.isUnitTestMode = true
 });
 
 test.after(async () => {
@@ -102,7 +103,6 @@ test('Fire error when event type is not supported',
         const error = await getError(() => EventStore.apply({
             id: v4(),
             streamId: StreamAggregatorIds.TEST,
-            streamPosition: 0,
             type: "TEST",
             timestamp: new Date().toString()
         }));

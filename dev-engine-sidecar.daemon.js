@@ -8,6 +8,7 @@ const Logger = new AndromedaLogger("dev-engine-sidecar.daemon");
 
 let enginePid
 let containers = []
+Logger.warn(`
 /**
  * NB: THIS HELPER IS USED ONLY LOCALLY IN DEV MODE, it's called sidecar daemon
  * This helper will kill child (containers aka node process) when the engine is closed
@@ -16,7 +17,7 @@ let containers = []
  * When a container starts, it will send the pid of the created process, the daemon will store it in memory.
  *
  * This daemon uses a socket file, implemented using the node-ipc npm package, to communicate with the engine.
- */
+ */`)
 
 const socketPath = path.join(process.cwd() , '/temp/andromeda.ipc.sock');
 rimraf.sync(socketPath);
@@ -24,6 +25,7 @@ rimraf.sync(socketPath);
 config.unlink = false;
 ipc.config.retry= 2000;
 ipc.config.id = 'andromeda_daemon';
+
 
 
 function shutdown(){
