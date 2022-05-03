@@ -95,6 +95,7 @@ export class EngineService {
         const containerCodegenContext = new ContainerCodegenContext();
 
         this.addLivelinessProbe(containerCodegenContext);
+        this.addReadinessProbe(containerCodegenContext);
 
 
         for (const bpmnModel of containerParsingContext.workflowParsingContext) {
@@ -129,6 +130,27 @@ export class EngineService {
                                 "type": "object",
                                 "example": {
                                     "status": "..."
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+    }
+
+    addReadinessProbe(containerCodegenContext) {
+        containerCodegenContext.openApiCodegen.addPath("/ready", "get")
+            .addPathDescription("/ready", "get", "Readiness probe (ready status, after all initialisations)")
+            .addPathTags("/ready", "get", ["Startup probe"])
+            .addResponse("/ready", "get", {
+                "200": {
+                    "description": "Server is Ready",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "example": {
+                                    "status": "ready"
                                 }
                             }
                         }

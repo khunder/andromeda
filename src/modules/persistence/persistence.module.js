@@ -1,6 +1,8 @@
-import mongoose from "mongoose";
+ import mongoose from "mongoose";
 import {Config} from "../../config/config.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
+ import {EventStore} from "./event-store/event-store.js";
+ import {ProcessInstanceAggregator} from "./event-store/aggregator/process-intance.aggregator.js";
 
 const Logger = new AndromedaLogger();
 
@@ -25,6 +27,7 @@ export class PersistenceModule {
 
                 });
                 Logger.info(`Mongoose connected`)
+
                 resolve();
             }catch (e) {
                 Logger.error(e)

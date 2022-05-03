@@ -1,10 +1,10 @@
 
-import ProcessInstance from "../../src/modules/persistence/models/process.instance.js";
-import FakeRepositoryBase from "../../src/modules/persistence/repositories/fake.repository.base.js";
+import ProcessInstanceModel from "../../src/modules/persistence/models/processInstanceModel.js";
+import FakeRepositoryBase from "../../src/modules/persistence/fake.repository.base.js";
 import mongoose from "mongoose";
 import test from "ava";
-import {ProcessInstanceRepository} from "../../src/modules/persistence/repositories/process-instance.repository.js";
-import BaseRepository from "../../src/modules/persistence/repositories/baseRepository.js";
+import {ProcessInstanceRepository} from "../../src/modules/persistence/event-store/internal/process-instance.repository.js";
+import BaseRepository from "../../src/modules/persistence/baseRepository.js";
 import {v4} from "uuid";
 import TestModel from "../../src/modules/persistence/models/test-model.js";
 
@@ -55,7 +55,7 @@ import TestModel from "../../src/modules/persistence/models/test-model.js";
         async (t) => {
             try{
                 const id = v4()
-                let repo = new BaseRepository(ProcessInstance);
+                let repo = new BaseRepository(ProcessInstanceModel);
                 const count = await repo.count({_id: id})
                 t.is(count, 0);
                 await repo.upsert({_id: id}, {_id: id, value : "val"})

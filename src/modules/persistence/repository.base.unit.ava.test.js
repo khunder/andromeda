@@ -1,7 +1,6 @@
 
-import ProcessInstance from "./models/process.instance.js";
-import FakeRepositoryBase from "./repositories/fake.repository.base.js";
-import mongoose from "mongoose";
+import ProcessInstanceModel from "./models/processInstanceModel.js";
+import FakeRepositoryBase from "./fake.repository.base.js";
 import test from "ava";
 import {v4} from "uuid";
 
@@ -21,7 +20,7 @@ test('Count repository',
      */
     async (t) => {
         try{
-            let repo = new FakeRepositoryBase(ProcessInstance);
+            let repo = new FakeRepositoryBase(ProcessInstanceModel);
             const count =await repo.count()
             t.is(count, 0)
             await repo.create({_id: v4()})

@@ -14,7 +14,7 @@ export class Config {
     tempPath;
 
     host
-    containerPort
+    port
 
     static getInstance() {
         if (!config) {
@@ -29,7 +29,7 @@ export class Config {
         this.mongoDbUri = process.env.MONGODB_URI;
         this.tempPath = process.env.tempPath || "temp";
         this.host= process.env.host || "127.0.0.1";
-        this.containerPort = process.env.containerPort || 10000;
+        this.port = process.env.port || 10000;
     }
 }
 

@@ -10,11 +10,11 @@ export class App {
     loadedModules = 0;
 
     host
-    containerPort
+    port
 
-    constructor(host, containerPort) {
+    constructor(host, port) {
         this.host = host || Config.getInstance().host
-        this.containerPort  = containerPort || Config.getInstance().containerPort
+        this.port  = port || Config.getInstance().port
     }
 
     async  executePromisesSequentially(modulePromisesArr) {
@@ -46,7 +46,7 @@ export class App {
     async  initWebModule() {
         try {
             let web = await import ('./src/modules/web/web.module.js')
-            let webModule = new web.WebModule(this.host, this.containerPort);
+            let webModule = new web.WebModule(this.host, this.port);
             this.modules.push(webModule.start.bind(webModule));
         } catch (e) {
             Logger.error(e)
@@ -58,7 +58,6 @@ export class App {
         await this.initContainerModule();
         await this.initWebModule();
         await this.executePromisesSequentially(this.modules);
-        fs.writeFileSync(`./pid_${this.containerPort}`, process.pid.toString());
     }
 
 }

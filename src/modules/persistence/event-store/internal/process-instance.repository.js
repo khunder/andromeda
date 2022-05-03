@@ -1,7 +1,7 @@
-import BaseRepository from "./baseRepository.js";
-import ProcessInstance from "../models/process.instance.js";
+import BaseRepository from "../../baseRepository.js";
+import ProcessInstanceModel from "../../models/processInstanceModel.js";
 
-import {AndromedaLogger} from "../../../config/andromeda-logger.js";
+import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 export class ProcessInstanceRepository {
@@ -12,7 +12,7 @@ export class ProcessInstanceRepository {
     repo;
 
     constructor() {
-        this.repo= new BaseRepository(ProcessInstance)
+        this.repo= new BaseRepository(ProcessInstanceModel)
     }
 
     /**

@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node bootstrap.js",
-    "start:container:local": "dotenv -e ../../../.env node bootstrap.js"
+    "start:container:local": "dotenv -e ../../../.env ../../../node_modules/node-dev/bin/node-dev bootstrap.js"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",
