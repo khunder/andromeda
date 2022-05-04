@@ -1,13 +1,15 @@
 import test from "ava";
 import {EventStore} from "./event-store.js";
 import {v4} from "uuid";
-import {StreamAggregatorIds} from "./streams/stream-aggregator-ids.js";
+import {StreamIds} from "./streams/stream-ids.js";
+import {TestStreamBuilder} from "./streams/test/test.stream-builder.js";
 
 
 
 
 test.before(async () => {
     process.env.isUnitTestMode = true
+    new TestStreamBuilder().build()
 });
 
 test.after(async () => {
@@ -34,7 +36,7 @@ test('Valid empty event',
         await EventStore.apply({
             id: v4(),
             streamId: "TEST",
-            type: "type",
+            type: "TEST",
             streamPosition: 0,
             timestamp: new Date().toString()
         });
@@ -50,14 +52,6 @@ test('not Valid empty event',
      */
     async (t) => {
 
-        const error = await getError(() =>  EventStore.apply({
-            id: v4(),
-            streamId: StreamAggregatorIds.TEST,
-            type: "TEST",
-            timestamp: new Date().toString()
-        }));
-        t.deepEqual(error[0].message, "must have required property 'streamPosition'");
-
         const error2 = await getError(() =>  EventStore.apply({
             id: v4(),
             streamPosition: 0,
@@ -68,7 +62,7 @@ test('not Valid empty event',
 
 
         const error3 = await getError(() =>  EventStore.apply({
-            streamId: StreamAggregatorIds.TEST,
+            streamId: StreamIds.TEST,
             type: "TEST",
             streamPosition: 0,
             timestamp: new Date().toString()
@@ -77,7 +71,7 @@ test('not Valid empty event',
 
         const error4 = await getError(() =>  EventStore.apply({
             id: v4(),
-            streamId: StreamAggregatorIds.TEST,
+            streamId: StreamIds.TEST,
             type: "TEST",
             streamPosition: 0,
         }));
@@ -85,30 +79,13 @@ test('not Valid empty event',
 
         const error5 = await getError(() =>  EventStore.apply({
             id: v4(),
-            streamId: StreamAggregatorIds.TEST,
+            streamId: StreamIds.TEST,
             streamPosition: 0,
             timestamp: new Date().toString()
         }));
         t.deepEqual(error5[0].message, "must have required property 'type'");
     })
 
-test('Fire error when event type is not supported',
-    /**
-     *
-     * @param {Assertions}t
-     * @returns {Promise<void>}
-     */
-    async (t) => {
-
-        const error = await getError(() => EventStore.apply({
-            id: v4(),
-            streamId: StreamAggregatorIds.TEST,
-            type: "TEST",
-            timestamp: new Date().toString()
-        }));
-        t.deepEqual(error[0].message, "must have required property 'streamPosition'");
-
-    })
 
 
 test('Valid event with data and meta',
@@ -122,7 +99,7 @@ test('Valid event with data and meta',
         const error = await getError(async () => await EventStore.apply({
             id: v4(),
             streamId: notFoundStreamId,
-            type: "type",
+            type: "TEST",
             streamPosition: 0,
             data: {test: ""},
             metadata: {test: ""},
@@ -145,7 +122,7 @@ test('Treat event',
         const error = await getError(async () => await EventStore.apply({
             id: v4(),
             streamId: notFoundStreamId,
-            type: "type",
+            type: "TEST",
             streamPosition: 0,
             data: {test: ""},
             metadata: {test: ""},

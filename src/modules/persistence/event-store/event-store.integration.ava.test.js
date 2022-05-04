@@ -60,7 +60,6 @@ test('Inert event',
             },
             timestamp: new Date().toString()
         });
-        // t.is(EventStore.streamsRegistry["PROCESS_INSTANCE"].streamPosition, 2)
         t.pass();
 
     })
@@ -97,9 +96,6 @@ test('Create/Close process instance',
             streamPosition: 0,
             data:{
                 id: v4(),
-                deploymentId: "deploymentId",
-                processDef: "processDef",
-                status: 0,
                 containerId: v4()
             },
             timestamp: new Date().toString()

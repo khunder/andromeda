@@ -1,13 +1,13 @@
 import Ajv from "ajv";
 import {EventStoreRepository} from "./internal/event-store.repository.js";
-import {TestStream} from "./streams/test/test.stream.js";
 import AndromedaLogger from "../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./streams/event-data-payload.validator.js";
+import {TestStreamBuilder} from "./streams/test/test.stream-builder.js";
 const Logger = new AndromedaLogger();
 
 export class EventStore {
 
-    static streamsRegistry = { "TEST" : new TestStream()}
+    static streamsRegistry = {}
 
     static ajv = new Ajv()
     static eventSchema = {
@@ -30,7 +30,7 @@ export class EventStore {
         const validate = EventStore.ajv.compile(EventStore.eventSchema)
         const valid = validate(event)
         if (!valid){
-            Logger.error(`cannot validate event with type ${event.streamId}`)
+            Logger.error(`cannot validate event with type ${event.streamId}`, JSON.stringify(validate.errors))
             throw validate.errors
         }
         EventStore.routeEventToCorrespondingStream(event);

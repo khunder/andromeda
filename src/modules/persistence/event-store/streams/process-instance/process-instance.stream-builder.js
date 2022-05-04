@@ -1,5 +1,5 @@
 import {Stream} from "../stream.js";
-import {StreamAggregatorIds} from "../stream-aggregator-ids.js";
+import {StreamIds} from "../stream-ids.js";
 import {EventStore} from "../../event-store.js";
 
 export const processInstanceDataSchema = {
@@ -15,6 +15,17 @@ export const processInstanceDataSchema = {
     additionalProperties: false,
 }
 
+export const closeProcessInstanceDataSchema = {
+    type: "object",
+    properties: {
+        id: {type: "string"},
+        containerId: {type: "string"},
+    },
+    required: ["id"],
+    additionalProperties: false,
+}
+
+
 export class ProcessInstanceStreamBuilder {
 
     /**
@@ -22,12 +33,15 @@ export class ProcessInstanceStreamBuilder {
      * @returns {Stream}
      */
     build(){
-        const stream = new Stream(StreamAggregatorIds.PROCESS_INSTANCE);
+        const stream = new Stream(StreamIds.PROCESS_INSTANCE);
         stream.eventsRegistry =  {
             CREATE_PROCESS_INSTANCE: "CREATE_PROCESS_INSTANCE",
             CLOSE_PROCESS_INSTANCE: "CLOSE_PROCESS_INSTANCE"
         }
-        stream.validators ={[stream.eventsRegistry.CREATE_PROCESS_INSTANCE] : processInstanceDataSchema}
+        stream.validators ={
+            [stream.eventsRegistry.CREATE_PROCESS_INSTANCE] : processInstanceDataSchema,
+            [stream.eventsRegistry.CLOSE_PROCESS_INSTANCE] : closeProcessInstanceDataSchema,
+        }
 
         EventStore.registerStream(stream.streamId, stream);
         return stream;
