@@ -1,15 +1,16 @@
 import Ajv from "ajv";
 import {EventStoreRepository} from "./internal/event-store.repository.js";
 import {TestStream} from "./streams/test/test.stream.js";
-import {ProcessInstanceStream} from "./streams/process-instance/process-intance.stream.js";
 import AndromedaLogger from "../../../config/andromeda-logger.js";
+import {EventDataPayloadValidator} from "./streams/event-data-payload.validator.js";
 const Logger = new AndromedaLogger();
 
 export class EventStore {
 
+    static streamsRegistry = { "TEST" : new TestStream()}
 
     static ajv = new Ajv()
-    static schema = {
+    static eventSchema = {
         type: "object",
         properties: {
             id: {type: "string"},
@@ -20,36 +21,59 @@ export class EventStore {
             metadata: {type: "object"},
             timestamp: {type: "string"},
         },
-        required: ["id", "type", "streamId", "streamPosition", "timestamp"],
+        required: ["id", "type", "streamId", "timestamp"],
+        // streamPosition will be filled by the stream if not provided
         additionalProperties: false,
     }
 
     static async apply(event) {
-        const validate = EventStore.ajv.compile(EventStore.schema)
+        const validate = EventStore.ajv.compile(EventStore.eventSchema)
         const valid = validate(event)
-        if (!valid) throw validate.errors
-        Logger.info(`valid`)
-        EventStore.aggregateStreams(event);
-        await new EventStoreRepository().CreateEvent(event)
+        if (!valid){
+            Logger.error(`cannot validate event with type ${event.streamId}`)
+            throw validate.errors
+        }
+        EventStore.routeEventToCorrespondingStream(event);
+        // save the event
+        await new EventStoreRepository().persistEvent(event)
 
     }
 
     //
-    static aggregateStreams(event) {
-        switch (event.streamId) {
-            case TestStream.streamId: // used only for test purpose
-                new TestStream().aggregate(event)
-                break
-                    ;
-            case ProcessInstanceStream.streamId:
-                new ProcessInstanceStream().aggregate(event)
-                break
-                    ;
-            default:
-                throw new Error(`cannot find am aggregator for the streamId: ${event.streamId}`);
+    static routeEventToCorrespondingStream(event) {
+        // choose the stream to route the event into
+        if (!(event.streamId in EventStore.streamsRegistry)){
+            throw new Error(`cannot find am aggregator for the streamId: ${event.streamId}`);
         }
 
+        // validate the event before dispatch
+        const stream = EventStore.streamsRegistry[event.streamId];
+        // compute event stream position if not provided
+        this.updateStreamPosition(event, stream);
+
+        if (!(event.type in stream.eventsRegistry)) {
+            throw new Error(`event type (${event.type}) not supported by the stream ${stream.streamId}`)
+        }
+        if(event.type in stream.validators){
+            EventDataPayloadValidator.validate(event, stream.validators[event.type]);
+        }
+
+        stream.dispatch(event);
+    }
+
+    static updateStreamPosition(event, stream) {
+        if (!event.streamPosition) {
+            event.streamPosition = stream.streamPosition;
+        }
+        stream.streamPosition++;
+    }
+
+    static registerStream(id, streamProcessor){
+        EventStore.streamsRegistry[id] = streamProcessor
     }
 
 
+    static getStream(streamName) {
+          return EventStore.streamsRegistry[streamName];
+    }
 }

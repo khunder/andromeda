@@ -3,7 +3,9 @@ import AndromedaLogger from "../../../../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 export class TestStream {
-    static streamId = StreamAggregatorIds.TEST
+    get streamId () {
+        return StreamAggregatorIds.TEST
+    }
 
     aggregate(event){
         Logger.info(`FAKE TEST Stream aggregator`)

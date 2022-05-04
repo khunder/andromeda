@@ -108,3 +108,6 @@ In this case you can start using the product with minimum effort, you can genera
 
 
 ### Persistence
+
+
+# DRAIN CONTAINER

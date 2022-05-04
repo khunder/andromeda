@@ -30,7 +30,7 @@ export class EventStoreRepository {
      * @param {string} containerId
      * @returns {Promise<void>}
      */
-    async CreateEvent({id, streamId, streamPosition, type, timestamp, data, metadata}) {
+    async persistEvent({id, streamId, streamPosition, type, timestamp, data, metadata}) {
         Logger.info(`create new event instance ${id}`);
         let event = {
             _id: id,

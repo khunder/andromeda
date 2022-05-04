@@ -134,4 +134,28 @@ test('Valid event with data and meta',
 
     })
 
+test('Treat event',
+    /**
+     *
+     * @param {Assertions}t
+     * @returns {Promise<void>}
+     */
+    async (t) => {
+        const notFoundStreamId = "NOT_FOUND_STREAM_ID"
+        const error = await getError(async () => await EventStore.apply({
+            id: v4(),
+            streamId: notFoundStreamId,
+            type: "type",
+            streamPosition: 0,
+            data: {test: ""},
+            metadata: {test: ""},
+            timestamp: new Date().toString()
+        }));
+        t.deepEqual(error.message, `cannot find am aggregator for the streamId: ${notFoundStreamId}`);
+
+        t.pass();
+
+    })
+
+
 
