@@ -31,6 +31,7 @@ import test from 'ava';
             let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
             ctx.includeGalaxyModule = true;
 
+
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
             await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10005});

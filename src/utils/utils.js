@@ -42,6 +42,9 @@ export class Utils{
             ctx.workflowParsingContext.push(workflowParsingContext);
         }
         ctx.deploymentId = deploymentId;
+        // by default activate web and persistence modules
+        ctx.includePersistenceModule = true;
+        ctx.includeWebModule = true;
 
         return ctx;
     }
