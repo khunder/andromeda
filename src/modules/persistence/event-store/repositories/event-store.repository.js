@@ -1,9 +1,9 @@
-import BaseRepository from "../../baseRepository.js";
+import BaseRepository from "./baseRepository.js";
 
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
-import EventStoreModel from "../../models/event-store.orm-model.js";
-import FakeRepositoryBase from "../../fake.repository.base.js";
 import {Config} from "../../../../config/config.js";
+import EventStoreModel from "../internal/models/event-store.orm-model.js";
+import FakeRepositoryBase from "../internal/fake.repository.base.js";
 
 const Logger = new AndromedaLogger();
 
@@ -24,10 +24,7 @@ export class EventStoreRepository {
 
     /**
      *
-     * @param {string} eventId
-     * @param {string} processDef
-     * @param {string} deploymentId
-     * @param {string} containerId
+     * @param {object} eventId
      * @returns {Promise<void>}
      */
     async persistEvent({id, streamId, streamPosition, type, timestamp, data, metadata}) {

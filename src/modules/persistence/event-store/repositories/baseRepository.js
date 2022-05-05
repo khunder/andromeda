@@ -1,5 +1,5 @@
 import {v4} from "uuid"
-import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 class BaseRepository {
   /**

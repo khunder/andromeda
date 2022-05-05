@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import {v4} from "uuid";
 
-const ProcessInstanceStatus = {
+export const ProcessInstanceStatus = {
     Active: 0,
     Completed: 1,
     Error: 2,

@@ -74,13 +74,14 @@ test('Create/Close process instance',
      */
     async (t) => {
         await PersistenceModule.init();
+        const processInstancesId= v4();
         await EventStore.apply({
-            id: v4(),
+            id:  v4(),
             streamId: "PROCESS_INSTANCE",
             type: "CREATE_PROCESS_INSTANCE",
             streamPosition: 0,
             data:{
-                id: v4(),
+                id: processInstancesId,
                 deploymentId: "deploymentId",
                 processDef: "processDef",
                 status: 0,
@@ -90,12 +91,12 @@ test('Create/Close process instance',
         });
 
         await EventStore.apply({
-            id: v4(),
+            id:  v4(),
             streamId: "PROCESS_INSTANCE",
             type: "CLOSE_PROCESS_INSTANCE",
             streamPosition: 0,
             data:{
-                id: v4(),
+                id: processInstancesId,
                 containerId: v4()
             },
             timestamp: new Date().toString()

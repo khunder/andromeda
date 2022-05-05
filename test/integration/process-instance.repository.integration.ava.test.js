@@ -1,4 +1,4 @@
-import ProcessInstanceModel from "../../src/modules/persistence/models/processInstanceModel.js";
+import ProcessInstanceModel from "../../src/modules/persistence/event-store/internal/models/processInstanceModel.js";
 import mongoose from "mongoose";
 import {v4} from 'uuid';
 import {ProcessInstanceRepository} from "../../src/modules/persistence/event-store/internal/process-instance.repository.js";

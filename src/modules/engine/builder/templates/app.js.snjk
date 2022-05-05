@@ -1,6 +1,4 @@
 import  {AndromedaLogger} from "./src/config/andromeda-logger.js";
-import fastify from 'fastify';
-import fs from "fs";
 const Logger = new AndromedaLogger();
 import Config from "./src/config/config.js";
 

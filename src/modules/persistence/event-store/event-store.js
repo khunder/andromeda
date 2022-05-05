@@ -1,8 +1,7 @@
 import Ajv from "ajv";
-import {EventStoreRepository} from "./internal/event-store.repository.js";
 import AndromedaLogger from "../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./streams/event-data-payload.validator.js";
-import {TestStreamBuilder} from "./streams/test/test.stream-builder.js";
+import {EventStoreRepository} from "./repositories/event-store.repository.js";
 const Logger = new AndromedaLogger();
 
 export class EventStore {

@@ -1,7 +1,7 @@
-import BaseRepository from "../../baseRepository.js";
-import ProcessInstanceModel from "../../models/processInstanceModel.js";
+import BaseRepository from "./baseRepository.js";
 
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
+import ProcessInstanceModel, {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
 const Logger = new AndromedaLogger();
 
 export class ProcessInstanceRepository {
@@ -30,7 +30,7 @@ export class ProcessInstanceRepository {
             _id: processInstanceId,
             processDef: processDef,
             deploymentId: deploymentId,
-            status: 0,
+            status: ProcessInstanceStatus.Active,
             lock: {
                 containerId: containerId,
                 date: new Date()
@@ -45,7 +45,13 @@ export class ProcessInstanceRepository {
      * @returns {Promise<void>}
      */
     async removeLock(processInstanceId){
+        Logger.trace(`updating process instance ${processInstanceId}, set lock to null`);
         await this.repo.upsert({_id: processInstanceId}, {lock: null})
+    }
+
+    async completeProcessInstance(processInstanceId){
+        Logger.warn(`updating process instance ${processInstanceId}, set lock to null and status = ${ ProcessInstanceStatus.Completed}`);
+        await this.repo.upsert({_id: processInstanceId}, {status: ProcessInstanceStatus.Completed, lock: null})
     }
 
 }

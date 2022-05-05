@@ -1,8 +1,8 @@
 
-import ProcessInstanceModel from "./models/processInstanceModel.js";
-import FakeRepositoryBase from "./fake.repository.base.js";
 import test from "ava";
 import {v4} from "uuid";
+import FakeRepositoryBase from "./fake.repository.base.js";
+import ProcessInstanceModel from "./models/process-instance.orm-model.js";
 
 
 test.before(async () => {
