@@ -32,20 +32,24 @@ class WorkflowCodegenContext {
         this.containerCodegenContext = containerCodegenContext;
     }
 
-    // renderImports() {
-    //     this.controllerClassImports.forEach((entry) => {
-    //         this.controllerClassFile.addImportDeclaration({
-    //             defaultImport: entry.object,
-    //             moduleSpecifier: entry.from,
-    //         });
-    //     });
-    //     this.serviceClassImports.forEach((entry) => {
-    //         this.serviceClassFile.addImportDeclaration({
-    //             defaultImport: entry.object,
-    //             moduleSpecifier: entry.from,
-    //         });
-    //     });
-    // }
+    addControllerClassImport(defaultImport, moduleSpecifier){
+        this.controllerClassImports.push({defaultImport,moduleSpecifier})
+    }
+
+    renderImports() {
+        this.controllerClassImports.forEach((entry) => {
+            this.controllerClassFile.addImportDeclaration({
+                defaultImport: entry.defaultImport,
+                moduleSpecifier: entry.moduleSpecifier,
+            });
+        });
+        this.serviceClassImports.forEach((entry) => {
+            this.serviceClassFile.addImportDeclaration({
+                defaultImport: entry.defaultImport,
+                moduleSpecifier: entry.moduleSpecifier,
+            });
+        });
+    }
 }
 
 export default WorkflowCodegenContext;

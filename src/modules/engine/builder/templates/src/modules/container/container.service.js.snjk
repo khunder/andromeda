@@ -5,14 +5,15 @@ const Logger = new AndromedaLogger();
 let instance;
 class ContainerService{
 
-    containerId;
+    static containerId = v4();
+    processInstances= {}
 
     constructor() {
-        this.containerId = v4();
     }
 
     static getInstance(){
         if(!instance){
+            Logger.info(`Creating new Container Service: ${ContainerService.containerId}`)
             instance = new ContainerService();
         }
         return instance;
@@ -20,6 +21,19 @@ class ContainerService{
 
     static init(){
         Logger.info(`Init Container module`)
+    }
+
+    // track the process instance until
+    lock(processInstance){
+        Logger.info(`Locking process instance(${processInstance})`)
+        processInstances[processInstance.processInstanceId]= processInstance
+        // call process instance repository to lock process instance
+    }
+
+    unlock(processInstance){
+        Logger.info(`UnLocking process instance(${processInstance})`)
+        delete processInstances[processInstance.processInstanceId]
+        // call process instance repository to unlock process instance
     }
 
 }

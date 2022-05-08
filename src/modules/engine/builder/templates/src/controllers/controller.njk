@@ -3,8 +3,7 @@ const Logger = new AndromedaLogger();
 
 class {{ ControllerClassName }} {
 
-{% for startMethod in startMethods %}
-    static start{{startMethod.name}} = async (req, reply) => {
+    static start = async (req, res) => {
 
         try {
             let variables = {};
@@ -13,12 +12,12 @@ class {{ ControllerClassName }} {
             }
 
             if(req.files){
-                Object.keys(req.files).forEach( (file:any) => {
+                Object.keys(req.files).forEach( (file) => {
                 Logger.debug(`storing file ${file} in persistent storage`);
                 });
             }
-            const processInstance = await {{ startMethod.prefix }}ProcessInstanceService.createInstance();
-            processInstance.start(variables);
+            const processInstance = await {{ startMethod.name }}ProcessInstanceService.createInstance();
+            processInstance.bootstrap(variables);
             res.json({id: processInstance.id})
 
         } catch (err) {
@@ -29,8 +28,6 @@ class {{ ControllerClassName }} {
             throw returnError;
         }
     }
-{% endfor %}
-
 }
 
 export default {{ ControllerClassName }};

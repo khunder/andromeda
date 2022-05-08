@@ -27,7 +27,7 @@ export class WebModule {
         const __dirname = path.dirname(__filename);
 
 
-        this.app = fastify({ logger: Logger })
+        this.app = fastify({ logger: null })
         this.gracefulServer = GracefulServer(this.app.server)
 
         this.app.register(fastifySwagger, {

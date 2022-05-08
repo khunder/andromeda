@@ -1,0 +1,12 @@
+import {ProcessInstanceVariables} from "./process-instance-variables.js"
+
+export class ProcessInstanceContext {
+    variables =  new ProcessInstanceVariables()
+    __variablesRef = []
+
+    async saveContext(context){
+        this.__variablesRef.filter(variable => variable.needToSave());
+        // await new VariableRepository().bulkUpsertVariables(variables, this.processInstanceService.id, this.processInstanceService.processDef);
+    }
+
+}

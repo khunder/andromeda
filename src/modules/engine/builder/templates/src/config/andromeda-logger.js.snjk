@@ -4,7 +4,7 @@ import log4jsConfig from "./log4js.config.js";
 
 log4js.addLayout('json', function (config) {
     return function (logEvent) {
-        logEvent.application = 'engine';
+        // logEvent.app = ContainerService.getInstance().containerId || "container";
         logEvent.processId = process.pid;
         if (process.env.IP) {
             logEvent.ip = process.env.IP;
@@ -19,7 +19,7 @@ log4js.addLayout('json', function (config) {
         return JSON.stringify(logEvent);
     };
 });
-const log = log4js.getLogger('container');
+const logSingleton = log4js.getLogger('container');
 
 log4js.configure(log4jsConfig);
 
@@ -28,7 +28,7 @@ export class AndromedaLogger {
     loggerOptions;
 
     constructor(args) {
-        this.logger = log;
+        this.logger = logSingleton;
     }
 
     get Logger() {

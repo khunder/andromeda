@@ -83,8 +83,31 @@ class WorkflowBuilder {
         const workflowCodegenContext = new WorkflowCodegenContext(containerCodegenContext);
 
         await this.generateServiceClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
+
         await this.generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
         containerCodegenContext.openApiCodegen.addPath("/start" , "post")
+        containerCodegenContext.openApiCodegen.addResponse("/start" , "post" , {
+            "responses": {
+                "200": {
+                    "description": "Process instance id"
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "deploymentId": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
 
         containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 
@@ -94,6 +117,10 @@ class WorkflowBuilder {
         });
 
         containerCodegenContext.renderRoutes(normalizedProcessDef, containerParsingContext);
+        workflowCodegenContext.renderImports()
+        workflowCodegenContext.serviceClassFile.formatText({
+            placeOpenBraceOnNewLineForFunctions: true,
+        });
         await workflowCodegenContext.project.saveSync();
 
 
@@ -287,10 +314,11 @@ class WorkflowBuilder {
             {
                 ControllerFileName: controllerName,
                 ControllerClassName: controllerName,
+                startMethod : { name: normalizedProcessDef},
                 ProcessDef: normalizedProcessDef,
             },
         );
-
+        workflowCodegenContext.addControllerClassImport(`${normalizedProcessDef}ProcessInstanceService`,`../services/${normalizedProcessDef.toLowerCase()}.process-instance.service.js`)
         workflowCodegenContext.controllerClassFile = workflowCodegenContext.project.createSourceFile(
             serviceFilePath,
             renderedTemplate,

@@ -1,13 +1,38 @@
-import  {AndromedaLogger} from ".config/andromeda-logger.js";
+import  {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 import {v4} from "uuid";
+import {ProcessInstanceContext} from "./process-instances-context.js";
 
 class {{ServiceClassName}} {
-    _metaInfo = {}
+
+    processInstanceId
+    _context = new ProcessInstanceContext();
 
     bootstrap(){
     }
+
+    constructor(processInstanceId)
+    {
+        if (processInstanceId) {
+            // in case we resume a process instance after a container restart
+            this.processInstanceId = processInstanceId;
+            // this.flowService = new TestFlowService(this.id);
+        } else {
+            this.processInstanceId = v4();
+            // this.flowService = new TestFlowService(this.id);
+        }
+
+    }
+
+    static createInstance(processInstanceId)
+    {
+        const instance = new BasicScenarioProcessInstanceService(processInstanceId)
+        ContainerService.getInstance().lock(instance)
+
+    }
+
     close(){
+
     }
 }
 
