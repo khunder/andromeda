@@ -1,8 +1,8 @@
 import  {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
-import {Md5} from 'md5'
-import {Utils} from '../utils/utils';
+import Md5 from 'yamd5.js'
+import {VariableEncoder} from "../helpers/variable-encoder";
 
 export class Variable {
     /**
@@ -52,11 +52,11 @@ export class Variable {
     }
 
     setValue(value) {
-        Utils.validateVariable(value, this.type, this.name);
+        VariableEncoder.transcodeVariable(value, this.type, this.name);
         if(this.type !== "object"){
-            Logger.debug(`Setting variable ${this.name} to ${value}`)
+            Logger.debug(`Set variable ${this.name} to ${value}`)
         }else {
-            Logger.debug(`Setting variable '${this.name}' to ${JSON.stringify(value)}`)
+            Logger.debug(`set variable '${this.name}' to ${JSON.stringify(value)}`)
         }
         this.oldValue = this.currentValue;
         this.currentValue = value;

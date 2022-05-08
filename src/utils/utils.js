@@ -4,12 +4,17 @@ import  ContainerParsingContext from "../model/parsing/container.parsing.context
 import  WorkflowParsingContext  from "../model/parsing/workflow.parsing.context.js";
 import BPMNModdle from "bpmn-moddle";
 import {AndromedaLogger} from "../config/andromeda-logger.js";
+import path from "path";
 const Logger = new AndromedaLogger();
 
 export class Utils{
     static moduleIsActive(module) {
         return Config.getInstance().activateModules.filter(e => e === module).length > 0;
 
+    }
+
+    static getDeploymentPath(ctx) {
+        return path.join(Config.getInstance().deploymentPath, ctx.deploymentId);
     }
 
 
@@ -77,4 +82,4 @@ export class Utils{
 
 }
 
-export  default Utils
+export default Utils

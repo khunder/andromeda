@@ -19,4 +19,12 @@ the context contains all shared objects, like variables
 - using templates combined with [nunjucks](https://mozilla.github.io/nunjucks/) 
 - The last method and for the dynamic content we use the excellent tool [ts-morph](https://ts-morph.com/)
   - The service class is generated with a template, then we inject methods into the class
-  - We inject also code inside existing methods. 
+  - We inject also code inside existing methods.
+
+## variables 
+variables are persisted in the database as string values to ease the debug and for better ops experience.
+the type is persisted along with the variable name and value.
+
+
+
+#

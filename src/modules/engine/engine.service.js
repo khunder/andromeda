@@ -4,9 +4,8 @@ import fs from "fs";
 import ContainerCodegenContext from "../../model/codegen/container.codegen.context.js";
 import WorkflowBuilder from "./workflow.builder.js";
 import {fileURLToPath} from "url";
-import nunjucks from "nunjucks";
-import {Config} from "../../config/config.js";
 import {Shell} from "../../services/shell.js";
+import Utils from "../../utils/utils.js";
 
 
 const Logger = new AndromedaLogger();
@@ -14,9 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class EngineService {
-    getDeploymentPath(ctx) {
-        return path.join(Config.getInstance().deploymentPath, ctx.deploymentId);
-    }
+
 
     /**
      * snjk = static njk files, files that are not going to change, like package.json, app.sjs etc..
@@ -68,7 +65,7 @@ export class EngineService {
      * @returns {Promise<void>}
      */
     async generateContainer(containerParsingContext) {
-        const deploymentPath = this.getDeploymentPath(containerParsingContext);
+        const deploymentPath = Utils.getDeploymentPath(containerParsingContext);
         if (!fs.existsSync(deploymentPath)) {
             Logger.debug(
                 `Trying to create deployment folder in path: ${deploymentPath}`,
@@ -201,7 +198,7 @@ export class EngineService {
         //     {},
         // );
 
-        fs.writeFileSync(path.join(this.getDeploymentPath(ctx), "specification.yaml"), containerCodegenContext.openApiCodegen.render());
+        fs.writeFileSync(path.join(Utils.getDeploymentPath(ctx), "specification.yaml"), containerCodegenContext.openApiCodegen.render());
     }
 
     /**

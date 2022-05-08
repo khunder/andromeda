@@ -1,7 +1,5 @@
-import {ProcessInstanceVariables} from "./process-instance-variables.js"
 
-export class ProcessInstanceContext {
-    variables =  new ProcessInstanceVariables()
+export class {{ processDef }}ProcessInstanceContext {
     __variablesRef = []
 
     async saveContext(context){

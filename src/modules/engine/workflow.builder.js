@@ -1,14 +1,4 @@
-// const fs = require("fs");
-// const shelljs = require("shelljs");
-// const nunjucks = require("nunjucks");
-// const path = require("path");
-// const Config = require("../../config/config");
-// const ContainerCodegenContext = require("../../model/codegen/container.codegen.context");
-// const WorkflowCodegenContext = require("../../model/codegen/workflow.codegen.context");
-// const commonService = require("../../services/common.service");
-// const BpmnProcessor = require("./bpmn.processor");
-// const ProcessBuildContext = require("../../model/process-build-context");
-// const ContainerBuildContext = require("../../model/container-build-context");
+
 import BpmnProcessor from "./builder/bpmn.processor.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import fs from "fs";
@@ -16,6 +6,7 @@ import nunjucks from "nunjucks";
 import WorkflowCodegenContext from "../../model/codegen/workflow.codegen.context.js";
 import path from "path";
 import {fileURLToPath} from "url";
+import Utils from "../../utils/utils.js";
 
 const Logger = new AndromedaLogger();
 const __filename = fileURLToPath(import.meta.url);
@@ -83,33 +74,9 @@ class WorkflowBuilder {
         const workflowCodegenContext = new WorkflowCodegenContext(containerCodegenContext);
 
         await this.generateServiceClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
+        await this.generateWorkflowContext(normalizedProcessDef, bpmnModel, containerParsingContext)
 
         await this.generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
-        containerCodegenContext.openApiCodegen.addPath("/start" , "post")
-        containerCodegenContext.openApiCodegen.addResponse("/start" , "post" , {
-            "responses": {
-                "200": {
-                    "description": "Process instance id"
-                },
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "deploymentId": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        })
-
-        containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 
         processesInBpmnFile.forEach(process => {
             this.generateProcess(process, workflowCodegenContext, containerParsingContext);
@@ -161,7 +128,7 @@ class WorkflowBuilder {
      *
      * @param {string} normalizedProcessDef
      * @param parsedModel
-     * @param {WorkflowParsingContext} workflowParsingContext
+     * @param {ContainerParsingContext} workflowParsingContext
      * @param {WorkflowCodegenContext} workflowCodegenContext
      * @returns {Promise<void>}
      */
@@ -205,6 +172,50 @@ class WorkflowBuilder {
             {overwrite: true},
         );
         workflowCodegenContext.serviceClass = workflowCodegenContext.serviceClassFile.getClassOrThrow(serviceClassName)
+    }
+
+
+
+    /**
+     *
+     * @param {string} normalizedProcessDef
+     * @param parsedModel
+     * @param {ContainerParsingContext} containerParsingContext
+     * @returns {Promise<void>}
+     */
+    async generateWorkflowContext(
+        normalizedProcessDef,
+        parsedModel,
+        containerParsingContext) {
+
+        nunjucks.configure({
+            autoescape: false,
+            trimBlocks: true,
+            lstripBlocks: true,
+        });
+
+
+        let template = fs.readFileSync(
+            path
+                .join(
+                    __dirname,
+                    './builder/templates/src/services/process-instance-context.js.njk',
+                )
+                .toString(),
+        ).toString()
+
+        const renderedTemplate = nunjucks.renderString(
+            template,
+            {
+                ProcessDef: normalizedProcessDef,
+            },
+        );
+        let destFile = path.join(Utils.getDeploymentPath(containerParsingContext), "src", "services", `${normalizedProcessDef.toLowerCase()}.process-instance-context.js`);
+        fs.writeFileSync(
+            destFile,
+            renderedTemplate,
+        );
+
     }
 
     /**
@@ -298,6 +309,32 @@ class WorkflowBuilder {
             trimBlocks: true,
             lstripBlocks: true,
         });
+
+        workflowCodegenContext.containerCodegenContext.openApiCodegen.addPath("/start" , "post")
+        workflowCodegenContext.containerCodegenContext.openApiCodegen.addResponse("/start" , "post" , {
+            "responses": {
+                "200": {
+                    "description": "Process instance id"
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "deploymentId": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
+
 
         let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`
 

@@ -1,12 +1,12 @@
 import  {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 import {v4} from "uuid";
-import {ProcessInstanceContext} from "./process-instances-context.js";
+import {ProcessInstanceContext} from "./{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
 
 class {{ServiceClassName}} {
 
     processInstanceId
-    _context = new ProcessInstanceContext();
+    _context = new {{ ProcessDef }}ProcessInstanceContext();
 
     bootstrap(){
     }
