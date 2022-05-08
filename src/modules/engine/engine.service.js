@@ -35,9 +35,13 @@ export class EngineService {
                 this.generateStaticFiles(filePath, path.join(sourcePath, entry))
             } else {
                 const extension = entry.split('.').pop()
+                Logger.debug(`copying static file ${entry}`);
                 if (extension === "snjk") {
                     let fileName = entry.split('.').slice(0, -1).join('.');
                     fs.writeFileSync(path.join(sourcePath, fileName), fs.readFileSync(filePath, 'utf-8'));
+                }
+                if (extension === "js") {
+                    fs.writeFileSync(path.join(sourcePath, entry), fs.readFileSync(filePath, 'utf-8'));
                 }
             }
         }.bind(this));

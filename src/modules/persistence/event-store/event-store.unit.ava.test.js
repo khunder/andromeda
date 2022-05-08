@@ -3,6 +3,7 @@ import {EventStore} from "./event-store.js";
 import {v4} from "uuid";
 import {StreamIds} from "./streams/stream-ids.js";
 import {TestStreamBuilder} from "./streams/test/test.stream-builder.js";
+import Utils from "../../../utils/utils.js";
 
 
 
@@ -14,15 +15,6 @@ test.before(async () => {
 
 test.after(async () => {
 })
-
-
-const getError = async (call) => {
-    try {
-        await call();
-    } catch (error) {
-        return error;
-    }
-};
 
 
 
@@ -52,7 +44,7 @@ test('not Valid empty event',
      */
     async (t) => {
 
-        const error2 = await getError(() =>  EventStore.apply({
+        const error2 = await Utils.getError(() =>  EventStore.apply({
             id: v4(),
             streamPosition: 0,
             type: "TEST",
@@ -61,7 +53,7 @@ test('not Valid empty event',
         t.deepEqual(error2[0].message, "must have required property 'streamId'");
 
 
-        const error3 = await getError(() =>  EventStore.apply({
+        const error3 = await Utils.getError(() =>  EventStore.apply({
             streamId: StreamIds.TEST,
             type: "TEST",
             streamPosition: 0,
@@ -69,7 +61,7 @@ test('not Valid empty event',
         }));
         t.deepEqual(error3[0].message, "must have required property 'id'");
 
-        const error4 = await getError(() =>  EventStore.apply({
+        const error4 = await Utils.getError(() =>  EventStore.apply({
             id: v4(),
             streamId: StreamIds.TEST,
             type: "TEST",
@@ -77,7 +69,7 @@ test('not Valid empty event',
         }));
         t.deepEqual(error4[0].message, "must have required property 'timestamp'");
 
-        const error5 = await getError(() =>  EventStore.apply({
+        const error5 = await Utils.getError(() =>  EventStore.apply({
             id: v4(),
             streamId: StreamIds.TEST,
             streamPosition: 0,
@@ -96,7 +88,7 @@ test('Valid event with data and meta',
      */
     async (t) => {
         const notFoundStreamId = "NOT_FOUND_STREAM_ID"
-        const error = await getError(async () => await EventStore.apply({
+        const error = await Utils.getError(async () => await EventStore.apply({
             id: v4(),
             streamId: notFoundStreamId,
             type: "TEST",
@@ -119,7 +111,7 @@ test('Treat event',
      */
     async (t) => {
         const notFoundStreamId = "NOT_FOUND_STREAM_ID"
-        const error = await getError(async () => await EventStore.apply({
+        const error = await Utils.getError(async () => await EventStore.apply({
             id: v4(),
             streamId: notFoundStreamId,
             type: "TEST",

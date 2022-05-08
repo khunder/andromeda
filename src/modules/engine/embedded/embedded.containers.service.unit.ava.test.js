@@ -7,14 +7,9 @@ import {EmbeddedContainerService} from "./embedded.containers.service.js";
 import * as net from "net";
 import {Config} from "../../../config/config.js";
 import test from "ava"
+import Utils from "../../../utils/utils.js";
 
-const getError = async (call) => {
-    try {
-        await call();
-    } catch (error) {
-        return error;
-    }
-};
+
 
 test('isPortFree', async (t) => {
     let server = net.createServer(function (socket) {
@@ -32,7 +27,7 @@ test('isPortFree', async (t) => {
     await EmbeddedContainerService.AllocatePortInRange(5001);
     await EmbeddedContainerService.AllocatePortInRange(10000);
     EmbeddedContainerService.maxAttemptsRange = 0;
-    const error = await getError(async () => await EmbeddedContainerService.AllocatePortInRange());
+    const error = await Utils.getError(async () => await EmbeddedContainerService.AllocatePortInRange());
     t.is(error, "cannot allocate port 10000 after 0 attempts")
     EmbeddedContainerService.maxAttemptsRange = 2;
     await EmbeddedContainerService.AllocatePortInRange();

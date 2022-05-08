@@ -62,6 +62,19 @@ export class Utils{
     //     return result.replace(regex, `$1`);
     // }
 
+    /**
+     * Used to encapsulate exceptions in
+     * @param call
+     * @returns {Promise<*>}
+     */
+    static getError = async (call) => {
+        try {
+            await call();
+        } catch (error) {
+            return error;
+        }
+    };
+
 }
 
 export  default Utils

@@ -13,13 +13,6 @@ test.after(async () => {
 })
 
 
-const getError = async (call) => {
-    try {
-        await call();
-    } catch (error) {
-        return error;
-    }
-};
 
 
 
