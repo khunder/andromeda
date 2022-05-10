@@ -12,6 +12,7 @@ const Logger = new AndromedaLogger();
 export class Config {
     mongoDbUri;
     tempPath;
+    deploymentId
 
     host
     port
@@ -30,6 +31,7 @@ export class Config {
         this.tempPath = process.env.tempPath || "temp";
         this.host= process.env.host || "127.0.0.1";
         this.port = process.env.port || 10000;
+        this.deploymentId = process.env.deploymentId;
     }
 }
 

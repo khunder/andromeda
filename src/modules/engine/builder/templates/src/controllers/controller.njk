@@ -17,10 +17,11 @@ class {{ ControllerClassName }} {
                 });
             }
             const processInstance = await {{ startMethod.name }}ProcessInstanceService.createInstance();
-            processInstance.bootstrap(variables);
-            res.json({id: processInstance.id})
+            // processInstance.bootstrap(variables);
+            return {id: processInstance.processInstanceId};
 
         } catch (err) {
+            Logger.error(err);
             const returnError = new Error();
             returnError.statusCode = 500;
             returnError.message = err;

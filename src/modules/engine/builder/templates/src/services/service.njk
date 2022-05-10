@@ -1,7 +1,10 @@
 import  {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 import {v4} from "uuid";
-import {ProcessInstanceContext} from "./{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
+import { {{ ProcessDef }}ProcessInstanceContext} from "./{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
+import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
+import {ContainerService} from "../modules/container/container.service.js";
+import {Config} from "../config/config.js";
 
 class {{ServiceClassName}} {
 
@@ -24,11 +27,22 @@ class {{ServiceClassName}} {
 
     }
 
-    static createInstance(processInstanceId)
+    static async createInstance(processInstanceId)
     {
-        const instance = new BasicScenarioProcessInstanceService(processInstanceId)
-        ContainerService.getInstance().lock(instance)
-
+        try{
+            const instance = new BasicScenarioProcessInstanceService(processInstanceId)
+            await PersistenceGateway.newProcessInstance({
+                processInstanceId: instance.processInstanceId,
+                deploymentId: Config.getInstance().deploymentId,
+                processDef: '{{ ProcessDef }}',
+                containerId: ContainerService.containerId
+            });
+            ContainerService.getInstance().lock(instance)
+            return instance;
+        }
+        catch(e){
+            Logger.error(e);
+        }
     }
 
     close(){

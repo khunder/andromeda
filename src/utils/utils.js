@@ -80,6 +80,10 @@ export class Utils{
         }
     };
 
+    static isObject(val) {
+        return (typeof val === 'object');
+    }
+
 }
 
 export default Utils

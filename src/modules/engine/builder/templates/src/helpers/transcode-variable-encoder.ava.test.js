@@ -4,28 +4,8 @@ import {VariableEncoder} from "./variable-encoder.js";
 import Utils from "../../../../../../utils/utils.js";
 
 
-
-function evaluate(expression) {
-    let code = ` ${expression}; `;
-
-    try {
-        return eval(code);
-    } catch (e) {
-        log.error(e);
-        throw e;
-    }
-}
 let val;
 
-class LoremClass {
-    id
-    value
-}
-
-
-function isObject(val) {
-    return (typeof val === 'object');
-}
 
 test('Transcode object',
     /**
@@ -37,7 +17,7 @@ test('Transcode object',
 
     let strVal = `{"id": "idLorem" , "value": "valueIpsum"}`;
     val = VariableEncoder.transcodeVariable(strVal , "LoremClass", "objVar")
-    t.is(isObject(val), true)
+    t.is(Utils.isObject(val), true)
     t.is(val.id, "idLorem")
     t.is(val.value, "valueIpsum")
 
@@ -140,7 +120,7 @@ test('Transcode uuid value as string',
      * @returns {Promise<void>}
      */
     async (t) => {
-        let strVal =  `a0221430-a7ff-ac48-1ec6-8d21674e8464`;
+        let strVal =  `a0251430-b7ff-ac48-1ec6-8d21674e7464`;
         val = VariableEncoder.transcodeVariable(strVal , "string", "uuidVal")
         t.is(val, "a0221430-a7ff-ac48-1ec6-8d21674e8464")
 

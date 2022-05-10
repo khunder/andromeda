@@ -18,7 +18,7 @@ export class VariableEncoder {
                     expression += `value= new Date(Date.parse(\`${value}\`));`
                     break;
                 case "boolean":
-                    if (!(value === "true" || value === "false" || value === "")) {
+                    if (!(value === "true" || value === true || value === "false" || value === false || value === "")) {
                         throw new Error(`cannot transcode variable ${name} of type ${type}, possible values [true|false|""]`);
                     }
                     if (value === "") {

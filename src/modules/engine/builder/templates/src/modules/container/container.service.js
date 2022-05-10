@@ -3,7 +3,7 @@ import  {AndromedaLogger} from "../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 let instance;
-class ContainerService{
+export class ContainerService{
 
     static containerId = v4();
     processInstances= {}
@@ -26,7 +26,7 @@ class ContainerService{
     // track the process instance until
     lock(processInstance){
         Logger.info(`Locking process instance(${processInstance})`)
-        processInstances[processInstance.processInstanceId]= processInstance
+        this.processInstances[processInstance.processInstanceId]= processInstance
         // call process instance repository to lock process instance
     }
 
