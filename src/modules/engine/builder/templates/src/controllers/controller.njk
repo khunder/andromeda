@@ -17,7 +17,7 @@ class {{ ControllerClassName }} {
                 });
             }
             const processInstance = await {{ startMethod.name }}ProcessInstanceService.createInstance();
-            // processInstance.bootstrap(variables);
+            processInstance.bootstrap(variables);
             return {id: processInstance.processInstanceId};
 
         } catch (err) {

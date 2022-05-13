@@ -1,6 +1,6 @@
 import test from "ava"
 import {Variable} from "./variable.js";
-import {VariableEncoder} from "../helpers/variable-encoder.js";
+import {VariableEncoder} from "../utils/variable-encoder.js";
 import {v4} from "uuid";
 
 

@@ -17,6 +17,7 @@
     "@fastify/autoload": "^4.0.0",
     "fastify-multer": "^2.0.2",
     "fastify-oas": "^3.0.8",
+    "node-ipc": "^10.0.2",
     "@fastify/swagger": "^6.0.0",
     "log4js": "^6.3.0",
     "mongoose": "^6.1.2"

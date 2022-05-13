@@ -1,30 +1,33 @@
-let flows = new Map();
+let flows = {};
 {% for flow in outgoingSequenceFlows %}
-    let flow = await this.{{ flow.target.$type }}CreateFlow({{ stringify(flow) }}, __localMethodContext);
+    //let flow = await this.{{ flow.target.$type }}CreateFlow({{ stringify(flow) }}, __localMethodContext);
+   // let flow = {{ stringify(flow) }}
     {% if flow.conditionExpression !== '' and flow.conditionExpression !== undefined %}
-        if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
-        flow.executable = true;
-        }else{
-        flow.executable = false;
-        }
+        //if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
+        //flow.executable = true;
+       // }else{
+      //  flow.executable = false;
+       // }
     {% else %}
-        flow.executable = true;
+       // flow.executable = true;
     {% endif %}
-    flows.set( '{{ flow.id }}' , flow);
+    //flows.['{{ flow.id }}']= flow;
 {% endfor %}
 
 
-if(flows.size > 0){
-await this.bulkCreateSequenceFlow(Array.from(flows.values()));
-}
+//if(flows.size > 0){
+//    await this.bulkCreateSequenceFlow(Array.from(flows.values()));
+//}
 {% for flow in outgoingSequenceFlows %}
     try {
-    let nextFlowModel = flows.get('{{ flow.id }}');
-    if(nextFlowModel.executable){
-    let $args = {}
+   // let nextFlowModel = flows.get('{{ flow.id }}');
+   let nextFlowModel = {id: '{{ flow.id }}' };
+  //  if(nextFlowModel.executable){
+   // let $args = {}
     {{ flow.targetNodeMethodSignature }};
-    }
+   // }
     } catch (error) {
-    await this.failProcessInstance('{{ flow.id }}', __localMethodContext);
+        // await this.failProcessInstance('{{ flow.id }}', __localMethodContext);
+
     }
 {% endfor %}

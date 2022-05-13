@@ -9,10 +9,12 @@ import {EmbeddedContainerService} from "./embedded/embedded.containers.service.j
 import Utils from "../../utils/utils.js";
 import FormData from "form-data";
 import axios from "axios";
+import ipc from "node-ipc";
 
 
     test.before('database', async () => {
         await mongoose.connect(process.env.MONGODB_URI);
+
     });
 
 
@@ -20,10 +22,34 @@ import axios from "axios";
         await mongoose.disconnect();
     })
 
-    test('Start Embedded container', async (t) => {
+function startContainerSocketServer(deploymentId, port, callback) {
+    const socketPath = path.join(process.cwd(), "deployments", deploymentId, `/.pid_${port}.sock`);
+    ipc.config.retry = 2000;
+    ipc.config.id = 'container_socket';
+    ipc.serve(
+        socketPath,
+        function () {
+            ipc.server.on(
+                'container_callBack', // get engine pid
+                function (data, socket) {
+                    callback(data)
+                }
+            );
+        });
+    ipc.server.start();
+}
+
+test('Start Embedded container', async (t) => {
 
         try {
             let deploymentId = "cov/scenario_script";
+            const containerPort = 10002
+            startContainerSocketServer(deploymentId, containerPort, function (){
+                console.log(`--------------------------> callback from inside container`)
+                t.fail()
+            });
+
+
             let fileContents = [];
             const __filename = fileURLToPath(import.meta.url);
             const __dirname = path.dirname(__filename);
@@ -37,8 +63,7 @@ import axios from "axios";
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10002});
-
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: containerPort, socketCallBacks: "engine"});
 
             const form = new FormData();
             form.append('bpmnFile', fs.readFileSync(path.join(process.cwd(), "./test/resources/scenario_script.bpmn")), "bpmnFile");
@@ -49,7 +74,6 @@ import axios from "axios";
             let proc = await axios.post(`http://127.0.0.1:10002/start`, form, config);
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
             t.is(count, 1)
-
             await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
             t.pass()
         } catch (e) {

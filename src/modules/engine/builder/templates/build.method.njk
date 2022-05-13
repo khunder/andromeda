@@ -5,10 +5,10 @@ async fn_{{nodeContext.id}} (flowModel) {
     nodeId: '{{ nodeContext.id }}',
     nodeName: '{{ nodeContext.name }}',
     type: '{{ nodeContext.type }}',
-    incomingFlowId: flowModel?.id
+    incomingFlowId: flowModel? flowModel.id: null
   }
 
-  Logger.verbose(`visiting node {{ nodeContext.id }}, session: ${__localMethodContext.nodeSession}`);
+  Logger.trace(`visiting node {{ nodeContext.id }}, session: ${__localMethodContext.nodeSession}`);
 
   try {
     {% if nodeContext.args and nodeContext.args.executeBody !== null  %}

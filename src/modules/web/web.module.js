@@ -10,6 +10,7 @@ import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {Config} from "../../config/config.js";
 import fs from "fs";
 import {App} from "../../../app.js";
+import Utils from "../../utils/utils.js";
 const Logger = new AndromedaLogger();
 
 
@@ -41,16 +42,24 @@ export class WebModule {
             exposeRoute: true
         })
 
+        this.app.setErrorHandler(async (error, req, reply) => {
+            Logger.error(error)
+            Logger.error(req)
+            Logger.error(reply)
+            reply.status(500)
+            reply.send()
+        })
+
 
         this.gracefulServer.on(GracefulServer.READY, () => {
             Logger.info('Server is ready');
-            fs.writeFileSync(path.join(process.cwd(),`./.pid_${Config.getInstance().port}`), process.pid.toString());
+            fs.writeFileSync(Utils.getSocketPath(), process.pid.toString());
         })
 
         this.gracefulServer.on(GracefulServer.SHUTTING_DOWN, async () => {
             Logger.info('Server is shutting down')
             try {
-                fs.unlinkSync(path.join(process.cwd(), `./.pid_${Config.getInstance().port}`));
+                fs.unlinkSync(Utils.getSocketPath());
                 await App.close()
 
             } catch (e) {

@@ -84,7 +84,8 @@ export class EmbeddedContainerService {
                 env: {
                     port: String(allocatedPort),
                     mongoDbUri: Config.getInstance().mongoDbUri,
-                    deploymentId: deploymentId
+                    deploymentId: deploymentId,
+                    socketCallBacks: options.socketCallBacks
                 },
                 cwd: deploymentPath,
                 args: args

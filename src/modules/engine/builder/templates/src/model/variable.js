@@ -2,7 +2,7 @@ import  {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 import md5 from 'md5'
-import {VariableEncoder} from "../helpers/variable-encoder.js";
+import {VariableEncoder} from "../utils/variable-encoder.js";
 
 export class Variable {
 

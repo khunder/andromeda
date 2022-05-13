@@ -1,5 +1,6 @@
 import {v4} from "uuid";
 import  {AndromedaLogger} from "../../config/andromeda-logger.js";
+import ContainerSocket from "./container-socket.js";
 const Logger = new AndromedaLogger();
 
 let instance;
@@ -19,8 +20,9 @@ export class ContainerService{
         return instance;
     }
 
-    static init(){
+    static async init() {
         Logger.info(`Init Container module`)
+        await ContainerSocket.init();
     }
 
     // track the process instance until

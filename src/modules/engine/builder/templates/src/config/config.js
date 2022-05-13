@@ -17,6 +17,9 @@ export class Config {
     host
     port
 
+    socketCallBacks // list of ids of activities to associate with a common callback
+    // if an id is found, we trigger a callback, this call back will communicate via ipc file socket
+
     static getInstance() {
         if (!config) {
            Logger.info(`creating new Config instance`)
@@ -32,6 +35,9 @@ export class Config {
         this.host= process.env.host || "127.0.0.1";
         this.port = process.env.port || 10000;
         this.deploymentId = process.env.deploymentId;
+        if(process.env.socketCallBacks){
+            this.socketCallBacks =  process.env.socketCallBacks.split(",");
+        }
     }
 }
 

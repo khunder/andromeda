@@ -35,6 +35,11 @@ export class Utils{
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
+    static getSocketPath() {
+        return path.join(process.cwd(),`./.pid_${Config.getInstance().port}`);
+    }
+
+
     static async prepareContainerContext(filesContent, deploymentId) {
         const ctx = new ContainerParsingContext({
             isTestContainer: false,
