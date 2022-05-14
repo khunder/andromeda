@@ -1,6 +1,6 @@
-import {Stream} from "../stream.js";
+import {Stream} from "../../lib/stream.js";
 import {StreamIds} from "../stream-ids.js";
-import {EventStore} from "../../event-store.js";
+import {EventStore} from "../../lib/event-store.js";
 
 
 export class TestStreamBuilder {

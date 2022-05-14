@@ -12,6 +12,9 @@ service class has a **context**
 the context contains all shared objects, like variables
 
 
+## sub process 
+
+
 
 ## Code generation
 - using static files (snjk extension, static nunjucks files)

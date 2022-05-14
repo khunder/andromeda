@@ -27,7 +27,7 @@ export class Stream {
 
 
     dispatch(event) {
-
+        Logger.trace(`dispatching event ${JSON.stringify(event)}`)
         if (event.type in this.projections){
             this.projections[event.type].process(event)
         }

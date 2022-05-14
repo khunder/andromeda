@@ -1,7 +1,7 @@
 import Ajv from "ajv";
-import AndromedaLogger from "../../../config/andromeda-logger.js";
-import {EventDataPayloadValidator} from "./streams/event-data-payload.validator.js";
-import {EventStoreRepository} from "./repositories/event-store.repository.js";
+import AndromedaLogger from "../../../../config/andromeda-logger.js";
+import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
+import {EventStoreRepository} from "../repositories/event-store.repository.js";
 const Logger = new AndromedaLogger();
 
 export class EventStore {
@@ -26,11 +26,13 @@ export class EventStore {
     }
 
     static async apply(event) {
+        Logger.trace(`applying event ${event.id}`)
         const validate = EventStore.ajv.compile(EventStore.eventSchema)
         const valid = validate(event)
         if (!valid){
-            Logger.error(`cannot validate event with type ${event.streamId}`, JSON.stringify(validate.errors))
-            throw validate.errors
+            const error = new Error(`cannot validate event with type ${event.type} ${JSON.stringify(validate.errors)}`)
+            Logger.error(error)
+            throw error
         }
         EventStore.routeEventToCorrespondingStream(event);
         // save the event
@@ -40,6 +42,7 @@ export class EventStore {
 
     //
     static routeEventToCorrespondingStream(event) {
+        Logger.trace(`routing event ${event.id}`)
         // choose the stream to route the event into
         if (!(event.streamId in EventStore.streamsRegistry)){
             throw new Error(`cannot find am aggregator for the streamId: ${event.streamId}`);

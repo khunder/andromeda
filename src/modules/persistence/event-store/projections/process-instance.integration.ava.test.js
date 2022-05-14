@@ -1,7 +1,11 @@
 import test from "ava";
-import {EventStore} from "./event-store.js";
+import {EventStore} from "../lib/event-store.js";
 import {v4} from "uuid";
-import PersistenceModule from "../persistence.module.js";
+import PersistenceModule from "../../persistence.module.js";
+import mongoose from "mongoose";
+import {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
+import {EventTypes} from "../event-types.js";
+import {StreamIds} from "../streams/stream-ids.js";
 
 
 
@@ -70,8 +74,8 @@ test('Create/Close process instance',
         const processInstancesId= v4();
         await EventStore.apply({
             id:  v4(),
-            streamId: "PROCESS_INSTANCE",
-            type: "CREATE_PROCESS_INSTANCE",
+            streamId: StreamIds.PROCESS_INSTANCE,
+            type: EventTypes.CREATE_PROCESS_INSTANCE,
             streamPosition: 0,
             data:{
                 id: processInstancesId,
@@ -85,8 +89,8 @@ test('Create/Close process instance',
 
         await EventStore.apply({
             id:  v4(),
-            streamId: "PROCESS_INSTANCE",
-            type: "CLOSE_PROCESS_INSTANCE",
+            streamId: StreamIds.PROCESS_INSTANCE,
+            type: EventTypes.CLOSE_PROCESS_INSTANCE,
             streamPosition: 0,
             data:{
                 id: processInstancesId,
@@ -94,6 +98,9 @@ test('Create/Close process instance',
             },
             timestamp: new Date().toString()
         });
+
+        const pi = await mongoose.connection.db.collection("ProcessInstance").findOne({_id: processInstancesId})
+        t.is(pi.status, ProcessInstanceStatus.Completed)
         t.pass();
 
     })

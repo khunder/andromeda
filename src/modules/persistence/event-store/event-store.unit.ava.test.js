@@ -1,5 +1,5 @@
 import test from "ava";
-import {EventStore} from "./event-store.js";
+import {EventStore} from "./lib/event-store.js";
 import {v4} from "uuid";
 import {StreamIds} from "./streams/stream-ids.js";
 import {TestStreamBuilder} from "./streams/test/test.stream-builder.js";

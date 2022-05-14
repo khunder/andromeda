@@ -45,8 +45,16 @@ class {{ServiceClassName}} {
         }
     }
 
-    close(){
-
+    async close(){
+          try{
+            ContainerService.getInstance().lock(this);
+            await PersistenceGateway.closeProcessInstance({
+                processInstanceId: this.processInstanceId,
+            });
+        }
+        catch(e){
+            Logger.error(e);
+        }
     }
 }
 

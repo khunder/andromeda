@@ -1,6 +1,6 @@
-import {Stream} from "../stream.js";
+import {Stream} from "../../lib/stream.js";
 import {StreamIds} from "../stream-ids.js";
-import {EventStore} from "../../event-store.js";
+import {EventStore} from "../../lib/event-store.js";
 
 export const processInstanceDataSchema = {
     type: "object",
@@ -32,7 +32,7 @@ export class ProcessInstanceStreamBuilder {
      *
      * @returns {Stream}
      */
-    build(){
+    static build(){
         const stream = new Stream(StreamIds.PROCESS_INSTANCE);
         stream.eventsRegistry =  {
             CREATE_PROCESS_INSTANCE: "CREATE_PROCESS_INSTANCE",
