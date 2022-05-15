@@ -20,16 +20,17 @@ export class FlowEventRepository {
      *
      * @param {string}  processInstanceId
      * @param {string}  flowId
+     * @param {number}  status
      * @returns {Promise<void>}
      */
-    async createFlowEvent(processInstanceId,flowId) {
+    async createFlowEvent(processInstanceId,flowId ,status) {
         Logger.info(`create new flow id for process instance ${processInstanceId}`);
         // @type {ProcessInstance}
         let processInstance= {
             _id: v4(),
             flowId: flowId,
             processInstance: processInstanceId,
-            status: FlowEventStatus.Active,
+            status: status,
         }
         await this.repo.create(processInstance)
     }

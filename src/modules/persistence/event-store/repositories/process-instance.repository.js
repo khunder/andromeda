@@ -50,7 +50,7 @@ export class ProcessInstanceRepository {
     }
 
     async completeProcessInstance(processInstanceId){
-        Logger.warn(`updating process instance ${processInstanceId}, set lock to null and status = ${ ProcessInstanceStatus.Completed}`);
+        Logger.debug(`updating process instance ${processInstanceId}, set lock to null and status = ${ ProcessInstanceStatus.Completed}`);
         await this.repo.upsert({_id: processInstanceId}, {status: ProcessInstanceStatus.Completed, lock: null})
     }
 

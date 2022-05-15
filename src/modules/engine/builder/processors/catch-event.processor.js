@@ -1,19 +1,19 @@
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 
 const Logger = new AndromedaLogger();
-class ScriptTaskNodeProcessor {
-    static type = "bpmn:ScriptTask"
+class CatchEventNodeProcessor {
+    static type = "bpmn:CatchEvent"
 
     /**
      *
-     * @param currentNode : ScriptTask
+     * @param currentNode
      * @param workflowCodegenContext : WorkflowCodegenContext
      * @param containerParsingContext : ContainerParsingContext
      * @returns {NodeContext}
      */
     process(currentNode, workflowCodegenContext, containerParsingContext){
 
-        Logger.info(`processing script event`);
+        Logger.debug(`processing catch event`);
         /**
          * @type {NodeContext}
          */
@@ -21,13 +21,9 @@ class ScriptTaskNodeProcessor {
             id: currentNode.id,
             type: currentNode.$type,
             name: currentNode.name || currentNode.id,
+            args: {twoPhaseComponent: true},
             body: currentNode.script,
         };
-
-        // if we want to customize script event flow
-        workflowCodegenContext.serviceClass.addMember(`async customizeScriptTaskFlowEvent(flowEvent){
-            flowEvent.status = 1
-        }`)
 
 
         return nodeContext;
@@ -35,4 +31,4 @@ class ScriptTaskNodeProcessor {
     }
 }
 
-export default ScriptTaskNodeProcessor;
+export default CatchEventNodeProcessor;

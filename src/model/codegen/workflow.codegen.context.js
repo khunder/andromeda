@@ -8,19 +8,37 @@ class WorkflowCodegenContext {
      */
     containerCodegenContext
     /**
-     * @type {Project}
+     * @type {tsMorph.Project}
      */
     project = new tsMorph.Project({});
 
+    /**
+     * @type {tsMorph.ClassDeclaration}
+     */
     serviceClass;
+
+    /**
+     * @type {tsMorph.ClassDeclaration}
+     */
     controllerClass;
 
     /**
-     * @type {SourceFile}
+     * @type {tsMorph.ClassDeclaration}
+     */
+    workflowModelClass
+
+    /**
+     * @type {tsMorph.SourceFile}
+     */
+    workflowModelFile
+
+
+    /**
+     * @type {tsMorph.SourceFile}
      */
     serviceClassFile;
     /**
-     * @type {SourceFile}
+     * @type {tsMorph.SourceFile}
      */
     controllerClassFile;
 

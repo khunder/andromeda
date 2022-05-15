@@ -14,6 +14,11 @@ const __dirname = path.dirname(__filename);
 
 class WorkflowBuilder {
     constructor() {
+        nunjucks.configure({
+            autoescape: false,
+            trimBlocks: true,
+            lstripBlocks: true,
+        });
     }
 
     bpmnProcessor = new BpmnProcessor();
@@ -78,6 +83,8 @@ class WorkflowBuilder {
 
         await this.generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext)
 
+        await this.generateWorkflowModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
+
         processesInBpmnFile.forEach(process => {
             this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
@@ -141,11 +148,7 @@ class WorkflowBuilder {
 
         const serviceFileName = this.getServiceFileName(normalizedProcessDef);
         const serviceClassName = this.getServiceClassName(normalizedProcessDef);
-        nunjucks.configure({
-            autoescape: false,
-            trimBlocks: true,
-            lstripBlocks: true,
-        });
+
 
         let serviceFilePath = `./deployments/${workflowParsingContext.deploymentId}/src/services/${serviceFileName}.js`
 
@@ -187,12 +190,6 @@ class WorkflowBuilder {
         normalizedProcessDef,
         parsedModel,
         containerParsingContext) {
-
-        nunjucks.configure({
-            autoescape: false,
-            trimBlocks: true,
-            lstripBlocks: true,
-        });
 
 
         let template = fs.readFileSync(
@@ -304,11 +301,6 @@ class WorkflowBuilder {
      */
     generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
             const controllerName= `${normalizedProcessDef}Controller`
-        nunjucks.configure({
-            autoescape: false,
-            trimBlocks: true,
-            lstripBlocks: true,
-        });
 
         workflowCodegenContext.containerCodegenContext.openApiCodegen.addPath("/start" , "post")
         workflowCodegenContext.containerCodegenContext.openApiCodegen.addResponse("/start" , "post" , {
@@ -365,6 +357,26 @@ class WorkflowBuilder {
     }
 
 
+    async generateWorkflowModelClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
+        let workflowModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/container/workflow-model.js`
+        let template = fs.readFileSync(
+            path
+                .join(
+                    __dirname,
+                    './builder/templates/src/modules/container/workflow-model.js',
+                )
+                .toString(),
+        ).toString()
+
+        workflowCodegenContext.workflowModelFile = workflowCodegenContext.project.createSourceFile(
+            workflowModelPath,
+            template,
+            {overwrite: true},
+        );
+
+        workflowCodegenContext.workflowModelClass = workflowCodegenContext.workflowModelFile.getClassOrThrow("WorkflowModel");
+
+    }
 }
 
 export default WorkflowBuilder;

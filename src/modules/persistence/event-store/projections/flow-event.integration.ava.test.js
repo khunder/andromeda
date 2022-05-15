@@ -6,6 +6,8 @@ import mongoose from "mongoose";
 import {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
 import {EventTypes} from "../event-types.js";
 import {StreamIds} from "../streams/stream-ids.js";
+import {PersistenceHelper} from "../../helper/persistence-helper.js";
+import {FlowEventStatus} from "../internal/models/flow-event.orm-model.js";
 
 
 
@@ -28,19 +30,22 @@ test('Inert flow event',
      */
     async (t) => {
         await PersistenceModule.init();
+        const processInstance = v4()
         await EventStore.apply({
             id: v4(),
             streamId: StreamIds.FLOW_EVENT,
             type: EventTypes.CREATE_FLOW_EVENT,
             streamPosition: 0,
             data:{
-                processInstance: v4(),
+                processInstance: processInstance,
                 flowId: "flow_id",
+                status: FlowEventStatus.Active
             },
             timestamp: new Date().toString()
         });
-
-        t.pass();
+        const record = await PersistenceHelper.findRecord("FlowEvent", {processInstance})
+        t.truthy(record);
+        t.is(record.processInstance , processInstance)
 
     })
 

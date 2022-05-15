@@ -7,6 +7,7 @@ import path from "path";
 import nunjucks from "nunjucks";
 import fs from "fs";
 import {fileURLToPath} from "url";
+import {StructureKind} from "ts-morph";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const Logger = new AndromedaLogger();
@@ -50,7 +51,11 @@ class BpmnProcessor {
         });
     }
 
-
+    /**
+     *
+     * @param node
+     * @returns {BPMNModdle.SequenceFlow[]|*[]}
+     */
     getNextNodes(
         node
     ) {
@@ -60,11 +65,21 @@ class BpmnProcessor {
         return [];
     }
 
+    /**
+     *
+     * @param currentElement
+     * @param {NodeContext} nodeContext
+     * @param {WorkflowCodegenContext} workflowCodegenContext
+     */
     buildMethod(
         currentElement,
         nodeContext,
         workflowCodegenContext,
     ) {
+
+        /**
+         * @type {BPMNModdle.SequenceFlow[]|*[]}
+         */
         const nextNodes = this.getNextNodes(currentElement);
         Logger.trace(`Generate method signature for node  ${currentElement.id}`);
         const outgoingSequenceFlows = nextNodes.map(
@@ -75,8 +90,8 @@ class BpmnProcessor {
                     source: JSON.parse(JSON.stringify(nextNode.sourceRef)),
                 };
                 flow.targetNodeMethodSignature = `this.fn_${flow.target.id}(nextFlowModel)`;
-                flow.source.$type = flow.source.$type.substr(5);
-                flow.target.$type = flow.target.$type.substr(5);
+                flow.source.$type = flow.source.$type.slice(5);
+                flow.target.$type = flow.target.$type.slice(5);
                 return flow;
             },
             // this.generateOutgoingSequenceFlowContext(currentElement, nextNode),
@@ -102,6 +117,20 @@ class BpmnProcessor {
                 stringify: JSON.stringify,
             },
         );
+
+        outgoingSequenceFlows.forEach(
+            /**
+             *
+             * @param {BPMNModdle.SequenceFlow} f
+             */
+        (f) => {
+            workflowCodegenContext.workflowModelClass.addProperty({
+                kind: StructureKind.Property,
+                isStatic: true,
+                initializer: JSON.stringify(f),
+                name: f.id
+            })
+        })
         // inject generated method inside service class using ts-morph
         workflowCodegenContext.serviceClass.addMember(methodBody);
     }

@@ -17,7 +17,7 @@ export class FlowEventProjection {
     async process(event) {
         if (event.type === EventTypes.CREATE_FLOW_EVENT) {
             Logger.trace("CREATING FLOW EVENT instance")
-            await this.repo.createFlowEvent(event.data.processInstance, event.data.flowId)
+            await this.repo.createFlowEvent(event.data.processInstance, event.data.flowId, event.data.status)
         }
     }
 }

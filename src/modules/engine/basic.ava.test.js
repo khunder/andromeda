@@ -10,6 +10,7 @@ import Utils from "../../utils/utils.js";
 import FormData from "form-data";
 import axios from "axios";
 import ipc from "node-ipc";
+import {Config} from "../../config/config.js";
 
 
     test.before('database', async () => {
@@ -74,6 +75,7 @@ test('Start Embedded container', async (t) => {
             let proc = await axios.post(`http://127.0.0.1:10002/start`, form, config);
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
             t.is(count, 1)
+            await Utils.sleep(2000);
             await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
             t.pass()
         } catch (e) {

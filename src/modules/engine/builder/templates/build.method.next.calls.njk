@@ -1,17 +1,17 @@
 let flows = {};
 {% for flow in outgoingSequenceFlows %}
-    //let flow = await this.{{ flow.target.$type }}CreateFlow({{ stringify(flow) }}, __localMethodContext);
-   // let flow = {{ stringify(flow) }}
+    let flow ={}
+    await PersistenceGateway.createFlowEvent(this.createFlowEvent('{{ flow.id }}'));
+
     {% if flow.conditionExpression !== '' and flow.conditionExpression !== undefined %}
-        //if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
-        //flow.executable = true;
-       // }else{
-      //  flow.executable = false;
-       // }
+    if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
+        flow.executable = true;
+    }else{
+        flow.executable = false;
+    }
     {% else %}
-       // flow.executable = true;
+        flow.executable = true;
     {% endif %}
-    //flows.['{{ flow.id }}']= flow;
 {% endfor %}
 
 

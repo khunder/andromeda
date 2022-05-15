@@ -11,24 +11,23 @@ async fn_{{nodeContext.id}} (flowModel) {
   Logger.trace(`visiting node {{ nodeContext.id }}, session: ${__localMethodContext.nodeSession}`);
 
   try {
-    {% if nodeContext.args and nodeContext.args.executeBody !== null  %}
+{% if nodeContext.args and nodeContext.args.executeBody !== null  %}
     if(flowModel.executeBody) {
-      {% endif %}
-
+{% endif %}
       {{ nodeContext.body }}
       this._context.saveContext();
-      {% if nodeContext.args and nodeContext.args.resumeExecution !== null  %}
+{% if nodeContext.args and nodeContext.args.resumeExecution %}
       if(flowModel.resumeExecution){
-        {% endif %}
+{% endif %}
         {% include "build.method.next.calls.njk" %}
-        {% if nodeContext.args and nodeContext.args.resumeExecution !== null  %}
+{% if nodeContext.args and nodeContext.args.resumeExecution  %}
       }
-      {% endif %}
-      {% if nodeContext.args and nodeContext.args.executeBody !== null %}
+{% endif %}
+{% if nodeContext.args and nodeContext.args.executeBody !== null %}
     }else{
       {{ nodeContext.alternateBody }}
     }
-    {% endif %}
+{% endif %}
   } catch (_bpmnProcessorException) {
     const stack = _bpmnProcessorException.stack;
     throw new Error(JSON.stringify({ stacktrace: stack, context: __localMethodContext }));

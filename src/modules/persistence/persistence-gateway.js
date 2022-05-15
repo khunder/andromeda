@@ -43,6 +43,24 @@ export class PersistenceGateway {
         )
     };
 
+
+    static async createFlowEvent({processInstanceId, flowId, status}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.FLOW_EVENT,
+                type: EventTypes.CREATE_FLOW_EVENT,
+                streamPosition: 0,
+                data: {
+                    processInstance: processInstanceId,
+                    flowId: flowId,
+                    status: status
+                },
+                timestamp: new Date().toString()
+            }
+        )
+    };
+
     static init() {
         PersistenceGateway.registerStreams()
     }

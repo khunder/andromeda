@@ -4,6 +4,7 @@ import {v4} from "uuid";
 import { {{ ProcessDef }}ProcessInstanceContext} from "./{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
 import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
 import {ContainerService} from "../modules/container/container.service.js";
+import {WorkflowModel} from "../modules/container/workflow-model.js";
 import {Config} from "../config/config.js";
 
 class {{ServiceClassName}} {
@@ -55,6 +56,24 @@ class {{ServiceClassName}} {
         catch(e){
             Logger.error(e);
         }
+    }
+
+    isTwoPhaseComponent(type){
+        return type === "CatchEvent" || type === "HumanTask"
+    }
+
+    createFlowEvent(flowEventId){
+        let flowEvent = { processInstanceId: this.processInstanceId, flowId: flowEventId, status: 1 };
+        if(WorkflowModel[flowEventId] && this.isTwoPhaseComponent(WorkflowModel[flowEventId].target.$type) ){
+            flowEvent.status = 0;
+        }
+
+        if(WorkflowModel[flowEventId] && this[`customize${WorkflowModel[flowEventId].target.$type}FlowEvent`]){
+            this[`customize${WorkflowModel[flowEventId].target.$type}FlowEvent`](flowEvent);
+        }
+
+        return flowEvent;
+
     }
 }
 

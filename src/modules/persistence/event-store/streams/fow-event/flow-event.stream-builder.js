@@ -7,9 +7,10 @@ export const createFlowEventDataSchema = {
     type: "object",
     properties: {
         flowId: {type: "string"}, // sequence flow id
-        processInstance: {type: "string"}
+        processInstance: {type: "string"},
+        status : {type: "number"}
     },
-    required: ["processInstance", "flowId"],
+    required: ["processInstance", "flowId", "status"],
     additionalProperties: false,
 }
 
