@@ -89,7 +89,7 @@ class BpmnProcessor {
                     target: JSON.parse(JSON.stringify(nextNode.targetRef)),
                     source: JSON.parse(JSON.stringify(nextNode.sourceRef)),
                 };
-                flow.targetNodeMethodSignature = `this.fn_${flow.target.id}(nextFlowModel)`;
+                flow.targetNodeMethodSignature = `this.fn_${flow.target.id}`;
                 flow.source.$type = flow.source.$type.slice(5);
                 flow.target.$type = flow.target.$type.slice(5);
                 return flow;

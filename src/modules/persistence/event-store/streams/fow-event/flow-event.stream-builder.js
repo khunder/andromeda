@@ -14,6 +14,17 @@ export const createFlowEventDataSchema = {
     additionalProperties: false,
 }
 
+// used for close and abort process instance
+export const updateFlowEventDataSchema = {
+    type: "object",
+    properties: {
+        flowId: {type: "string"}, // sequence flow id
+        processInstance: {type: "string"},
+    },
+    required: ["processInstance", "flowId"],
+    additionalProperties: false,
+}
+
 
 export class FlowEventStreamBuilder {
 
@@ -25,9 +36,15 @@ export class FlowEventStreamBuilder {
         const stream = new Stream(StreamIds.FLOW_EVENT);
         stream.eventsRegistry =  {
             CREATE_FLOW_EVENT: EventTypes.CREATE_FLOW_EVENT,
+            CLOSE_FLOW_EVENT: EventTypes.CLOSE_FLOW_EVENT,
+            ABORT_FLOW_EVENT: EventTypes.ABORT_FLOW_EVENT,
+            FAIL_FLOW_EVENT: EventTypes.FAIL_FLOW_EVENT,
         }
         stream.validators ={
             [stream.eventsRegistry.CREATE_FLOW_EVENT] : createFlowEventDataSchema,
+            [stream.eventsRegistry.CLOSE_FLOW_EVENT] : updateFlowEventDataSchema,
+            [stream.eventsRegistry.ABORT_FLOW_EVENT] : updateFlowEventDataSchema,
+            [stream.eventsRegistry.FAIL_FLOW_EVENT] : updateFlowEventDataSchema,
         }
 
         EventStore.registerStream(stream.streamId, stream);

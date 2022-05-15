@@ -36,4 +36,52 @@ export class FlowEventRepository {
     }
 
 
+    /**
+     *
+     * @param {string}  processInstanceId
+     * @param {string}  flowId
+     * @returns {Promise<void>}
+     */
+    async closeFlowEvent(processInstanceId,flowId) {
+        Logger.info(`Close flow event id ${flowId} for process instance ${processInstanceId}`);
+        let processInstance= {
+            processInstance: processInstanceId,
+            flowId: flowId,
+        }
+        await this.repo.upsert(processInstance, { status: FlowEventStatus.Completed})
+    }
+
+    /**
+     *
+     * @param {string}  processInstanceId
+     * @param {string}  flowId
+     * @returns {Promise<void>}
+     */
+    async abortFlowEvent(processInstanceId,flowId) {
+        Logger.info(`Abort flow event id ${flowId} for process instance ${processInstanceId}`);
+        let processInstance= {
+            processInstance: processInstanceId,
+            flowId: flowId,
+        }
+        await this.repo.upsert(processInstance, { status: FlowEventStatus.Aborted})
+    }
+
+
+    /**
+     *
+     * @param {string}  processInstanceId
+     * @param {string}  flowId
+     * @returns {Promise<void>}
+     */
+    async failFlowEvent(processInstanceId,flowId) {
+        Logger.info(`Fail flow event id ${flowId} for process instance ${processInstanceId}`);
+        let processInstance= {
+            processInstance: processInstanceId,
+            flowId: flowId,
+        }
+        await this.repo.upsert(processInstance, { status: FlowEventStatus.Error})
+    }
+
+
+
 }

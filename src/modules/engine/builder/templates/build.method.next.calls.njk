@@ -1,8 +1,8 @@
 let flows = {};
 {% for flow in outgoingSequenceFlows %}
-    let flow ={}
+    //
     await PersistenceGateway.createFlowEvent(this.createFlowEvent('{{ flow.id }}'));
-
+    let flow ={}
     {% if flow.conditionExpression !== '' and flow.conditionExpression !== undefined %}
     if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
         flow.executable = true;
@@ -19,15 +19,12 @@ let flows = {};
 //    await this.bulkCreateSequenceFlow(Array.from(flows.values()));
 //}
 {% for flow in outgoingSequenceFlows %}
-    try {
+
    // let nextFlowModel = flows.get('{{ flow.id }}');
    let nextFlowModel = {id: '{{ flow.id }}' };
   //  if(nextFlowModel.executable){
    // let $args = {}
-    {{ flow.targetNodeMethodSignature }};
+    this.callFunction({{ flow.targetNodeMethodSignature }} , __localMethodContext, {incomingFlowId: '{{ flow.id }}' });
    // }
-    } catch (error) {
-        // await this.failProcessInstance('{{ flow.id }}', __localMethodContext);
 
-    }
 {% endfor %}

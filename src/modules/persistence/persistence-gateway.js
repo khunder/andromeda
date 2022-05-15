@@ -61,6 +61,54 @@ export class PersistenceGateway {
         )
     };
 
+    static async closeFlowEvent({processInstanceId, flowId}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.FLOW_EVENT,
+                type: EventTypes.CLOSE_FLOW_EVENT,
+                streamPosition: 0,
+                data: {
+                    processInstance: processInstanceId,
+                    flowId: flowId,
+                },
+                timestamp: new Date().toString()
+            }
+        )
+    };
+
+    static async failFlowEvent({processInstanceId, flowId}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.FLOW_EVENT,
+                type: EventTypes.FAIL_FLOW_EVENT,
+                streamPosition: 0,
+                data: {
+                    processInstance: processInstanceId,
+                    flowId: flowId,
+                },
+                timestamp: new Date().toString()
+            }
+        )
+    };
+
+    static async abortFlowEvent({processInstanceId, flowId}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.FLOW_EVENT,
+                type: EventTypes.ABORT_FLOW_EVENT,
+                streamPosition: 0,
+                data: {
+                    processInstance: processInstanceId,
+                    flowId: flowId,
+                },
+                timestamp: new Date().toString()
+            }
+        )
+    };
+
     static init() {
         PersistenceGateway.registerStreams()
     }
@@ -72,6 +120,9 @@ export class PersistenceGateway {
 
         const flowEventStream = FlowEventStreamBuilder.build()
         this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CREATE_FLOW_EVENT, new FlowEventProjection());
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CLOSE_FLOW_EVENT, new FlowEventProjection());
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.ABORT_FLOW_EVENT, new FlowEventProjection());
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.FAIL_FLOW_EVENT, new FlowEventProjection());
 
     }
 

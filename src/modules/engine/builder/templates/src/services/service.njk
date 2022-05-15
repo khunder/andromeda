@@ -62,6 +62,15 @@ class {{ServiceClassName}} {
         return type === "CatchEvent" || type === "HumanTask"
     }
 
+    async evaluate(expression) {
+        try {
+          return eval(`${expression};`);
+        }catch (e) {
+          Logger.error(e);
+          throw e;
+        }
+    }
+
     createFlowEvent(flowEventId){
         let flowEvent = { processInstanceId: this.processInstanceId, flowId: flowEventId, status: 1 };
         if(WorkflowModel[flowEventId] && this.isTwoPhaseComponent(WorkflowModel[flowEventId].target.$type) ){
@@ -75,6 +84,28 @@ class {{ServiceClassName}} {
         return flowEvent;
 
     }
+
+    async failProcessInstance(flowId, __localContext){
+         await PersistenceGateway.failFlowEvent({
+                processInstanceId: this.processInstanceId,
+                flowId: flowId
+            });
+    }
+
+    callFunction(func, localContext, args  )
+    {
+        let fnArgs = args || {}
+        func.call(this, ...Object.values(fnArgs))
+            .catch(async (error) =>
+            {
+                Logger.error(error);
+                await this.failProcessInstance(args.incomingFlowId, localContext);
+            }).finally(() =>
+            {
+            });
+
+    }
+
 }
 
 export default {{ServiceClassName}}
