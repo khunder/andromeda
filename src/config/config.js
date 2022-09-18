@@ -1,12 +1,9 @@
 import {AndromedaLogger} from "../config/andromeda-logger.js"
-import path from 'path';
-import {fileURLToPath} from 'url';
-import {config as LoadDotEnvConfig} from "dotenv"
+import Utils from "../utils/utils.js";
 
-let config;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-LoadDotEnvConfig({path: path.join(__dirname, '../..', '.env' )});
+
+let config
+
 const Logger = new AndromedaLogger();
 export class Config {
     mongoDbUri;
@@ -22,7 +19,8 @@ export class Config {
 
     static getInstance(force) {
         if (!config || force) {
-           Logger.info(`creating new Config instance`)
+            Logger.info(`creating new Config instance`)
+            Utils.loadEnvVariables();
             config = new Config();
         }
         return config;

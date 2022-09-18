@@ -4,8 +4,10 @@ import  ContainerParsingContext from "../model/parsing/container.parsing.context
 import  WorkflowParsingContext  from "../model/parsing/workflow.parsing.context.js";
 import BPMNModdle from "bpmn-moddle";
 import {AndromedaLogger} from "../config/andromeda-logger.js";
-import path from "path";
 const Logger = new AndromedaLogger();
+import path from 'path';
+import {fileURLToPath} from 'url';
+import {config as LoadDotEnvConfig} from "dotenv"
 
 export class Utils{
     static moduleIsActive(module) {
@@ -89,6 +91,18 @@ export class Utils{
         return (typeof val === 'object');
     }
 
+    static loadEnvVariables(env) {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        let envVariablesPath;
+        if(env && env.toString().toUpperCase() === "TEST"){
+            envVariablesPath = path.join(__dirname, '../../test', '.env' );
+        }else{
+            envVariablesPath = path.join(__dirname, '../..', '.env' );
+        }
+        Logger.info(`Loading Env variables from ${envVariablesPath}`)
+        LoadDotEnvConfig({path: envVariablesPath});
+    }
 }
 
 export default Utils
