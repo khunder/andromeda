@@ -1,27 +1,16 @@
-import mongoose from "mongoose";
-import fs from "fs";
-import path from "path";
+import assert from "assert";
+import WorkflowBuilder from "./workflow.builder.js";
+import Utils from "../../utils/utils.js";
 import {fileURLToPath} from "url";
-
-import test from "ava";
+import fs from "fs";
 import EngineService from "./engine.service.js";
 import {EmbeddedContainerService} from "./embedded/embedded.containers.service.js";
-import Utils from "../../utils/utils.js";
 import FormData from "form-data";
 import axios from "axios";
+import mongoose from "mongoose";
+import path from "path";
 import ipc from "node-ipc";
-import {Config} from "../../config/config.js";
 
-
-    test.before('database', async () => {
-        await mongoose.connect(process.env.MONGODB_URI);
-
-    });
-
-
-    test.after(async () => {
-        await mongoose.disconnect();
-    })
 
 function startContainerSocketServer(deploymentId, port, callback) {
     const socketPath = path.join(process.cwd(), "deployments", deploymentId, `/.pid_${port}.sock`);
@@ -40,14 +29,13 @@ function startContainerSocketServer(deploymentId, port, callback) {
     ipc.server.start();
 }
 
-test('Start Embedded container', async (t) => {
-
+describe('Embedded Container', function () {
+    it('Start Embedded container', async () => {
         try {
             let deploymentId = "cov/scenario_script";
             const containerPort = 10002
             startContainerSocketServer(deploymentId, containerPort, function (){
                 console.log(`--------------------------> callback from inside container`)
-                t.fail()
             });
 
 
@@ -74,12 +62,14 @@ test('Start Embedded container', async (t) => {
             // when
             let proc = await axios.post(`http://127.0.0.1:10002/start`, form, config);
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
-            t.is(count, 1)
+            assert.equal(count, 1)
             await Utils.sleep(2000);
             await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
-            t.pass()
+
         } catch (e) {
             console.error(e)
         }
-    })
+    });
+
+});
 

@@ -2,16 +2,21 @@
 import Utils from "../src/utils/utils.js";
 import { MongoMemoryServer} from "mongodb-memory-server";
 import AndromedaLogger from "../src/config/andromeda-logger.js";
+import mongoose from "mongoose";
 const Logger = new AndromedaLogger();
 
 export const mochaHooks = {
     beforeEach(done) {
-        console.log('mochaHooks.beforeEach ' + process.env.ACTIVE_MODULES);
+        // console.log('mochaHooks.beforeEach ' + process.env.ACTIVE_MODULES);
         done();
     },
     async afterAll() {
-        console.log('>>>-- Global tear down');
+        Logger.debug('== Global teardown ===');
+        await mongoose.disconnect();
+        Logger.debug('>- mongoose disconnected');
         await stopMongoInMemory();
+        Logger.debug('>- MongoInMemory Stopped');
+
     },
 
 
@@ -24,6 +29,9 @@ export const mochaGlobalSetup = async function() {
     Utils.loadEnvVariables("test");
 
     await startMongoInMemory();
+    await mongoose.connect(process.env.MONGODB_URI);
+
+
 };
 
 let server;
@@ -41,10 +49,9 @@ async function startMongoInMemory() {
         }
     });
 
-
 }
 
 async function stopMongoInMemory(){
-    Logger.info(`Stopping MongoDB in memory instance`)
+    Logger.debug(`>- Stopping MongoDB in memory instance`)
     server.stop();
 }

@@ -6,12 +6,12 @@ import mongoose from "mongoose";
 import {EmbeddedContainerService} from "./embedded.containers.service.js";
 import * as net from "net";
 import {Config} from "../../../config/config.js";
-import test from "ava"
 import Utils from "../../../utils/utils.js";
+import assert from "assert";
 
 
 
-test('isPortFree', async (t) => {
+it('isPortFree', async () => {
     let server = net.createServer(function (socket) {
         console.log("connected");
         socket.on('data', function (data) {
@@ -22,13 +22,13 @@ test('isPortFree', async (t) => {
 
 
     let available = await EmbeddedContainerService.isPortFree(5000);
-    t.is(available, false);
+    assert.equal(available, false);
     await EmbeddedContainerService.AllocatePortInRange(5001);
     await EmbeddedContainerService.AllocatePortInRange(5001);
     await EmbeddedContainerService.AllocatePortInRange(10000);
     EmbeddedContainerService.maxAttemptsRange = 0;
     const error = await Utils.getError(async () => await EmbeddedContainerService.AllocatePortInRange());
-    t.is(error, "cannot allocate port 10000 after 0 attempts")
+    assert.deepEqual(error, "cannot allocate port 10000 after 0 attempts")
     EmbeddedContainerService.maxAttemptsRange = 2;
     await EmbeddedContainerService.AllocatePortInRange();
     setTimeout(function () {
@@ -41,7 +41,7 @@ test('isPortFree', async (t) => {
 })
 
 
-test('wait for container to start', async (t) => {
+it('wait for container to start', async () => {
     let server = net.createServer(function (socket) {
         console.log("connected");
         socket.on('data', function (data) {

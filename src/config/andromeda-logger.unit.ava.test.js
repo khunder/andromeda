@@ -1,19 +1,19 @@
-import test from 'ava'
 import Log4jsConfigJs from "../config/log4js.config.js";
 
 import sinon, {stub} from "sinon";
+import assert from "assert";
 
 /**
  * ESM with Node <=16.13.1 cannot be unloaded, we are using separate test files for testing log4js
  * because
  */
-test('Logger json to stdout',
+it('Logger json to stdout',
     /**
      *
      * @param {Assertions}t
      * @returns {Promise<void>}
      */
-    async (t) => {
+    async () => {
 
         //given
         const log4jsConfigJs = new Log4jsConfigJs()
@@ -40,45 +40,45 @@ test('Logger json to stdout',
         messagesCount += 1;
         // then each tome two messages are logged the stdout (standard stdout + json message )
 
-        t.is(stb.getCalls().length, 2)
+        assert.equal(stb.getCalls().length, 2)
         // when
         logger.error("error message")
         messagesCount += 1;
 
         //then
         // expect(process.stdout.write).toBeCalledTimes(messagesCount*2)
-        t.is(stb.getCalls().length, messagesCount * 2)
+        assert.equal(stb.getCalls().length, messagesCount * 2)
         // // when
         logger.error({})
         messagesCount += 1;
         //then
         // expect(process.stdout.write).toBeCalledTimes(messagesCount*2)
-        t.is(stb.getCalls().length, messagesCount * 2)
+        assert.equal(stb.getCalls().length, messagesCount * 2)
 
         // // when
         logger.warn("warn")
         messagesCount += 1;
         //then
         // expect(process.stdout.write).toBeCalledTimes(messagesCount*2)
-        t.is(stb.getCalls().length, messagesCount * 2)
+        assert.equal(stb.getCalls().length, messagesCount * 2)
 
         // when
         logger.trace("trace")
         messagesCount+=1;
         //then
-        t.is(stb.getCalls().length,messagesCount*2)
+        assert.equal(stb.getCalls().length,messagesCount*2)
 
         // when
         logger.fatal("fatal")
         messagesCount+=1;
         //then
-        t.is(stb.getCalls().length,messagesCount*2)
+        assert.equal(stb.getCalls().length,messagesCount*2)
 
         // when
         logger.debug("debug")
         messagesCount+=1;
         //then
-        t.is(stb.getCalls().length,messagesCount*2)
+        assert.equal(stb.getCalls().length,messagesCount*2)
 
         //
         // given another config and another instance of AndromedaLogger
@@ -89,7 +89,7 @@ test('Logger json to stdout',
         logger2.info("test")
         // then make sure this time we write once to the stdout
         // expect(process.stdout.write).toBeCalledTimes(messagesCount*2+1)
-        t.is(stb.getCalls().length,messagesCount*2+1)
+        assert.equal(stb.getCalls().length,messagesCount*2+1)
 
 
     })
