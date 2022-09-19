@@ -44,15 +44,14 @@ export class App {
 
         if (Utils.moduleIsActive(constants.SERVER)) {
             await this.initServerModule();
-
         }
-
 
         await this.executePromisesSequentially(this.modules);
     }
 
     async initPersistenceModule() {
         try {
+            Logger.debug(`loading persistence module`)
             let Persistence = await import('./src/modules/persistence/persistence.module.js')
             this.modules.push(Persistence.PersistenceModule.init)
         } catch (e) {
@@ -61,6 +60,8 @@ export class App {
     }
 
     async initServerModule() {
+        Logger.debug(`Loading Server module`)
+
         try {
             let Engine = await import ('./src/modules/engine/engine.module.js')
             let engineModuleInstance = new Engine.EngineModule();
@@ -72,6 +73,7 @@ export class App {
 
     async initWebModule() {
         try {
+            Logger.debug(`loading web module`)
             let web = await import ('./src/modules/web/web.module.js')
             let webModule = new web.WebModule(this.host, this.port);
             this.modules.push(webModule.start.bind(webModule));
@@ -81,6 +83,7 @@ export class App {
     }
 
     static async close() {
+        Logger.debug(`Closing  App`)
         if (Config.getInstance().isLocalMode) {
             const daemon = await import("./src/modules/engine/embedded/embedded.sidecar.daemon.service.js");
             daemon.EmbeddedSidecarDaemonService.shutdownDaemon();

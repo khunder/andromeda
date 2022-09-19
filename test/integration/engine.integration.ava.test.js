@@ -5,19 +5,11 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
-import test from 'ava';
+
+describe('EngineIntegration::Basic', function () {
 
 
-    test.before('database', async () => {
-        await mongoose.connect(process.env.MONGODB_URI);
-    });
-
-
-    test.after(async () => {
-        await mongoose.disconnect();
-    })
-
-    test('Start Embedded container', async (t) => {
+    it('Start Embedded container', async () => {
 
         try {
             let deploymentId = "test/embedded_container";
@@ -36,9 +28,10 @@ import test from 'ava';
             await engineService.generateContainer(ctx);
             await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10005});
             await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10005);
-            t.pass()
+            
         } catch (e) {
             console.error(e)
         }
     })
 
+});

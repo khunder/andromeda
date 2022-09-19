@@ -92,10 +92,11 @@ export class Utils{
     }
 
     static loadEnvVariables(env) {
+
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
         let envVariablesPath;
-        if(env && env.toString().toUpperCase() === "TEST"){
+        if(env && env.toString().toUpperCase() === "TEST" || process.env.ENV === "test"){
             envVariablesPath = path.join(__dirname, '../../test', '.env' );
         }else{
             envVariablesPath = path.join(__dirname, '../..', '.env' );

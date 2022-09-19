@@ -1,31 +1,24 @@
 
-import test from "ava";
 import {v4} from "uuid";
-import FakeRepositoryBase from "./fake.repository.base.js";
-import ProcessInstanceModel from "./models/process-instance.orm-model.js";
+import assert from "assert";
+import FakeRepositoryBase from "../internal/fake.repository.base.js";
+import ProcessInstanceModel from "../internal/models/process-instance.orm-model.js";
 
 
-test.before(async () => {
-});
-
-test.after( async ()=>{
-})
-
-
-test('Count repository',
+it('Count repository',
     /**
      *
      * @param {Assertions}t
      * @returns {Promise<void>}
      */
-    async (t) => {
+    async () => {
         try{
             let repo = new FakeRepositoryBase(ProcessInstanceModel);
             const count =await repo.count()
-            t.is(count, 0)
+            assert.equal(count, 0)
             await repo.create({_id: v4()})
-            t.is(await repo.count(), 1)
-            t.pass()
+            assert.equal(await repo.count(), 1)
+
         }catch (e) {
             console.error(e)
         }

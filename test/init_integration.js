@@ -3,6 +3,8 @@ import Utils from "../src/utils/utils.js";
 import { MongoMemoryServer} from "mongodb-memory-server";
 import AndromedaLogger from "../src/config/andromeda-logger.js";
 import mongoose from "mongoose";
+import {PersistenceGateway} from "../src/modules/persistence/persistence-gateway.js";
+import PersistenceModule from "../src/modules/persistence/persistence.module.js";
 const Logger = new AndromedaLogger();
 
 export const mochaHooks = {
@@ -26,10 +28,11 @@ export const mochaHooks = {
 // Bonus: global fixture, runs once before everything.
 export const mochaGlobalSetup = async function() {
     console.log('>>>-- mocha Global Setup');
+    process.env.ENV = 'test';
     Utils.loadEnvVariables("test");
 
     await startMongoInMemory();
-    await mongoose.connect(process.env.MONGODB_URI);
+    // await PersistenceModule.init();
 
 
 };

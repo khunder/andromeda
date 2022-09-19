@@ -2,6 +2,7 @@ import Ajv from "ajv";
 import AndromedaLogger from "../../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
+import Utils from "../../../../utils/utils.js";
 const Logger = new AndromedaLogger();
 
 export class EventStore {
@@ -30,7 +31,7 @@ export class EventStore {
         const validate = EventStore.ajv.compile(EventStore.eventSchema)
         const valid = validate(event)
         if (!valid){
-            const error = new Error(`cannot validate event with type ${event.type} ${JSON.stringify(validate.errors)}`)
+            const error = new Error(`cannot validate event with type ${event.type}`)
             Logger.error(error)
             throw error
         }
@@ -41,10 +42,10 @@ export class EventStore {
     }
 
     //
-    static routeEventToCorrespondingStream(event) {
+    static async routeEventToCorrespondingStream(event) {
         Logger.trace(`routing event ${event.id}`)
         // choose the stream to route the event into
-        if (!(event.streamId in EventStore.streamsRegistry)){
+        if (!(event.streamId in EventStore.streamsRegistry)) {
             throw new Error(`cannot find am aggregator for the streamId: ${event.streamId}`);
         }
 
@@ -56,10 +57,9 @@ export class EventStore {
         if (!(event.type in stream.eventsRegistry)) {
             throw new Error(`event type (${event.type}) not supported by the stream ${stream.streamId}`)
         }
-        if(event.type in stream.validators){
+        if (event.type in stream.validators) {
             EventDataPayloadValidator.validate(event, stream.validators[event.type]);
         }
-
         stream.dispatch(event);
     }
 

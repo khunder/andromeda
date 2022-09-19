@@ -1,4 +1,3 @@
-import test from "ava";
 import {EventStore} from "../lib/event-store.js";
 import {v4} from "uuid";
 import PersistenceModule from "../../persistence.module.js";
@@ -6,28 +5,24 @@ import mongoose from "mongoose";
 import {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
 import {EventTypes} from "../event-types.js";
 import {StreamIds} from "../streams/stream-ids.js";
-
-
-
-
-test.before(async () => {
-});
-
-test.after(async () => {
-})
+import assert from "assert";
+import {PersistenceGateway} from "../../persistence-gateway.js";
+import Utils from "../../../../utils/utils.js";
 
 
 
 
 
-test('Inert event',
+describe('Persistence::Process Instance', function () {
+
+
+it('Insert event',
     /**
      *
      * @param {Assertions}t
      * @returns {Promise<void>}
      */
-    async (t) => {
-        await PersistenceModule.init();
+    async () => {
         await EventStore.apply({
             id: v4(),
             streamId: "PROCESS_INSTANCE",
@@ -57,20 +52,17 @@ test('Inert event',
             },
             timestamp: new Date().toString()
         });
-        t.pass();
-
     })
 
 
 
-test('Create/Close process instance',
+it('Create/Close process instance',
     /**
      *
      * @param {Assertions}t
      * @returns {Promise<void>}
      */
-    async (t) => {
-        await PersistenceModule.init();
+    async () => {
         const processInstancesId= v4();
         await EventStore.apply({
             id:  v4(),
@@ -100,10 +92,10 @@ test('Create/Close process instance',
         });
 
         const pi = await mongoose.connection.db.collection("ProcessInstance").findOne({_id: processInstancesId})
-        t.is(pi.status, ProcessInstanceStatus.Completed)
-        t.pass();
+        assert.equal(pi.status, ProcessInstanceStatus.Completed)
 
     })
 
 
 
+});

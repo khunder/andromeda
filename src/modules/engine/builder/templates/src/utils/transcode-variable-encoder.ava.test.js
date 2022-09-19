@@ -1,5 +1,4 @@
 
-import test from "ava"
 import {VariableEncoder} from "./variable-encoder.js";
 import Utils from "../../../../../../utils/utils.js";
 
@@ -17,9 +16,9 @@ test('Transcode object',
 
     let strVal = `{"id": "idLorem" , "value": "valueIpsum"}`;
     val = VariableEncoder.transcodeVariable(strVal , "LoremClass", "objVar")
-    t.is(Utils.isObject(val), true)
-    t.is(val.id, "idLorem")
-    t.is(val.value, "valueIpsum")
+    assert.equal(Utils.isObject(val), true)
+    assert.equal(val.id, "idLorem")
+    assert.equal(val.value, "valueIpsum")
 
 })
 
@@ -33,9 +32,9 @@ test('Transcode Array of objects',
     async (t) => {
         let strVal =  `[{"id": "idLorem" , "value": "valueIpsum"}]`;
         val = VariableEncoder.transcodeVariable(strVal , "Array<LoremClass>", "arrayVar")
-        t.is(Array.isArray(val), true)
-        t.is(val[0].id, "idLorem")
-        t.is(val[0].value, "valueIpsum")
+        assert.equal(Array.isArray(val), true)
+        assert.equal(val[0].id, "idLorem")
+        assert.equal(val[0].value, "valueIpsum")
 
     })
 
@@ -48,18 +47,18 @@ test('Transcode Boolean Variable',
     async (t) => {
         let strVal =  "";
         val = VariableEncoder.transcodeVariable(strVal , "boolean", "boolVar")
-        t.is(VariableEncoder.isPrimitiveValue(val), true)
-        t.is(val, false)
+        assert.equal(VariableEncoder.isPrimitiveValue(val), true)
+        assert.equal(val, false)
 
         strVal =  "false";
         val = VariableEncoder.transcodeVariable(strVal , "boolean", "boolVar")
-        t.is(VariableEncoder.isPrimitiveValue(val), true)
-        t.is(val, false)
+        assert.equal(VariableEncoder.isPrimitiveValue(val), true)
+        assert.equal(val, false)
 
         strVal =  "true";
         val = VariableEncoder.transcodeVariable(strVal , "boolean", "boolVar")
-        t.is(VariableEncoder.isPrimitiveValue(val), true)
-        t.is(val, true);
+        assert.equal(VariableEncoder.isPrimitiveValue(val), true)
+        assert.equal(val, true);
 
         strVal =  "notValidValue";
         const error = await Utils.getError(() =>  VariableEncoder.transcodeVariable(strVal , "boolean", "boolVar"))
@@ -67,8 +66,8 @@ test('Transcode Boolean Variable',
 
         strVal =  undefined;
         val = VariableEncoder.transcodeVariable(strVal , "boolean", "boolVar")
-        t.is(VariableEncoder.isPrimitiveValue(val), true)
-        t.is(val, undefined);
+        assert.equal(VariableEncoder.isPrimitiveValue(val), true)
+        assert.equal(val, undefined);
 
 
     })
@@ -82,7 +81,7 @@ test('Transcode string value',
     async (t) => {
         let strVal =  `valueIpsum`;
         val = VariableEncoder.transcodeVariable(strVal , "string", "arrayVar")
-        t.is(val, "valueIpsum")
+        assert.equal(val, "valueIpsum")
 
     })
 
@@ -95,7 +94,7 @@ test('Transcode integer value',
     async (t) => {
         let strVal =  `50`;
         val = VariableEncoder.transcodeVariable(strVal , "number", "numberVal")
-        t.is(val, 50)
+        assert.equal(val, 50)
 
     })
 
@@ -109,7 +108,7 @@ test('Transcode float value',
     async (t) => {
         let strVal =  `50.4`;
         val = VariableEncoder.transcodeVariable(strVal , "number", "floatVal")
-        t.is(val, 50.4)
+        assert.equal(val, 50.4)
 
     })
 
@@ -122,7 +121,7 @@ test('Transcode uuid value as string',
     async (t) => {
         let strVal =  `a0251430-b7ff-ac48-1ec6-8d21674e7464`;
         val = VariableEncoder.transcodeVariable(strVal , "string", "uuidVal")
-        t.is(val, "a0221430-a7ff-ac48-1ec6-8d21674e8464")
+        assert.equal(val, "a0221430-a7ff-ac48-1ec6-8d21674e8464")
 
     })
 

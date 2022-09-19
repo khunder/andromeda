@@ -27,7 +27,7 @@ export class PersistenceModule {
 
                 });
                 Logger.info(`Mongoose connected`)
-                PersistenceGateway.init();
+                await PersistenceGateway.init();
                 resolve();
             }catch (e) {
                 Logger.error(e)

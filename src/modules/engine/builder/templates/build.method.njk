@@ -29,8 +29,11 @@ async fn_{{nodeContext.id}} (flowModel) {
     }
 {% endif %}
   } catch (_bpmnProcessorException) {
-    const stack = _bpmnProcessorException.stack;
-    throw new Error(JSON.stringify({ stacktrace: stack, context: __localMethodContext }));
+    const stack = _bpmnProcessorException.stack || _bpmnProcessorException;
+    const payload = { stacktrace: stack, context: __localMethodContext }
+    payload.message = _bpmnProcessorException.message
+    const error =  new Error(JSON.stringify(payload, null, 2));
+    throw error;
   }
 }
 

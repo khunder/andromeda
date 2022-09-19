@@ -5,20 +5,12 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
-import test from 'ava';
-import utils from "../../src/utils/utils.js";
 
 
-    test.before('database', async () => {
-        await mongoose.connect(process.env.MONGODB_URI);
-    });
 
+describe('BasicIntegration::Basic', function () {
 
-    test.after(async () => {
-        await mongoose.disconnect();
-    })
-
-    test('Start Embedded container', async (t) => {
+    it('Start Embedded container', async () => {
 
         try {
             let deploymentId = "cov/scenario_script";
@@ -38,9 +30,10 @@ import utils from "../../src/utils/utils.js";
             await engineService.generateContainer(ctx);
             await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10002});
             await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
-            t.pass()
+            
         } catch (e) {
             console.error(e)
         }
     })
 
+});

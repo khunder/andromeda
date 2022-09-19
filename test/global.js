@@ -17,5 +17,5 @@ export const mochaHooks = {
 // Bonus: global fixture, runs once before everything.
 export const mochaGlobalSetup = async function() {
     console.log('>>>-- mocha Global Setup');
-    Utils.loadEnvVariables();
+    Utils.loadEnvVariables('test');
 };

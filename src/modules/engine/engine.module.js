@@ -26,6 +26,7 @@ export class EngineModule {
                 Logger.error(err)
                 reject(err)
             }
+            resolve();
         }));
     }
 
