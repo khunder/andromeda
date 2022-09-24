@@ -8,7 +8,6 @@ import assert from "assert";
 it('get variable',
     /**
      *
-     * @param {Assertions} t
      * @returns {Promise<void>}
      */
     async () => {
@@ -24,7 +23,6 @@ it('get variable',
 it('set uuid variable',
     /**
      *
-     * @param {Assertions} t
      * @returns {Promise<void>}
      */
     async () => {
@@ -40,7 +38,6 @@ it('set uuid variable',
 it('reset variable status object',
     /**
      *
-     * @param {Assertions} t
      * @returns {Promise<void>}
      */
     async () => {
@@ -60,7 +57,6 @@ it('reset variable status object',
 it('reset boolean variable',
     /**
      *
-     * @param {Assertions} t
      * @returns {Promise<void>}
      */
     async () => {

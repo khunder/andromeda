@@ -9,15 +9,6 @@ import ProcessInstanceModel
 
 
 describe('Repository Base::Integration', function () {
-    let db;
-    before(async () => {
-        await mongoose.connect(process.env.MONGODB_URI);
-        db = mongoose.connection.db
-    });
-
-    after( async ()=>{
-        await mongoose.disconnect();
-    })
 
 
     it('Count repository',

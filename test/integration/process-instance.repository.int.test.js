@@ -5,17 +5,10 @@ import assert from "assert";
 import {
     ProcessInstanceRepository
 } from "../../src/modules/persistence/event-store/repositories/process-instance.repository.js";
+import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 
 describe('ProcessInstanceRepo::Basic', function () {
-    /**
-     * @type {Db}
-     */
-    let db;
-
-    before(async () => {
-        db = mongoose.connection.db
-    });
 
 
     it('create new Process instances',
@@ -29,7 +22,7 @@ describe('ProcessInstanceRepo::Basic', function () {
             const processInstanceRepository = new ProcessInstanceRepository();
             const containerId = v4();
             await processInstanceRepository.createNewProcessInstance(id, "deploymentID", "processDef", containerId)
-            const processInstanceCollection = db.collection('ProcessInstance');
+            const processInstanceCollection = PersistenceModule.getConnection().db.collection('ProcessInstance');
             const res = await processInstanceCollection.findOne({_id: id})
             assert.ok(res);
             assert.equal(res.deploymentId, "deploymentID")
@@ -52,7 +45,7 @@ describe('ProcessInstanceRepo::Basic', function () {
             // when
             await processInstanceRepository.removeLock(id)
             //then
-            const processInstanceCollection = db.collection('ProcessInstance');
+            const processInstanceCollection = PersistenceModule.getConnection().db.collection('ProcessInstance');
             const res = await processInstanceCollection.findOne({_id: id})
             assert.ok(res);
             assert.equal(res.lock, null)

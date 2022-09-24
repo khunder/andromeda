@@ -11,12 +11,13 @@ export class PersistenceModule {
 
     }
 
+    static mongoose;
 
     static async init() {
         return new Promise( (async (resolve, reject) => {
             try {
                 Logger.info(`Mongoose trying to connect...`)
-                await mongoose.connect(Config.getInstance().mongoDbUri, {
+                this.mongoose = await mongoose.connect(Config.getInstance().mongoDbUri, {
                     useNewUrlParser: true,
                     useUnifiedTopology: true,
                     // useFindAndModify: false,
@@ -37,7 +38,9 @@ export class PersistenceModule {
 
     }
 
-
+    static getConnection(){
+        return this.mongoose.connection
+    }
 
     static async dispose(){
         await mongoose.disconnect()

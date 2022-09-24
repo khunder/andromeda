@@ -8,7 +8,7 @@
     "start": "node node_modules/nodemon/bin/nodemon.js app.js",
     "posttest": "kill-port --port 27018",
     "cover": "npm run cover:unit & npm run cover:integration",
-    "test:int": "mocha --config=.mocharc.int.cjs",
+    "test:int": "mocha --config=.mocharc.int.cjs '**\\*.int.test.js'",
     "test:integration:exec": "npx ava --config ava.integration-tests.config.js & npm run posttest"
   },
   "author": "Zied Ben Rhouma",

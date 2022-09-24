@@ -8,14 +8,15 @@ import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedd
 import FormData from "form-data";
 import axios from "axios";
 import assert from "assert";
+import {UsedPorts} from "../used_ports.js";
+import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 
 describe('StartProcessInstance::Integration', function () {
 
     it('Start process instance', async () => {
-
         try {
-            let deploymentId = "cov/scenario_script";
+            let deploymentId = "cov/scenario_script2";
             let fileContents = [];
             const __filename = fileURLToPath(import.meta.url);
             const __dirname = path.dirname(__filename);
@@ -29,7 +30,7 @@ describe('StartProcessInstance::Integration', function () {
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10002});
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: UsedPorts.StartProcessInstance});
 
 
             const form = new FormData();
@@ -38,11 +39,10 @@ describe('StartProcessInstance::Integration', function () {
 
             const config = { headers: form.getHeaders()};
             // when
-            let proc = await axios.post(`http://127.0.0.1:10002/start`, form, config);
-            const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
+            let proc = await axios.post(`http://127.0.0.1:${UsedPorts.StartProcessInstance}/start`, form, config);
+            const count = await PersistenceModule.getConnection().db.collection("ProcessInstance").count({_id: proc.data.id})
             assert.equal(count, 1)
-
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, UsedPorts.StartProcessInstance);
         } catch (e) {
             console.error(e)
         }

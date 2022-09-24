@@ -4,6 +4,7 @@ module.exports = {
         "esm",
         "test/global.js"
     ],
+    exclude: 'deployments/**/*',
     "recursive": true,
     "timeout": 30000,
     "color": true,
@@ -11,6 +12,5 @@ module.exports = {
         "js", "cjs", "mjs"
     ],
     "inline-diffs": false,
-    "ui": "bdd",
-    "exit": true
+    "ui": "bdd"
 }

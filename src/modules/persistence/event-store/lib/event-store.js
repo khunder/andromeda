@@ -2,7 +2,8 @@ import Ajv from "ajv";
 import AndromedaLogger from "../../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
-import Utils from "../../../../utils/utils.js";
+import {EOL} from 'os';
+
 const Logger = new AndromedaLogger();
 
 export class EventStore {
@@ -27,15 +28,20 @@ export class EventStore {
     }
 
     static async apply(event) {
+        if(!event){
+            throw new Error(`event is not defined`)
+        }
         Logger.trace(`applying event ${event.id}`)
         const validate = EventStore.ajv.compile(EventStore.eventSchema)
         const valid = validate(event)
         if (!valid){
-            const error = new Error(`cannot validate event with type ${event.type}`)
+            const error = new Error(`cannot validate event ${JSON.stringify(event)}`)
+            error.stack += `${EOL}------------------------------------${EOL}`
+            error.stack += JSON.stringify(validate.errors, null,2)
             Logger.error(error)
             throw error
         }
-        EventStore.routeEventToCorrespondingStream(event);
+        await EventStore.routeEventToCorrespondingStream(event);
         // save the event
         await new EventStoreRepository().persistEvent(event)
 

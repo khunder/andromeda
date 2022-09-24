@@ -42,39 +42,42 @@ describe('Event store', function () {
          * @returns {Promise<void>}
          */
         async () => {
-
-            const error2 = await Utils.getError(() => EventStore.apply({
+            const event2 = {
                 id: v4(),
                 streamPosition: 0,
                 type: "TEST",
                 timestamp: new Date().toString()
-            }));
-            assert.deepEqual(error2.message, "cannot validate event with type TEST [{\"instancePath\":\"\",\"schemaPath\":\"#/required\",\"keyword\":\"required\",\"params\":{\"missingProperty\":\"streamId\"},\"message\":\"must have required property 'streamId'\"}]");
+            }
+            const error2 = await Utils.getError(() => EventStore.apply(event2));
+            assert.equal(error2.message, `cannot validate event ${JSON.stringify(event2)}`);
 
 
-            const error3 = await Utils.getError(() => EventStore.apply({
+            const event3  = {
                 streamId: StreamIds.TEST,
                 type: "TEST",
                 streamPosition: 0,
                 timestamp: new Date().toString()
-            }));
-            assert.deepEqual(error3[0].message, "must have required property 'id'");
+            }
+            const error3 = await Utils.getError(() => EventStore.apply(event3));
+            assert.equal(error3.message, `cannot validate event ${JSON.stringify(event3)}`);
 
-            const error4 = await Utils.getError(() => EventStore.apply({
+            const event4= {
                 id: v4(),
                 streamId: StreamIds.TEST,
                 type: "TEST",
                 streamPosition: 0,
-            }));
-            assert.deepEqual(error4[0].message, "must have required property 'timestamp'");
+            }
+            const error4 = await Utils.getError(() => EventStore.apply(event4));
+            assert.equal(error4.message, `cannot validate event ${JSON.stringify(event4)}`);
 
-            const error5 = await Utils.getError(() => EventStore.apply({
+            const event5 = {
                 id: v4(),
                 streamId: StreamIds.TEST,
                 streamPosition: 0,
                 timestamp: new Date().toString()
-            }));
-            assert.deepEqual(error5[0].message, "must have required property 'type'");
+            }
+            const error5 = await Utils.getError(() => EventStore.apply(event5));
+            assert.equal(error5.message, `cannot validate event ${JSON.stringify(event5)}`);
         })
 
 
@@ -95,7 +98,7 @@ describe('Event store', function () {
                 metadata: {test: ""},
                 timestamp: new Date().toString()
             }));
-            assert.deepEqual(error.message, `cannot find am aggregator for the streamId: ${notFoundStreamId}`);
+            assert.equal(error.message, `cannot find am aggregator for the streamId: ${notFoundStreamId}`);
 
 
         })

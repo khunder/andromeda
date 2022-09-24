@@ -10,6 +10,7 @@ import axios from "axios";
 import mongoose from "mongoose";
 import path from "path";
 import ipc from "node-ipc";
+import {UsedPorts} from "../../../test/used_ports.js";
 
 
 function startContainerSocketServer(deploymentId, port, callback) {
@@ -33,7 +34,7 @@ describe('Embedded Container', function () {
     it('Start Embedded container', async () => {
         try {
             let deploymentId = "cov/scenario_script";
-            const containerPort = 10002
+            const containerPort = UsedPorts.basicIntegration
             startContainerSocketServer(deploymentId, containerPort, function (){
                 console.log(`--------------------------> callback from inside container`)
             });
@@ -60,11 +61,11 @@ describe('Embedded Container', function () {
 
             const config = { headers: form.getHeaders()};
             // when
-            let proc = await axios.post(`http://127.0.0.1:10002/start`, form, config);
+            let proc = await axios.post(`http://127.0.0.1:${containerPort}/start`, form, config);
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
             assert.equal(count, 1)
             await Utils.sleep(2000);
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, containerPort);
 
         } catch (e) {
             console.error(e)

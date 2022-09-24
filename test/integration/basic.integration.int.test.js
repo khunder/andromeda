@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
+import {UsedPorts} from "../used_ports.js";
 
 
 
@@ -28,8 +29,8 @@ describe('BasicIntegration::Basic', function () {
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10002});
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10002);
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: UsedPorts.basicIntegration});
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, UsedPorts.basicIntegration);
             
         } catch (e) {
             console.error(e)

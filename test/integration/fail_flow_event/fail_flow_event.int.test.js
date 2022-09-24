@@ -10,27 +10,17 @@ import EngineService from "../../../src/modules/engine/engine.service.js";
 import Utils from "../../../src/utils/utils.js";
 import {PersistenceHelper} from "../../../src/modules/persistence/helper/persistence-helper.js";
 import assert from "assert";
+import {UsedPorts} from "../../used_ports.js";
 
 
 describe('FailFlowEvent::Basic', function () {
-
-    before('database', async () => {
-        await mongoose.connect(process.env.MONGODB_URI);
-
-    });
-
-
-    after(async () => {
-        await mongoose.disconnect();
-    })
 
 
 it('Fail flow event ', async () => {
 
         try {
             let deploymentId = "tests/fail_process_instance";
-            const containerPort = 10005
-
+            const containerPort = UsedPorts.FailFlowEvent
 
 
             let fileContents = [];

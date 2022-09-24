@@ -3,10 +3,22 @@ import Utils from "../src/utils/utils.js";
 import { MongoMemoryServer} from "mongodb-memory-server";
 import AndromedaLogger from "../src/config/andromeda-logger.js";
 import mongoose from "mongoose";
-import {PersistenceGateway} from "../src/modules/persistence/persistence-gateway.js";
 import PersistenceModule from "../src/modules/persistence/persistence.module.js";
+import {UsedPorts} from "./used_ports.js";
+import kill from "kill-port";
 const Logger = new AndromedaLogger();
 
+function freeTestPorts(){
+    for (let port of Object.values(UsedPorts)){
+
+        Logger.info(`killing process ${port}`);
+        try {
+            kill(port);
+        }catch (e) {
+            Logger.error(`Could not kill process ${e}` , e)
+        }
+    }
+}
 export const mochaHooks = {
     beforeEach(done) {
         // console.log('mochaHooks.beforeEach ' + process.env.ACTIVE_MODULES);
@@ -18,6 +30,7 @@ export const mochaHooks = {
         Logger.debug('>- mongoose disconnected');
         await stopMongoInMemory();
         Logger.debug('>- MongoInMemory Stopped');
+        freeTestPorts();
 
     },
 
@@ -28,11 +41,12 @@ export const mochaHooks = {
 // Bonus: global fixture, runs once before everything.
 export const mochaGlobalSetup = async function() {
     console.log('>>>-- mocha Global Setup');
+    freeTestPorts();
     process.env.ENV = 'test';
     Utils.loadEnvVariables("test");
 
     await startMongoInMemory();
-    // await PersistenceModule.init();
+    await PersistenceModule.init();
 
 
 };
