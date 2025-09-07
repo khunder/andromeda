@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPMN Designer - Simple Example</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #designer {
+            width: 100vw;
+            height: 100vh;
+            background: #f0f0f0;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h3>BPMN Designer Example</h3>
+        <p>🖱️ Drag elements to move them</p>
+        <p>🔄 Connections update automatically</p>
+        <p>⚙️ Mouse wheel to zoom</p>
+    </div>
+    <div id="designer"></div>
+
+    <script>
+        // Minimal BPMN Designer implementation
+        class SimpleBPMNDesigner {
+            constructor(container) {
+                this.container = container;
+                this.elements = [];
+                this.connections = [];
+                this.selectedElement = null;
+                this.init();
+            }
+
+            init() {
+                // Create SVG
+                this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                this.svg.style.width = '100%';
+                this.svg.style.height = '100%';
+                this.svg.setAttribute('viewBox', '0 0 1000 600');
+                
+                // Add arrow marker
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', 'arrow');
+                marker.setAttribute('markerWidth', '10');
+                marker.setAttribute('markerHeight', '10');
+                marker.setAttribute('refX', '9');
+                marker.setAttribute('refY', '5');
+                marker.setAttribute('orient', 'auto');
+                
+                const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                arrow.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+                arrow.setAttribute('fill', '#333');
+                marker.appendChild(arrow);
+                defs.appendChild(marker);
+                this.svg.appendChild(defs);
+                
+                this.container.appendChild(this.svg);
+                
+                // Create sample process
+                this.createSampleProcess();
+                
+                // Setup interactions
+                this.setupDragAndDrop();
+            }
+
+            createSampleProcess() {
+                // Start Event
+                this.addElement({
+                    id: 'start',
+                    type: 'startEvent',
+                    x: 50,
+                    y: 100,
+                    width: 36,
+                    height: 36,
+                    label: 'Start'
+                });
+
+                // Task 1
+                this.addElement({
+                    id: 'task1',
+                    type: 'task',
+                    x: 150,
+                    y: 80,
+                    width: 100,
+                    height: 80,
+                    label: 'Prepare Order'
+                });
+
+                // Gateway
+                this.addElement({
+                    id: 'gateway',
+                    type: 'gateway',
+                    x: 300,
+                    y: 95,
+                    width: 50,
+                    height: 50,
+                    label: 'Stock?'
+                });
+
+                // Task 2
+                this.addElement({
+                    id: 'task2',
+                    type: 'task',
+                    x: 400,
+                    y: 40,
+                    width: 100,
+                    height: 80,
+                    label: 'Ship Order'
+                });
+
+                // Task 3
+                this.addElement({
+                    id: 'task3',
+                    type: 'task',
+                    x: 400,
+                    y: 150,
+                    width: 100,
+                    height: 80,
+                    label: 'Back Order'
+                });
+
+                // End Events
+                this.addElement({
+                    id: 'end1',
+                    type: 'endEvent',
+                    x: 550,
+                    y: 60,
+                    width: 36,
+                    height: 36,
+                    label: 'Shipped'
+                });
+
+                this.addElement({
+                    id: 'end2',
+                    type: 'endEvent',
+                    x: 550,
+                    y: 170,
+                    width: 36,
+                    height: 36,
+                    label: 'Delayed'
+                });
+
+                // Add connections
+                this.addConnection('start', 'task1');
+                this.addConnection('task1', 'gateway');
+                this.addConnection('gateway', 'task2');
+                this.addConnection('gateway', 'task3');
+                this.addConnection('task2', 'end1');
+                this.addConnection('task3', 'end2');
+            }
+
+            addElement(element) {
+                this.elements.push(element);
+                
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('data-id', element.id);
+                g.style.cursor = 'move';
+                
+                if (element.type === 'startEvent' || element.type === 'endEvent') {
+                    // Circle for events
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', element.x + element.width / 2);
+                    circle.setAttribute('cy', element.y + element.height / 2);
+                    circle.setAttribute('r', element.width / 2);
+                    circle.setAttribute('fill', '#fff');
+                    circle.setAttribute('stroke', '#333');
+                    circle.setAttribute('stroke-width', element.type === 'endEvent' ? '3' : '2');
+                    g.appendChild(circle);
+                } else if (element.type === 'gateway') {
+                    // Diamond for gateway
+                    const cx = element.x + element.width / 2;
+                    const cy = element.y + element.height / 2;
+                    const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    diamond.setAttribute('points', 
+                        `${cx},${element.y} ${element.x + element.width},${cy} ${cx},${element.y + element.height} ${element.x},${cy}`);
+                    diamond.setAttribute('fill', '#fff');
+                    diamond.setAttribute('stroke', '#333');
+                    diamond.setAttribute('stroke-width', '2');
+                    g.appendChild(diamond);
+                    
+                    // X mark for exclusive gateway
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const size = element.width * 0.3;
+                    path.setAttribute('d', 
+                        `M ${cx - size} ${cy - size} L ${cx + size} ${cy + size} M ${cx - size} ${cy + size} L ${cx + size} ${cy - size}`);
+                    path.setAttribute('stroke', '#333');
+                    path.setAttribute('stroke-width', '2');
+                    path.setAttribute('fill', 'none');
+                    g.appendChild(path);
+                } else {
+                    // Rectangle for tasks
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', element.x);
+                    rect.setAttribute('y', element.y);
+                    rect.setAttribute('width', element.width);
+                    rect.setAttribute('height', element.height);
+                    rect.setAttribute('rx', '10');
+                    rect.setAttribute('fill', '#fff');
+                    rect.setAttribute('stroke', '#333');
+                    rect.setAttribute('stroke-width', '2');
+                    g.appendChild(rect);
+                }
+                
+                // Add label
+                if (element.label) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', element.x + element.width / 2);
+                    text.setAttribute('y', element.y + element.height / 2);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.setAttribute('font-size', '12');
+                    text.setAttribute('font-family', 'Arial');
+                    text.textContent = element.label;
+                    g.appendChild(text);
+                }
+                
+                this.svg.appendChild(g);
+            }
+
+            addConnection(sourceId, targetId) {
+                const connection = { source: sourceId, target: targetId };
+                this.connections.push(connection);
+                this.drawConnection(connection);
+            }
+
+            drawConnection(connection) {
+                const source = this.elements.find(e => e.id === connection.source);
+                const target = this.elements.find(e => e.id === connection.target);
+                
+                if (!source || !target) return;
+                
+                // Calculate connection points
+                const sourcePoint = this.getConnectionPoint(source, target);
+                const targetPoint = this.getConnectionPoint(target, source);
+                
+                // Remove old path if exists
+                const oldPath = this.svg.querySelector(`[data-connection="${connection.source}-${connection.target}"]`);
+                if (oldPath) oldPath.remove();
+                
+                // Draw new path
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', '#333');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('marker-end', 'url(#arrow)');
+                path.setAttribute('data-connection', `${connection.source}-${connection.target}`);
+                
+                // Insert before elements so connections appear behind
+                this.svg.insertBefore(path, this.svg.firstChild.nextSibling);
+            }
+
+            getConnectionPoint(element, otherElement) {
+                const cx = element.x + element.width / 2;
+                const cy = element.y + element.height / 2;
+                const otherCx = otherElement.x + otherElement.width / 2;
+                const otherCy = otherElement.y + otherElement.height / 2;
+                
+                if (element.type === 'startEvent' || element.type === 'endEvent') {
+                    // Circle connection point
+                    const angle = Math.atan2(otherCy - cy, otherCx - cx);
+                    const radius = element.width / 2;
+                    return {
+                        x: cx + radius * Math.cos(angle),
+                        y: cy + radius * Math.sin(angle)
+                    };
+                } else if (element.type === 'gateway') {
+                    // Diamond connection point
+                    const dx = otherCx - cx;
+                    const dy = otherCy - cy;
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        return {
+                            x: cx + (dx > 0 ? element.width / 2 : -element.width / 2),
+                            y: cy
+                        };
+                    } else {
+                        return {
+                            x: cx,
+                            y: cy + (dy > 0 ? element.height / 2 : -element.height / 2)
+                        };
+                    }
+                } else {
+                    // Rectangle connection point
+                    const points = [
+                        { x: element.x + element.width / 2, y: element.y }, // top
+                        { x: element.x + element.width, y: element.y + element.height / 2 }, // right
+                        { x: element.x + element.width / 2, y: element.y + element.height }, // bottom
+                        { x: element.x, y: element.y + element.height / 2 } // left
+                    ];
+                    
+                    let closest = points[0];
+                    let minDist = this.distance(points[0], { x: otherCx, y: otherCy });
+                    
+                    for (let i = 1; i < points.length; i++) {
+                        const dist = this.distance(points[i], { x: otherCx, y: otherCy });
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closest = points[i];
+                        }
+                    }
+                    
+                    return closest;
+                }
+            }
+
+            distance(p1, p2) {
+                const dx = p1.x - p2.x;
+                const dy = p1.y - p2.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            setupDragAndDrop() {
+                let dragging = null;
+                let offset = { x: 0, y: 0 };
+                
+                this.svg.addEventListener('mousedown', (e) => {
+                    const g = e.target.closest('g[data-id]');
+                    if (g) {
+                        const id = g.getAttribute('data-id');
+                        const element = this.elements.find(el => el.id === id);
+                        if (element) {
+                            dragging = element;
+                            const rect = this.svg.getBoundingClientRect();
+                            const scale = 1000 / rect.width;
+                            offset = {
+                                x: e.clientX * scale - element.x,
+                                y: e.clientY * scale - element.y
+                            };
+                            e.preventDefault();
+                        }
+                    }
+                });
+                
+                window.addEventListener('mousemove', (e) => {
+                    if (dragging) {
+                        const rect = this.svg.getBoundingClientRect();
+                        const scale = 1000 / rect.width;
+                        dragging.x = e.clientX * scale - offset.x;
+                        dragging.y = e.clientY * scale - offset.y;
+                        
+                        // Redraw element
+                        const g = this.svg.querySelector(`g[data-id="${dragging.id}"]`);
+                        if (g) g.remove();
+                        this.addElement(dragging);
+                        
+                        // Redraw connections
+                        this.connections.forEach(conn => {
+                            if (conn.source === dragging.id || conn.target === dragging.id) {
+                                this.drawConnection(conn);
+                            }
+                        });
+                    }
+                });
+                
+                window.addEventListener('mouseup', () => {
+                    dragging = null;
+                });
+            }
+        }
+
+        // Initialize designer
+        new SimpleBPMNDesigner(document.getElementById('designer'));
+    </script>
+</body>
+</html>
