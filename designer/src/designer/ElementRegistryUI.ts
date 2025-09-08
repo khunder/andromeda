@@ -330,51 +330,78 @@ export class ElementRegistryUI {
   }
   
   private updatePalette(): void {
-    // Add new element to palette
-    const customSection = document.querySelector('.palette-section.custom');
-    if (!customSection) {
-      // Create custom section if it doesn't exist
-      const palette = document.querySelector('.palette');
-      if (palette) {
-        const section = document.createElement('div');
-        section.className = 'palette-section custom';
-        section.innerHTML = '<h3>Custom Elements</h3>';
-        palette.appendChild(section);
+    // Get all registered elements
+    const allElements = this.elementRegistry.getAll();
+    const elementsByCategory = new Map<string, ElementDefinition[]>();
+    
+    // Group elements by category
+    allElements.forEach(elem => {
+      const category = elem.category || 'custom';
+      if (!elementsByCategory.has(category)) {
+        elementsByCategory.set(category, []);
       }
-    }
+      elementsByCategory.get(category)!.push(elem);
+    });
     
-    // Add all custom elements to palette
-    const customElements = this.elementRegistry.getByCategory('custom');
-    const section = document.querySelector('.palette-section.custom');
-    if (section) {
-      // Clear existing custom items
-      const existingItems = section.querySelectorAll('.palette-item');
-      existingItems.forEach(item => item.remove());
-      
-      // Add custom elements
-      customElements.forEach(elem => {
-        const item = document.createElement('div');
-        item.className = 'palette-item';
-        item.draggable = true;
-        item.setAttribute('data-element-type', elem.type);
-        item.textContent = elem.label;
-        item.style.cssText = `
-          background: #f8f8f8;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          padding: 10px;
-          margin-bottom: 8px;
-          cursor: move;
-          transition: all 0.2s;
-          font-size: 14px;
-          color: #333;
-          text-align: center;
-        `;
-        section.appendChild(item);
-      });
-    }
+    // Update palette for each category with new elements
+    elementsByCategory.forEach((elements, category) => {
+      // Skip built-in categories that are already in the palette
+      if (category === 'event' || category === 'task' || category === 'gateway') {
+        // For built-in categories, only add if they're custom types
+        elements.forEach(elem => {
+          // Check if this is a built-in type
+          const builtInTypes = ['startEvent', 'endEvent', 'userTask', 'serviceTask', 'scriptTask', 'exclusiveGateway', 'parallelGateway'];
+          if (!builtInTypes.includes(elem.type)) {
+            this.addElementToPalette(elem, category);
+          }
+        });
+      } else {
+        // For custom category, ensure section exists
+        let section = document.querySelector(`.palette-section.${category}`);
+        if (!section) {
+          const palette = document.querySelector('.palette');
+          if (palette) {
+            section = document.createElement('div');
+            section.className = `palette-section ${category}`;
+            section.innerHTML = `<h3>${this.formatCategoryName(category)}</h3>`;
+            palette.appendChild(section);
+          }
+        }
+        
+        // Add all elements in this category
+        if (section) {
+          // Clear existing custom items for this category
+          const existingItems = section.querySelectorAll('.palette-item[data-custom="true"]');
+          existingItems.forEach(item => item.remove());
+          
+          elements.forEach(elem => {
+            const item = document.createElement('div');
+            item.className = 'palette-item';
+            item.draggable = true;
+            item.setAttribute('data-element-type', elem.type);
+            item.setAttribute('data-custom', 'true');
+            item.setAttribute('title', elem.label);
+            // Use first letter of label as icon for custom elements
+            item.textContent = elem.icon?.content || elem.label.charAt(0).toUpperCase();
+            section.appendChild(item);
+            
+            // Re-attach drag listeners for new items
+            this.attachDragListeners(item, elem.type);
+          });
+        }
+      }
+    });
     
+    // Notify that palette has been updated
     this.onUpdate();
+    
+    // Re-setup drag and drop for new elements
+    const designer = (window as any).bpmnDesigner;
+    if (designer && designer.setupPaletteDragDrop) {
+      // Clear previous listeners to re-initialize with new elements
+      (designer.svg as any).__dragListenersAdded = false;
+      designer.setupPaletteDragDrop();
+    }
   }
   
   private close(): void {
@@ -383,5 +410,58 @@ export class ElementRegistryUI {
       this.modal = null;
     }
     this.isOpen = false;
+  }
+  
+  private formatCategoryName(category: string): string {
+    return category.charAt(0).toUpperCase() + category.slice(1) + ' Elements';
+  }
+  
+  private addElementToPalette(element: ElementDefinition, category: string): void {
+    // Find the appropriate section
+    let sectionClass = '.palette-section';
+    if (category === 'task') sectionClass = '.palette-section:nth-of-type(2)';
+    else if (category === 'gateway') sectionClass = '.palette-section:nth-of-type(3)';
+    else if (category === 'event') sectionClass = '.palette-section:nth-of-type(1)';
+    
+    const section = document.querySelector(sectionClass);
+    if (section) {
+      // Check if element already exists
+      const existing = section.querySelector(`[data-element-type="${element.type}"]`);
+      if (!existing) {
+        const item = document.createElement('div');
+        item.className = 'palette-item';
+        item.draggable = true;
+        item.setAttribute('data-element-type', element.type);
+        item.setAttribute('data-custom', 'true');
+        item.setAttribute('title', element.label);
+        item.textContent = element.icon?.content || element.label.charAt(0).toUpperCase();
+        section.appendChild(item);
+        
+        this.attachDragListeners(item, element.type);
+      }
+    }
+  }
+  
+  private attachDragListeners(item: HTMLElement, elementType: string): void {
+    // Don't add if already attached
+    if ((item as any).__dragStartListener) return;
+    
+    const dragStartHandler = (e: DragEvent) => {
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('elementType', elementType);
+        item.style.opacity = '0.5';
+      }
+    };
+    
+    const dragEndHandler = () => {
+      item.style.opacity = '1';
+    };
+    
+    item.addEventListener('dragstart', dragStartHandler);
+    item.addEventListener('dragend', dragEndHandler);
+    
+    (item as any).__dragStartListener = dragStartHandler;
+    (item as any).__dragEndListener = dragEndHandler;
   }
 }

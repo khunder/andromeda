@@ -32,6 +32,20 @@ export class ConnectionEditor {
     this.clearHighlight();
   }
   
+  getSelectedConnection(): string | null {
+    return this.selectedConnectionId;
+  }
+  
+  updateWaypointHandles(connection: Connection): void {
+    // Clear existing handles
+    this.clearWaypoints();
+    
+    // Recreate handles with updated positions
+    if (connection && this.selectedConnectionId === connection.id) {
+      this.showWaypoints(connection);
+    }
+  }
+  
   private showWaypoints(connection: Connection): void {
     this.clearWaypoints();
     

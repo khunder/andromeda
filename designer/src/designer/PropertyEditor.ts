@@ -368,8 +368,8 @@ export class PropertyEditor {
     if (element.properties?.style?.[property]) {
       return element.properties.style[property];
     }
-    if (definition?.style?.[property]) {
-      return definition.style[property];
+    if (definition?.style && property in definition.style) {
+      return (definition.style as any)[property];
     }
     
     // Defaults

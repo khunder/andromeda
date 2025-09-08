@@ -61,10 +61,10 @@ body {
 }
 
 .palette {
-    width: 200px;
+    width: 50px;
     background: white;
     border-right: 1px solid #e0e0e0;
-    padding: 20px;
+    padding: 5px;
     overflow-y: auto;
 }
 

@@ -14,8 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Create designer instance
   const designer = new BPMNDesigner(canvasContainer);
   
-  // Expose designer to window for toolbar interactions
+  // Expose designer to window for toolbar interactions and ElementRegistryUI
   (window as any).designer = designer;
+  (window as any).bpmnDesigner = designer;
   
   // Setup toolbar events
   setupToolbar(designer);
@@ -25,6 +26,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupToolbar(designer: BPMNDesigner) {
+  // Undo button
+  const btnUndo = document.getElementById('btn-undo');
+  if (btnUndo) {
+    btnUndo.addEventListener('click', () => {
+      (designer as any).undoRedoManager?.undo();
+    });
+  }
+  
+  // Redo button
+  const btnRedo = document.getElementById('btn-redo');
+  if (btnRedo) {
+    btnRedo.addEventListener('click', () => {
+      (designer as any).undoRedoManager?.redo();
+    });
+  }
+  
   // Register element button
   const btnRegister = document.getElementById('btn-register-element');
   if (btnRegister) {
@@ -37,24 +54,6 @@ function setupToolbar(designer: BPMNDesigner) {
         }
       );
       registryUI.show();
-    });
-  }
-  
-  // Clear button
-  const btnClear = document.getElementById('btn-clear');
-  if (btnClear) {
-    btnClear.addEventListener('click', () => {
-      if (confirm('Clear all elements?')) {
-        designer.clear();
-      }
-    });
-  }
-  
-  // Delete button
-  const btnDelete = document.getElementById('btn-delete');
-  if (btnDelete) {
-    btnDelete.addEventListener('click', () => {
-      designer.deleteSelected();
     });
   }
   

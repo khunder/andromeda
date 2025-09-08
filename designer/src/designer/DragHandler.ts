@@ -2,6 +2,7 @@ import { BPMNElement, Point, DragState, Connection } from './types';
 import { ElementManager } from './ElementManager';
 import { ConnectionManager } from './ConnectionManager';
 import { Renderer } from './Renderer';
+import { AlignmentGuides } from './AlignmentGuides';
 
 export class DragHandler {
   private dragState: DragState = {
@@ -12,6 +13,8 @@ export class DragHandler {
     shadowGroup: null,
     shadowConnections: []
   };
+  private undoRedoManager: any = null;
+  private alignmentGuides: AlignmentGuides;
 
   constructor(
     private elementManager: ElementManager,
@@ -19,7 +22,9 @@ export class DragHandler {
     private renderer: Renderer,
     private svg: SVGSVGElement,
     private onDragEnd: () => void
-  ) {}
+  ) {
+    this.alignmentGuides = new AlignmentGuides(svg, elementManager);
+  }
 
   startDrag(element: BPMNElement, mousePoint: Point): void {
     this.dragState.isDragging = true;
@@ -37,8 +42,40 @@ export class DragHandler {
   updateDrag(mousePoint: Point): void {
     if (!this.dragState.isDragging || !this.dragState.element) return;
     
-    const newX = mousePoint.x - this.dragState.offset.x;
-    const newY = mousePoint.y - this.dragState.offset.y;
+    let newX = mousePoint.x - this.dragState.offset.x;
+    let newY = mousePoint.y - this.dragState.offset.y;
+    
+    // Show alignment guides and get snapped position
+    const snappedPosition = this.alignmentGuides.showGuides(
+      this.dragState.element,
+      newX,
+      newY
+    );
+    newX = snappedPosition.x;
+    newY = snappedPosition.y;
+    
+    // Check for overlaps with other elements
+    const collision = this.checkCollision(
+      this.dragState.element.id,
+      newX,
+      newY,
+      this.dragState.element.width,
+      this.dragState.element.height
+    );
+    
+    if (collision) {
+      // Snap to nearest non-overlapping position
+      const snapPosition = this.findNonOverlappingPosition(
+        this.dragState.element,
+        newX,
+        newY,
+        collision
+      );
+      newX = snapPosition.x;
+      newY = snapPosition.y;
+      // Hide guides if we're avoiding collision
+      this.alignmentGuides.hideGuides();
+    }
     
     // Update element position
     this.elementManager.updateElement(this.dragState.element.id, {
@@ -51,8 +88,27 @@ export class DragHandler {
   }
 
   endDrag(): void {
-    if (this.dragState.isDragging) {
+    if (this.dragState.isDragging && this.dragState.element && this.dragState.originalPosition) {
+      // Create move command for undo/redo if position changed
+      const finalX = this.dragState.element.x;
+      const finalY = this.dragState.element.y;
+      const origX = this.dragState.originalPosition.x;
+      const origY = this.dragState.originalPosition.y;
+      
+      if (this.undoRedoManager && (finalX !== origX || finalY !== origY)) {
+        const command = this.undoRedoManager.createMoveElementCommand(
+          this.dragState.element.id,
+          finalX,
+          finalY,
+          origX,
+          origY
+        );
+        // Don't execute, just push to stack since move already happened
+        this.undoRedoManager.pushCommand(command);
+      }
+      
       this.removeDragShadow();
+      this.alignmentGuides.hideGuides();
       this.dragState.isDragging = false;
       this.dragState.element = null;
       this.dragState.originalPosition = null;
@@ -69,7 +125,7 @@ export class DragHandler {
     
     const shadowGroup = this.createSVGElement('g') as SVGGElement;
     shadowGroup.setAttribute('class', 'drag-shadow');
-    shadowGroup.style.opacity = '0.3';
+    shadowGroup.style.opacity = '0.5';
     shadowGroup.style.pointerEvents = 'none';
     
     // Create shadow element
@@ -183,6 +239,12 @@ export class DragHandler {
       const target = this.elementManager.getElement(connection.target);
       if (source && target) {
         this.connectionManager.updateConnectionWaypoints(connection, source, target);
+        
+        // Update waypoint handles if this connection is selected
+        const connectionEditor = (this as any).connectionEditor;
+        if (connectionEditor && connectionEditor.getSelectedConnection() === connection.id) {
+          connectionEditor.updateWaypointHandles(connection);
+        }
       }
     });
   }
@@ -194,5 +256,70 @@ export class DragHandler {
     this.dragState.shadowConnections.forEach(conn => {
       this.renderer.getMainGroup().insertBefore(conn, this.dragState.shadowGroup);
     });
+  }
+  
+  private checkCollision(
+    draggedId: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): BPMNElement | null {
+    const elements = this.elementManager.getAllElements();
+    
+    for (const element of elements) {
+      if (element.id === draggedId) continue;
+      
+      // Check if rectangles overlap
+      if (
+        x < element.x + element.width &&
+        x + width > element.x &&
+        y < element.y + element.height &&
+        y + height > element.y
+      ) {
+        return element;
+      }
+    }
+    
+    return null;
+  }
+  
+  private findNonOverlappingPosition(
+    draggedElement: BPMNElement,
+    targetX: number,
+    targetY: number,
+    collidingElement: BPMNElement
+  ): Point {
+    // Calculate push direction based on centers
+    const draggedCenterX = targetX + draggedElement.width / 2;
+    const draggedCenterY = targetY + draggedElement.height / 2;
+    const collidingCenterX = collidingElement.x + collidingElement.width / 2;
+    const collidingCenterY = collidingElement.y + collidingElement.height / 2;
+    
+    const dx = draggedCenterX - collidingCenterX;
+    const dy = draggedCenterY - collidingCenterY;
+    
+    // Snap to edge with minimum spacing
+    const spacing = 10;
+    let snapX = targetX;
+    let snapY = targetY;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal snap
+      if (dx > 0) {
+        snapX = collidingElement.x + collidingElement.width + spacing;
+      } else {
+        snapX = collidingElement.x - draggedElement.width - spacing;
+      }
+    } else {
+      // Vertical snap
+      if (dy > 0) {
+        snapY = collidingElement.y + collidingElement.height + spacing;
+      } else {
+        snapY = collidingElement.y - draggedElement.height - spacing;
+      }
+    }
+    
+    return { x: snapX, y: snapY };
   }
 }

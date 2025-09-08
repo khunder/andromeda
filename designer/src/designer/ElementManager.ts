@@ -13,7 +13,8 @@ export class ElementManager {
       y,
       width: this.getDefaultWidth(type),
       height: this.getDefaultHeight(type),
-      label: this.getDefaultLabel(type)
+      label: this.getDefaultLabel(type),
+      properties: this.getDefaultProperties(type)
     };
     
     this.elements.set(id, element);
@@ -34,6 +35,19 @@ export class ElementManager {
 
   private getDefaultLabel(type: string): string {
     return type.replace(/([A-Z])/g, ' $1').trim();
+  }
+  
+  private getDefaultProperties(type: string): any {
+    // Set default label position for events to bottom
+    if (type.includes('Event')) {
+      return {
+        labelPosition: {
+          position: 'bottom',
+          offset: { x: 0, y: 0 }
+        }
+      };
+    }
+    return {};
   }
 
   getElement(id: string): BPMNElement | undefined {

@@ -51,7 +51,7 @@ export class ContextMenu {
     return container;
   }
 
-  show(items: ContextMenuItem[], position: Point): void {
+  show(items: ContextMenuItem[], position: Point, element?: any): void {
     console.log('ContextMenu.show called with', items.length, 'items at', position);
     // Clear previous items
     this.container.innerHTML = '';
@@ -123,11 +123,29 @@ export class ContextMenu {
     // Adjust position if menu goes outside viewport
     requestAnimationFrame(() => {
       const rect = this.container.getBoundingClientRect();
+      let adjustedX = position.x;
+      let adjustedY = position.y;
+      
+      // If menu would go off the right edge, position it to the left of the element
       if (rect.right > window.innerWidth) {
-        this.container.style.left = `${position.x - rect.width}px`;
+        if (element && element.screenX !== undefined) {
+          // Position to the left of the element with larger gap
+          adjustedX = element.screenX - rect.width - 15;
+        } else {
+          adjustedX = window.innerWidth - rect.width - 10;
+        }
+        this.container.style.left = `${adjustedX}px`;
       }
+      
+      // If menu would go off the bottom, adjust upward
       if (rect.bottom > window.innerHeight) {
-        this.container.style.top = `${position.y - rect.height}px`;
+        adjustedY = window.innerHeight - rect.height - 10;
+        this.container.style.top = `${adjustedY}px`;
+      }
+      
+      // If menu would go off the top, adjust downward
+      if (adjustedY < 10) {
+        this.container.style.top = '10px';
       }
     });
     

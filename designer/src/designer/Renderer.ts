@@ -22,14 +22,14 @@ export class Renderer {
   private createMarkers(): void {
     const marker = this.createSVGElement('marker');
     marker.setAttribute('id', 'arrowhead');
-    marker.setAttribute('markerWidth', '10');
-    marker.setAttribute('markerHeight', '10');
-    marker.setAttribute('refX', '10');
-    marker.setAttribute('refY', '5');
+    marker.setAttribute('markerWidth', '4');
+    marker.setAttribute('markerHeight', '4');
+    marker.setAttribute('refX', '4');
+    marker.setAttribute('refY', '2');
     marker.setAttribute('orient', 'auto');
     
     const polygon = this.createSVGElement('polygon');
-    polygon.setAttribute('points', '0 0, 10 5, 0 10');
+    polygon.setAttribute('points', '0 0, 4 2, 0 4');
     polygon.setAttribute('fill', '#333');
     
     marker.appendChild(polygon);
@@ -66,7 +66,9 @@ export class Renderer {
   
   private renderLabel(element: BPMNElement, group: SVGGElement): void {
     const labelPos = element.properties?.labelPosition || {};
-    const position = labelPos.position || 'center';
+    // Default events to bottom, everything else to center
+    const defaultPosition = element.type.includes('Event') ? 'bottom' : 'center';
+    const position = labelPos.position || defaultPosition;
     const offset = labelPos.offset || { x: 0, y: 0 };
     
     let x = element.x + element.width / 2;

@@ -242,7 +242,7 @@ export class BPMNExporter {
       
       // Get waypoints from diagram
       const edge = doc.querySelector(`BPMNEdge[bpmnElement="${id}"]`);
-      const waypoints: Point[] = [];
+      const waypoints: { x: number; y: number }[] = [];
       
       if (edge) {
         const wps = edge.querySelectorAll('waypoint');

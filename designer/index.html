@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BPMN Designer</title>
+    <title>Zesigner</title>
     <style>
         * {
             margin: 0;
@@ -68,37 +68,60 @@
         }
 
         .palette {
-            width: 200px;
+            /*width: 20px;*/
             background: white;
             border-right: 1px solid #e0e0e0;
-            padding: 20px;
+            /*padding: 5px 3px;*/
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
 
         .palette h3 {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            font-weight: 600;
-            letter-spacing: 0.5px;
+            display: none;
         }
 
         .palette-section {
-            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .palette-section:last-child {
+            border-bottom: none;
         }
 
         .palette-item {
+            width: 32px;
+            height: 32px;
             background: #f8f8f8;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 8px;
+            border-radius: 3px;
             cursor: move;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 14px;
-            color: #333;
-            text-align: center;
+            position: relative;
+        }
+        
+        .palette-item:hover::after {
+            content: attr(title);
+            position: absolute;
+            left: 38px;
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
         }
 
         .palette-item:hover {
@@ -124,11 +147,17 @@
         }
 
         .properties-panel {
-            width: 250px;
+            width: 0;
             background: white;
             border-left: 1px solid #e0e0e0;
-            padding: 20px;
+            padding: 0;
             overflow-y: auto;
+            transition: width 0.3s ease, padding 0.3s ease;
+        }
+        
+        .properties-panel.visible {
+            width: 250px;
+            padding: 20px;
         }
 
         .properties-panel h3 {
@@ -197,13 +226,26 @@
 </head>
 <body>
     <div class="header">
-        <h1>BPMN Designer</h1>
+        <h1>Zesigner...</h1>
         <div class="toolbar">
-            <button id="btn-register-element" style="background: #9c27b0; color: white;">+ Register Element</button>
-            <button id="btn-clear">Clear</button>
-            <button id="btn-delete">Delete Selected</button>
-            <button id="btn-export">Export SVG</button>
-            <button id="btn-export-bpmn" style="background: #4caf50; color: white;">Export BPMN XML</button>
+            <button id="btn-undo" title="Undo (Ctrl+Z)" style="padding: 8px 12px;">↶</button>
+            <button id="btn-redo" title="Redo (Ctrl+Y)" style="padding: 8px 12px;">↷</button>
+            <div style="width: 1px; background: #ddd; margin: 0 5px;"></div>
+            <button id="btn-register-element" title="Register Custom Element" style="background: #9c27b0; color: white; padding: 8px 12px;">➕</button>
+            <button id="btn-export" title="Save as SVG" style="padding: 6px 10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+            </button>
+            <button id="btn-export-bpmn" title="Export BPMN XML" style="padding: 6px 10px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7 10 12 5 17 10"/>
+                    <line x1="12" y1="5" x2="12" y2="15"/>
+                </svg>
+            </button>
         </div>
     </div>
 
@@ -211,21 +253,21 @@
         <div class="palette">
             <div class="palette-section">
                 <h3>Events</h3>
-                <div class="palette-item" draggable="true" data-element-type="startEvent">Start Event</div>
-                <div class="palette-item" draggable="true" data-element-type="endEvent">End Event</div>
+                <div class="palette-item" draggable="true" data-element-type="startEvent" title="Start Event">⭕</div>
+                <div class="palette-item" draggable="true" data-element-type="endEvent" title="End Event">🔴</div>
             </div>
             
             <div class="palette-section">
                 <h3>Tasks</h3>
-                <div class="palette-item" draggable="true" data-element-type="userTask">User Task</div>
-                <div class="palette-item" draggable="true" data-element-type="serviceTask">Service Task</div>
-                <div class="palette-item" draggable="true" data-element-type="scriptTask">Script Task</div>
+                <div class="palette-item" draggable="true" data-element-type="userTask" title="User Task">👤</div>
+                <div class="palette-item" draggable="true" data-element-type="serviceTask" title="Service Task">⚙️</div>
+                <div class="palette-item" draggable="true" data-element-type="scriptTask" title="Script Task">📝</div>
             </div>
             
             <div class="palette-section">
                 <h3>Gateways</h3>
-                <div class="palette-item" draggable="true" data-element-type="exclusiveGateway">Exclusive Gateway</div>
-                <div class="palette-item" draggable="true" data-element-type="parallelGateway">Parallel Gateway</div>
+                <div class="palette-item" draggable="true" data-element-type="exclusiveGateway" title="Exclusive Gateway">◇</div>
+                <div class="palette-item" draggable="true" data-element-type="parallelGateway" title="Parallel Gateway">✚</div>
             </div>
         </div>
 
