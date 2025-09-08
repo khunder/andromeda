@@ -1,113 +1,143 @@
 # BPMN Designer Library
 
-A custom BPMN (Business Process Model and Notation) designer library built from scratch using TypeScript and pure SVG manipulation.
+An extensible, customizable BPMN designer library with dynamic component registration and JavaScript execution support.
 
 ## Features
 
-✨ **Built from Scratch** - No dependency on existing BPMN libraries (except bpmn-moddle for XML parsing)  
-🎯 **Pure SVG Rendering** - Direct SVG manipulation for optimal performance  
-🔄 **Dynamic Connections** - Auto-updating arrows when moving elements  
-🎨 **Full BPMN Support** - Tasks, Events, Gateways, and Sequence Flows  
-📦 **Two Versions Available**:
-- TypeScript library for integration into applications
-- Standalone HTML with pure JavaScript (no build required)
+✨ **Extensible Architecture** - Register custom components dynamically  
+🔌 **Plugin System** - Add new components and behaviors via plugins  
+📜 **Script Task Support** - Execute JavaScript code within BPMN processes  
+📝 **BPMN XML Export/Import** - Full BPMN 2.0 XML support  
+🎯 **Component Customization** - Every component is fully customizable  
+🔄 **Smart Connections** - Auto-updating arrows when moving elements  
+⚡ **TypeScript Support** - Full type safety and IntelliSense  
+🎨 **Pure SVG Rendering** - Optimal performance with native SVG
 
 ## Quick Start
 
-### Option 1: Standalone Version (No Build Required)
-
-Simply open `standalone.html` in any modern browser. This version includes:
-- Complete BPMN designer functionality
-- Pure JavaScript (no compilation needed)
-- Drag & drop from palette
-- Auto-updating connections
-- Zoom and pan support
-- Export to SVG
-
-### Option 2: TypeScript Library
-
-#### Installation
+### Development
 
 ```bash
+# Install dependencies
 npm install
-```
 
-#### Development
-
-```bash
+# Start development server
 npm run dev
 ```
 
-This will start a development server at http://localhost:3000
+Open http://localhost:3000 in your browser.
 
-#### Build
+### Production Build
 
 ```bash
 npm run build
 ```
 
+The built files will be in the `dist` folder.
+
+### Direct Usage
+
+You can also just open `index.html` directly in a browser without any build process - it's pure JavaScript!
+
 ## Project Structure
 
 ```
-designer/
-├── src/                    # TypeScript source code
-│   ├── core/              # Core modules
-│   │   ├── Canvas.ts      # SVG canvas management
-│   │   └── EventBus.ts    # Event handling system
-│   ├── renderer/          # Element renderers
-│   │   ├── BaseRenderer.ts
-│   │   ├── TaskRenderer.ts
-│   │   ├── EventRenderer.ts
-│   │   └── GatewayRenderer.ts
-│   ├── types/             # TypeScript type definitions
-│   ├── BPMNDesigner.ts    # Main designer class
-│   └── index.ts           # Library entry point
-├── demo/                  # Demo application
-│   ├── index.html
-│   └── index.ts
-├── standalone.html        # Pure JavaScript version
-└── dist/                  # Built library files
+bpmn-designer/
+├── index.html             # Main BPMN Designer application
+├── vite.config.js         # Vite configuration
+├── package.json           # Dependencies (only Vite for dev server)
+├── README.md              # Documentation
+└── dist/                  # Production build (created after build)
 ```
+
+## How It Works
+
+The entire BPMN designer is contained in a single `index.html` file with embedded JavaScript. No compilation or build step is required for development - you can edit and see changes immediately.
 
 ## Usage
 
-### TypeScript/JavaScript
+### Register Custom Components
 
 ```typescript
-import { BPMNDesigner } from 'bpmn-designer';
+import { ComponentRegistry, ComponentDefinition } from 'bpmn-designer';
 
-const designer = new BPMNDesigner({
-  container: '#canvas-container'
-});
+const registry = new ComponentRegistry();
 
-// Add elements
-designer.addElement({
-  id: 'task1',
-  type: BPMNElementType.USER_TASK,
-  bounds: { x: 100, y: 100, width: 100, height: 80 },
-  label: 'My Task'
-});
+// Register a custom component
+const customComponent: ComponentDefinition = {
+  type: 'customTask',
+  category: 'task',
+  label: 'Custom Task',
+  defaultSize: { width: 120, height: 80 },
+  properties: [
+    {
+      name: 'apiUrl',
+      label: 'API URL',
+      type: 'string',
+      default: 'https://api.example.com'
+    }
+  ],
+  renderer: {
+    render(element, container) {
+      // Custom SVG rendering logic
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      // ... render your custom element
+      return g;
+    }
+  },
+  behavior: {
+    async onExecute(element, context) {
+      // Custom execution logic
+      const response = await fetch(element.properties.apiUrl);
+      return response.json();
+    }
+  }
+};
 
-// Add connections
-designer.addConnection({
-  id: 'flow1',
-  source: 'task1',
-  target: 'task2',
-  type: ConnectionType.SEQUENCE_FLOW,
-  waypoints: [...]
-});
+registry.register(customComponent);
 ```
 
-### Pure JavaScript (Standalone)
+### Script Task with JavaScript
 
-```javascript
-const designer = new BPMNDesigner(document.getElementById('bpmn-canvas'));
+```typescript
+import { ScriptTaskComponent } from 'bpmn-designer';
 
-// Add element
-designer.addElement('userTask', 100, 100);
+// Script task executes JavaScript code
+const scriptElement = {
+  type: 'scriptTask',
+  properties: {
+    scriptLanguage: 'javascript',
+    script: `
+      // Access process variables
+      const orderId = variables.get('orderId');
+      
+      // Use services
+      const result = await services.get('orderService').process(orderId);
+      
+      // Log execution
+      logger.log('Order processed:', result);
+      
+      // Return value
+      return { processed: true, orderId };
+    `,
+    resultVariable: 'scriptResult'
+  }
+};
+```
 
-// Add connection
-designer.addConnection(sourceId, targetId);
+### Export/Import BPMN XML
+
+```typescript
+import { BPMNExporter } from 'bpmn-designer';
+
+const exporter = new BPMNExporter();
+
+// Export to BPMN XML
+const xml = await exporter.exportToXML(elements, connections);
+console.log(xml); // Standard BPMN 2.0 XML
+
+// Import from BPMN XML
+const { elements, connections } = await exporter.importFromXML(xml);
 ```
 
 ## Supported BPMN Elements

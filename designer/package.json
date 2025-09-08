@@ -1,28 +1,29 @@
 {
   "name": "bpmn-designer",
   "version": "1.0.0",
-  "description": "A custom BPMN designer library built from scratch",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "A lightweight BPMN designer with pure JavaScript",
+  "main": "index.html",
   "scripts": {
-    "build": "tsc",
-    "dev": "webpack serve --open",
-    "build:demo": "webpack --mode production",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:lib": "tsc",
+    "preview": "vite preview",
+    "clean": "rm -rf dist node_modules",
+    "type-check": "tsc --noEmit"
   },
-  "keywords": ["bpmn", "diagram", "modeler", "editor"],
+  "keywords": [
+    "bpmn",
+    "diagram",
+    "modeler",
+    "editor"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.3.1",
-    "css-loader": "^7.1.2",
-    "html-webpack-plugin": "^5.6.4",
-    "style-loader": "^4.0.0",
-    "ts-loader": "^9.5.4",
+    "@vitejs/plugin-legacy": "^7.2.1",
     "typescript": "^5.9.2",
-    "webpack": "^5.101.3",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2"
+    "vite": "^7.1.4"
   },
   "dependencies": {
     "bpmn-moddle": "^9.0.3",

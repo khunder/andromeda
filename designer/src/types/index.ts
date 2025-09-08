@@ -1,4 +1,4 @@
-// Core types for the BPMN Designer library
+// Core types for extensible BPMN Designer
 
 export interface Point {
   x: number;
@@ -17,91 +17,125 @@ export interface Connection {
   source: string;
   target: string;
   waypoints: Point[];
-  type: ConnectionType;
-}
-
-export enum ConnectionType {
-  SEQUENCE_FLOW = 'sequenceFlow',
-  MESSAGE_FLOW = 'messageFlow',
-  ASSOCIATION = 'association',
-  DATA_ASSOCIATION = 'dataAssociation'
+  type: string;
+  data?: any;
 }
 
 export interface BPMNElement {
   id: string;
-  type: BPMNElementType;
+  type: string;
   bounds: Bounds;
-  businessObject?: any;
+  data?: any;
   label?: string;
   parent?: string;
   incoming?: string[];
   outgoing?: string[];
+  properties?: Record<string, any>;
 }
 
-export enum BPMNElementType {
-  // Events
-  START_EVENT = 'startEvent',
-  END_EVENT = 'endEvent',
-  INTERMEDIATE_CATCH_EVENT = 'intermediateCatchEvent',
-  INTERMEDIATE_THROW_EVENT = 'intermediateThrowEvent',
-  BOUNDARY_EVENT = 'boundaryEvent',
-  
-  // Tasks
-  TASK = 'task',
-  USER_TASK = 'userTask',
-  SERVICE_TASK = 'serviceTask',
-  SCRIPT_TASK = 'scriptTask',
-  BUSINESS_RULE_TASK = 'businessRuleTask',
-  SEND_TASK = 'sendTask',
-  RECEIVE_TASK = 'receiveTask',
-  MANUAL_TASK = 'manualTask',
-  
-  // Gateways
-  EXCLUSIVE_GATEWAY = 'exclusiveGateway',
-  PARALLEL_GATEWAY = 'parallelGateway',
-  INCLUSIVE_GATEWAY = 'inclusiveGateway',
-  EVENT_BASED_GATEWAY = 'eventBasedGateway',
-  COMPLEX_GATEWAY = 'complexGateway',
-  
-  // Subprocess
-  SUB_PROCESS = 'subProcess',
-  TRANSACTION = 'transaction',
-  AD_HOC_SUB_PROCESS = 'adHocSubProcess',
-  
-  // Pools and Lanes
-  POOL = 'pool',
-  LANE = 'lane',
-  
-  // Data
-  DATA_OBJECT = 'dataObject',
-  DATA_INPUT = 'dataInput',
-  DATA_OUTPUT = 'dataOutput',
-  DATA_STORE = 'dataStore',
-  
-  // Other
-  TEXT_ANNOTATION = 'textAnnotation',
-  GROUP = 'group'
+// Component Registration Types
+export interface ComponentDefinition {
+  type: string;
+  category: 'event' | 'task' | 'gateway' | 'flow' | 'data' | 'custom';
+  label: string;
+  icon?: string;
+  defaultSize: { width: number; height: number };
+  resizable?: boolean;
+  rotatable?: boolean;
+  connectionRules?: ConnectionRules;
+  properties?: PropertyDefinition[];
+  renderer: ComponentRenderer;
+  behavior?: ComponentBehavior;
 }
 
-export interface ViewerOptions {
-  container: HTMLElement | string;
-  width?: number | string;
-  height?: number | string;
-  xml?: string;
+export interface ConnectionRules {
+  canConnect?: (source: BPMNElement, target: BPMNElement) => boolean;
+  maxIncoming?: number;
+  maxOutgoing?: number;
+  allowedSources?: string[];
+  allowedTargets?: string[];
 }
 
-export interface ModelerOptions extends ViewerOptions {
-  keyboard?: {
-    bindTo?: HTMLElement;
-  };
-  propertiesPanel?: {
-    parent: HTMLElement | string;
-  };
+export interface PropertyDefinition {
+  name: string;
+  label: string;
+  type: 'string' | 'number' | 'boolean' | 'select' | 'code' | 'json';
+  default?: any;
+  options?: Array<{ value: any; label: string }>;
+  validation?: (value: any) => boolean | string;
+  visible?: (element: BPMNElement) => boolean;
 }
 
-export interface Command {
+export interface ComponentRenderer {
+  render(element: BPMNElement, container: SVGGElement): SVGElement;
+  update?(element: BPMNElement, svgElement: SVGElement): void;
+  getConnectionPoint?(element: BPMNElement, reference: Point, type: 'source' | 'target'): Point;
+  getHandles?(element: BPMNElement): Handle[];
+}
+
+export interface ComponentBehavior {
+  onCreate?(element: BPMNElement): void;
+  onUpdate?(element: BPMNElement, changes: Partial<BPMNElement>): void;
+  onDelete?(element: BPMNElement): void;
+  onConnect?(element: BPMNElement, connection: Connection, type: 'source' | 'target'): void;
+  onDisconnect?(element: BPMNElement, connection: Connection, type: 'source' | 'target'): void;
+  onExecute?(element: BPMNElement, context: ExecutionContext): Promise<any>;
+}
+
+export interface Handle {
   id: string;
-  execute(): void;
-  undo(): void;
-  redo(): void;
+  type: 'resize' | 'rotate' | 'connection' | 'custom';
+  position: Point;
+  cursor?: string;
+  visible?: boolean;
+}
+
+export interface ExecutionContext {
+  variables: Map<string, any>;
+  services: Map<string, any>;
+  logger: Logger;
+  signal: (event: string, data?: any) => void;
+}
+
+export interface Logger {
+  log(message: string, ...args: any[]): void;
+  error(message: string, ...args: any[]): void;
+  warn(message: string, ...args: any[]): void;
+  info(message: string, ...args: any[]): void;
+}
+
+// Plugin System
+export interface Plugin {
+  name: string;
+  version: string;
+  components?: ComponentDefinition[];
+  services?: ServiceDefinition[];
+  initialize?(designer: any): void;
+  destroy?(): void;
+}
+
+export interface ServiceDefinition {
+  name: string;
+  factory: () => any;
+}
+
+// Events
+export interface DesignerEvent {
+  type: string;
+  data?: any;
+  timestamp: number;
+  source?: string;
+  cancelable?: boolean;
+}
+
+// Export/Import
+export interface BPMNExport {
+  elements: BPMNElement[];
+  connections: Connection[];
+  metadata?: {
+    version: string;
+    created: string;
+    modified: string;
+    plugins?: string[];
+  };
 }

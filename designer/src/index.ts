@@ -1,10 +1,18 @@
-// Main entry point for the BPMN Designer library
+// BPMN Designer Library - Extensible and Customizable
 
-export { BPMNDesigner } from './BPMNDesigner';
-export { EventBus } from './core/EventBus';
-export { Canvas } from './core/Canvas';
 export * from './types';
-export { BaseRenderer } from './renderer/BaseRenderer';
-export { TaskRenderer } from './renderer/TaskRenderer';
-export { EventRenderer } from './renderer/EventRenderer';
-export { GatewayRenderer } from './renderer/GatewayRenderer';
+export { ComponentRegistry } from './core/ComponentRegistry';
+export { BPMNExporter } from './core/BPMNExporter';
+export { ScriptTaskComponent } from './components/ScriptTask';
+
+// Re-export for convenience
+export type {
+  BPMNElement,
+  Connection,
+  ComponentDefinition,
+  ComponentRenderer,
+  ComponentBehavior,
+  Plugin,
+  ExecutionContext,
+  Logger
+} from './types';
