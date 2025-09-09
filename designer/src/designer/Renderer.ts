@@ -257,6 +257,111 @@ export class Renderer {
   private createPathData(waypoints: Point[]): string {
     if (waypoints.length < 2) return '';
     
+    // Check if this is an L-shaped connection (4 waypoints)
+    if (waypoints.length === 4) {
+      return this.createLShapedPathData(waypoints);
+    }
+    
+    // Standard straight line connection
+    let d = `M ${waypoints[0].x} ${waypoints[0].y}`;
+    for (let i = 1; i < waypoints.length; i++) {
+      d += ` L ${waypoints[i].x} ${waypoints[i].y}`;
+    }
+    return d;
+  }
+  
+  private createLShapedPathData(waypoints: Point[]): string {
+    if (waypoints.length !== 4) {
+      // Fallback to straight lines if not exactly 4 waypoints
+      return this.createStraightPathData(waypoints);
+    }
+    
+    const [start, corner1, corner2, end] = waypoints;
+    const radius = 5; // Border radius for corners
+    
+    // Calculate the direction vectors
+    const isHorizontalFirst = Math.abs(corner1.y - start.y) < 1;
+    
+    let path = `M ${start.x} ${start.y}`;
+    
+    if (isHorizontalFirst) {
+      // Horizontal then vertical
+      const horizontalDir = corner1.x > start.x ? 1 : -1;
+      const verticalDir = corner2.y > corner1.y ? 1 : -1;
+      
+      // First straight segment (horizontal)
+      const firstSegmentEnd = {
+        x: corner1.x - (horizontalDir * radius),
+        y: corner1.y
+      };
+      path += ` L ${firstSegmentEnd.x} ${firstSegmentEnd.y}`;
+      
+      // First rounded corner
+      const corner1Control = {
+        x: corner1.x,
+        y: corner1.y + (verticalDir * radius)
+      };
+      path += ` Q ${corner1.x} ${corner1.y} ${corner1Control.x} ${corner1Control.y}`;
+      
+      // Middle segment (vertical)
+      const secondSegmentEnd = {
+        x: corner2.x,
+        y: corner2.y - (verticalDir * radius)
+      };
+      path += ` L ${secondSegmentEnd.x} ${secondSegmentEnd.y}`;
+      
+      // Second rounded corner
+      const horizontalDir2 = end.x > corner2.x ? 1 : -1;
+      const corner2Control = {
+        x: corner2.x + (horizontalDir2 * radius),
+        y: corner2.y
+      };
+      path += ` Q ${corner2.x} ${corner2.y} ${corner2Control.x} ${corner2Control.y}`;
+      
+    } else {
+      // Vertical then horizontal
+      const verticalDir = corner1.y > start.y ? 1 : -1;
+      const horizontalDir = corner2.x > corner1.x ? 1 : -1;
+      
+      // First straight segment (vertical)
+      const firstSegmentEnd = {
+        x: corner1.x,
+        y: corner1.y - (verticalDir * radius)
+      };
+      path += ` L ${firstSegmentEnd.x} ${firstSegmentEnd.y}`;
+      
+      // First rounded corner
+      const corner1Control = {
+        x: corner1.x + (horizontalDir * radius),
+        y: corner1.y
+      };
+      path += ` Q ${corner1.x} ${corner1.y} ${corner1Control.x} ${corner1Control.y}`;
+      
+      // Middle segment (horizontal)
+      const secondSegmentEnd = {
+        x: corner2.x - (horizontalDir * radius),
+        y: corner2.y
+      };
+      path += ` L ${secondSegmentEnd.x} ${secondSegmentEnd.y}`;
+      
+      // Second rounded corner
+      const verticalDir2 = end.y > corner2.y ? 1 : -1;
+      const corner2Control = {
+        x: corner2.x,
+        y: corner2.y + (verticalDir2 * radius)
+      };
+      path += ` Q ${corner2.x} ${corner2.y} ${corner2Control.x} ${corner2Control.y}`;
+    }
+    
+    // Final segment to end
+    path += ` L ${end.x} ${end.y}`;
+    
+    return path;
+  }
+  
+  private createStraightPathData(waypoints: Point[]): string {
+    if (waypoints.length < 2) return '';
+    
     let d = `M ${waypoints[0].x} ${waypoints[0].y}`;
     for (let i = 1; i < waypoints.length; i++) {
       d += ` L ${waypoints[i].x} ${waypoints[i].y}`;

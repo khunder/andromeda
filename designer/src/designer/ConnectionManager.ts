@@ -1,5 +1,9 @@
 import { Connection, Point, BPMNElement } from './types';
 
+/**
+ * Manages connections (edges) between BPMN elements
+ * Computes optimal waypoints and connection points based on element shapes
+ */
 export class ConnectionManager {
   private connections: Map<string, Connection> = new Map();
   private idCounter = 0;
@@ -25,10 +29,44 @@ export class ConnectionManager {
     return Array.from(this.connections.values());
   }
 
+  /**
+   * Compute waypoints for a connection between two elements
+   * - Straight line when elements are aligned horizontally or vertically
+   * - L-shaped path with rounded corners for diagonal placements
+   */
   updateConnectionWaypoints(connection: Connection, sourceElement: BPMNElement, targetElement: BPMNElement): void {
     const sourcePoint = this.getConnectionPoint(sourceElement, targetElement);
     const targetPoint = this.getConnectionPoint(targetElement, sourceElement);
-    connection.waypoints = [sourcePoint, targetPoint];
+    
+    // Check if elements are perfectly aligned (keep it straight)
+    const sourceCenterX = sourceElement.x + sourceElement.width / 2;
+    const sourceCenterY = sourceElement.y + sourceElement.height / 2;
+    const targetCenterX = targetElement.x + targetElement.width / 2;
+    const targetCenterY = targetElement.y + targetElement.height / 2;
+    
+    const alignmentThreshold = 5; // pixels
+    const isHorizontallyAligned = Math.abs(sourceCenterY - targetCenterY) < alignmentThreshold;
+    const isVerticallyAligned = Math.abs(sourceCenterX - targetCenterX) < alignmentThreshold;
+    
+    // If perfectly aligned, use straight connection
+    if (isHorizontallyAligned || isVerticallyAligned) {
+      connection.waypoints = [sourcePoint, targetPoint];
+      return;
+    }
+    
+    // Calculate angle between elements
+    const angle = Math.abs(Math.atan2(
+      targetPoint.y - sourcePoint.y,
+      targetPoint.x - sourcePoint.x
+    ) * 180 / Math.PI);
+    
+    // If angle is more than 45 degrees from horizontal/vertical, create L-shaped connection
+    if ((angle > 45 && angle < 135) || (angle > 225 && angle < 315)) {
+      const waypoints = this.createLShapedConnection(sourceElement, targetElement, sourcePoint, targetPoint);
+      connection.waypoints = waypoints;
+    } else {
+      connection.waypoints = [sourcePoint, targetPoint];
+    }
   }
 
   getConnectionPoint(fromElement: BPMNElement, toElement: BPMNElement): Point {
@@ -133,6 +171,103 @@ export class ConnectionManager {
     const dx = p1.x - p2.x;
     const dy = p1.y - p2.y;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  /**
+   * Create an L-shaped connection (HV or VH) between two elements
+   * Places a mid-segment half-way and chooses optimal exit/entry sides
+   */
+  private createLShapedConnection(
+    sourceElement: BPMNElement,
+    targetElement: BPMNElement,
+    sourcePoint: Point,
+    targetPoint: Point
+  ): Point[] {
+    const sourceCenterX = sourceElement.x + sourceElement.width / 2;
+    const sourceCenterY = sourceElement.y + sourceElement.height / 2;
+    const targetCenterX = targetElement.x + targetElement.width / 2;
+    const targetCenterY = targetElement.y + targetElement.height / 2;
+    
+    // Determine the best L-shape routing
+    const dx = targetCenterX - sourceCenterX;
+    const dy = targetCenterY - sourceCenterY;
+    
+    // Get optimal connection points for L-shape
+    let optimalSourcePoint: Point;
+    let optimalTargetPoint: Point;
+    let middlePoints: Point[] = [];
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal dominant - connect from sides
+      if (dx > 0) {
+        // Target is to the right
+        optimalSourcePoint = this.getEdgePoint(sourceElement, 'right');
+        optimalTargetPoint = this.getEdgePoint(targetElement, 'left');
+        
+        // Create middle waypoint
+        const middleX = (optimalSourcePoint.x + optimalTargetPoint.x) / 2;
+        middlePoints = [
+          { x: middleX, y: optimalSourcePoint.y },
+          { x: middleX, y: optimalTargetPoint.y }
+        ];
+      } else {
+        // Target is to the left
+        optimalSourcePoint = this.getEdgePoint(sourceElement, 'left');
+        optimalTargetPoint = this.getEdgePoint(targetElement, 'right');
+        
+        const middleX = (optimalSourcePoint.x + optimalTargetPoint.x) / 2;
+        middlePoints = [
+          { x: middleX, y: optimalSourcePoint.y },
+          { x: middleX, y: optimalTargetPoint.y }
+        ];
+      }
+    } else {
+      // Vertical dominant - connect from top/bottom
+      if (dy > 0) {
+        // Target is below
+        optimalSourcePoint = this.getEdgePoint(sourceElement, 'bottom');
+        optimalTargetPoint = this.getEdgePoint(targetElement, 'top');
+        
+        const middleY = (optimalSourcePoint.y + optimalTargetPoint.y) / 2;
+        middlePoints = [
+          { x: optimalSourcePoint.x, y: middleY },
+          { x: optimalTargetPoint.x, y: middleY }
+        ];
+      } else {
+        // Target is above
+        optimalSourcePoint = this.getEdgePoint(sourceElement, 'top');
+        optimalTargetPoint = this.getEdgePoint(targetElement, 'bottom');
+        
+        const middleY = (optimalSourcePoint.y + optimalTargetPoint.y) / 2;
+        middlePoints = [
+          { x: optimalSourcePoint.x, y: middleY },
+          { x: optimalTargetPoint.x, y: middleY }
+        ];
+      }
+    }
+    
+    return [optimalSourcePoint, ...middlePoints, optimalTargetPoint];
+  }
+  
+  /**
+   * Returns the center point on the requested edge of a rectangular element
+   */
+  private getEdgePoint(element: BPMNElement, side: 'top' | 'right' | 'bottom' | 'left'): Point {
+    const centerX = element.x + element.width / 2;
+    const centerY = element.y + element.height / 2;
+    
+    switch (side) {
+      case 'top':
+        return { x: centerX, y: element.y };
+      case 'right':
+        return { x: element.x + element.width, y: centerY };
+      case 'bottom':
+        return { x: centerX, y: element.y + element.height };
+      case 'left':
+        return { x: element.x, y: centerY };
+      default:
+        return { x: centerX, y: centerY };
+    }
   }
 
   getConnectionsForElement(elementId: string): Connection[] {

@@ -6,32 +6,43 @@ interface AlignmentLine {
   position: number;
   start: number;
   end: number;
+  alignedElements: BPMNElement[];
 }
 
+/**
+ * Manages visual alignment guides for element positioning
+ * Shows red dashed lines when elements align but doesn't affect position
+ */
 export class AlignmentGuides {
-  private verticalGuide: SVGLineElement | null = null;
-  private horizontalGuide: SVGLineElement | null = null;
-  private threshold = 5; // Snap threshold in pixels
+  private guides: SVGLineElement[] = []; // Array of visible guide lines
+  private threshold = 5; // Distance threshold for alignment detection (pixels)
   
   constructor(
     private svg: SVGSVGElement,
     private elementManager: ElementManager
   ) {}
   
+  /**
+   * Shows alignment guides when dragging an element near other elements
+   * Note: This only shows visual guides, does not snap positions
+   * @param draggedElement - The element being dragged
+   * @param currentX - Current X position of dragged element
+   * @param currentY - Current Y position of dragged element
+   * @returns The same position passed in (no snapping)
+   */
   showGuides(draggedElement: BPMNElement, currentX: number, currentY: number): Point {
     this.hideGuides();
     
     const elements = this.elementManager.getAllElements().filter(el => el.id !== draggedElement.id);
-    let snapX = currentX;
-    let snapY = currentY;
     
     const draggedCenterX = currentX + draggedElement.width / 2;
     const draggedCenterY = currentY + draggedElement.height / 2;
     const draggedRight = currentX + draggedElement.width;
     const draggedBottom = currentY + draggedElement.height;
     
-    let verticalAlign: AlignmentLine | undefined = undefined;
-    let horizontalAlign: AlignmentLine | undefined = undefined;
+    // Collect all alignments
+    const verticalAlignments: Map<number, AlignmentLine> = new Map();
+    const horizontalAlignments: Map<number, AlignmentLine> = new Map();
     
     // Check for alignments
     elements.forEach(element => {
@@ -40,136 +51,138 @@ export class AlignmentGuides {
       const right = element.x + element.width;
       const bottom = element.y + element.height;
       
-      // Vertical alignments (left, center, right)
-      if (!verticalAlign) {
+      // Check vertical alignments
+      // Check vertical alignments (left/right edges)
+      if (Math.abs(currentX - element.x) < this.threshold) {
         // Left edge alignment
-        if (Math.abs(currentX - element.x) < this.threshold) {
-          snapX = element.x;
-          verticalAlign = {
-            type: 'vertical',
-            position: element.x,
-            start: Math.min(currentY, element.y),
-            end: Math.max(draggedBottom, bottom)
-          };
-        }
+        this.addToAlignment(verticalAlignments, element.x, 'vertical', element, 
+                          Math.min(currentY, element.y), Math.max(draggedBottom, bottom));
+      }
+      else if (Math.abs(draggedRight - right) < this.threshold) {
         // Right edge alignment
-        else if (Math.abs(draggedRight - right) < this.threshold) {
-          snapX = right - draggedElement.width;
-          verticalAlign = {
-            type: 'vertical',
-            position: right,
-            start: Math.min(currentY, element.y),
-            end: Math.max(draggedBottom, bottom)
-          };
-        }
-        // Center alignment
-        else if (Math.abs(draggedCenterX - centerX) < this.threshold) {
-          snapX = centerX - draggedElement.width / 2;
-          verticalAlign = {
-            type: 'vertical',
-            position: centerX,
-            start: Math.min(currentY, element.y),
-            end: Math.max(draggedBottom, bottom)
-          };
-        }
+        this.addToAlignment(verticalAlignments, right, 'vertical', element,
+                          Math.min(currentY, element.y), Math.max(draggedBottom, bottom));
+      }
+      else if (Math.abs(currentX - right) < this.threshold) {
         // Left to right alignment
-        else if (Math.abs(currentX - right) < this.threshold) {
-          snapX = right;
-          verticalAlign = {
-            type: 'vertical',
-            position: right,
-            start: Math.min(currentY, element.y),
-            end: Math.max(draggedBottom, bottom)
-          };
-        }
+        this.addToAlignment(verticalAlignments, right, 'vertical', element,
+                          Math.min(currentY, element.y), Math.max(draggedBottom, bottom));
+      }
+      else if (Math.abs(draggedRight - element.x) < this.threshold) {
         // Right to left alignment
-        else if (Math.abs(draggedRight - element.x) < this.threshold) {
-          snapX = element.x - draggedElement.width;
-          verticalAlign = {
-            type: 'vertical',
-            position: element.x,
-            start: Math.min(currentY, element.y),
-            end: Math.max(draggedBottom, bottom)
-          };
-        }
+        this.addToAlignment(verticalAlignments, element.x, 'vertical', element,
+                          Math.min(currentY, element.y), Math.max(draggedBottom, bottom));
       }
       
-      // Horizontal alignments (top, middle, bottom)
-      if (!horizontalAlign) {
+      // Check horizontal alignments
+      // Check horizontal alignments (top/bottom edges)
+      if (Math.abs(currentY - element.y) < this.threshold) {
         // Top edge alignment
-        if (Math.abs(currentY - element.y) < this.threshold) {
-          snapY = element.y;
-          horizontalAlign = {
-            type: 'horizontal',
-            position: element.y,
-            start: Math.min(currentX, element.x),
-            end: Math.max(draggedRight, right)
-          };
-        }
+        this.addToAlignment(horizontalAlignments, element.y, 'horizontal', element,
+                          Math.min(currentX, element.x), Math.max(draggedRight, right));
+      }
+      else if (Math.abs(draggedBottom - bottom) < this.threshold) {
         // Bottom edge alignment
-        else if (Math.abs(draggedBottom - bottom) < this.threshold) {
-          snapY = bottom - draggedElement.height;
-          horizontalAlign = {
-            type: 'horizontal',
-            position: bottom,
-            start: Math.min(currentX, element.x),
-            end: Math.max(draggedRight, right)
-          };
-        }
-        // Middle alignment
-        else if (Math.abs(draggedCenterY - centerY) < this.threshold) {
-          snapY = centerY - draggedElement.height / 2;
-          horizontalAlign = {
-            type: 'horizontal',
-            position: centerY,
-            start: Math.min(currentX, element.x),
-            end: Math.max(draggedRight, right)
-          };
-        }
+        this.addToAlignment(horizontalAlignments, bottom, 'horizontal', element,
+                          Math.min(currentX, element.x), Math.max(draggedRight, right));
+      }
+      else if (Math.abs(currentY - bottom) < this.threshold) {
         // Top to bottom alignment
-        else if (Math.abs(currentY - bottom) < this.threshold) {
-          snapY = bottom;
-          horizontalAlign = {
-            type: 'horizontal',
-            position: bottom,
-            start: Math.min(currentX, element.x),
-            end: Math.max(draggedRight, right)
-          };
-        }
+        this.addToAlignment(horizontalAlignments, bottom, 'horizontal', element,
+                          Math.min(currentX, element.x), Math.max(draggedRight, right));
+      }
+      else if (Math.abs(draggedBottom - element.y) < this.threshold) {
         // Bottom to top alignment
-        else if (Math.abs(draggedBottom - element.y) < this.threshold) {
-          snapY = element.y - draggedElement.height;
-          horizontalAlign = {
-            type: 'horizontal',
-            position: element.y,
-            start: Math.min(currentX, element.x),
-            end: Math.max(draggedRight, right)
-          };
-        }
+        this.addToAlignment(horizontalAlignments, element.y, 'horizontal', element,
+                          Math.min(currentX, element.x), Math.max(draggedRight, right));
       }
     });
     
-    // Show alignment guides
-    if (verticalAlign !== undefined) {
-      const vAlign: AlignmentLine = verticalAlign;
-      this.showVerticalGuide(vAlign.position, vAlign.start, vAlign.end);
-    }
-    if (horizontalAlign !== undefined) {
-      const hAlign: AlignmentLine = horizontalAlign;
-      this.showHorizontalGuide(hAlign.position, hAlign.start, hAlign.end);
-    }
+    // Show alignment guides for all aligned elements
+    verticalAlignments.forEach(alignment => {
+      if (alignment.alignedElements.length > 0) {
+        // Calculate the full extent of the guide line
+        let minY = currentY;
+        let maxY = draggedBottom;
+        alignment.alignedElements.forEach(el => {
+          minY = Math.min(minY, el.y);
+          maxY = Math.max(maxY, el.y + el.height);
+        });
+        this.showVerticalGuide(alignment.position, minY - 10, maxY + 10);
+      }
+    });
     
-    return { x: snapX, y: snapY };
+    horizontalAlignments.forEach(alignment => {
+      if (alignment.alignedElements.length > 0) {
+        // Calculate the full extent of the guide line
+        let minX = currentX;
+        let maxX = draggedRight;
+        alignment.alignedElements.forEach(el => {
+          minX = Math.min(minX, el.x);
+          maxX = Math.max(maxX, el.x + el.width);
+        });
+        this.showHorizontalGuide(alignment.position, minX - 10, maxX + 10);
+      }
+    });
+    
+    // Return original position without any snapping
+    return { x: currentX, y: currentY };
   }
   
+  /**
+   * Adds an element to an alignment line collection
+   * @param alignments - Map of alignment lines
+   * @param position - Position of the alignment line
+   * @param type - Whether it's a vertical or horizontal alignment
+   * @param element - Element that aligns at this position
+   * @param start - Start point of the alignment line
+   * @param end - End point of the alignment line
+   */
+  private addToAlignment(
+    alignments: Map<number, AlignmentLine>,
+    position: number,
+    type: 'vertical' | 'horizontal',
+    element: BPMNElement,
+    start: number,
+    end: number
+  ): void {
+    if (!alignments.has(position)) {
+      alignments.set(position, {
+        type,
+        position,
+        start,
+        end,
+        alignedElements: []
+      });
+    }
+    const alignment = alignments.get(position)!;
+    alignment.alignedElements.push(element);
+    alignment.start = Math.min(alignment.start, start);
+    alignment.end = Math.max(alignment.end, end);
+  }
+  
+  /**
+   * Creates and displays a vertical alignment guide
+   * @param x - X position of the vertical line
+   * @param startY - Y start position
+   * @param endY - Y end position
+   */
   private showVerticalGuide(x: number, startY: number, endY: number): void {
-    this.verticalGuide = this.createLine(x, startY, x, endY);
-    this.svg.appendChild(this.verticalGuide);
+    const guide = this.createLine(x, startY, x, endY);
+    this.guides.push(guide);
+    this.svg.appendChild(guide);
   }
   
+  /**
+   * Creates and displays a horizontal alignment guide
+   * @param y - Y position of the horizontal line
+   * @param startX - X start position
+   * @param endX - X end position
+   */
   private showHorizontalGuide(y: number, startX: number, endX: number): void {
-    this.horizontalGuide = this.createLine(startX, y, endX, y);
-    this.svg.appendChild(this.horizontalGuide);
+    const guide = this.createLine(startX, y, endX, y);
+    this.guides.push(guide);
+    this.svg.appendChild(guide);
   }
   
   private createLine(x1: number, y1: number, x2: number, y2: number): SVGLineElement {
@@ -186,14 +199,11 @@ export class AlignmentGuides {
     return line;
   }
   
+  /**
+   * Removes all visible alignment guides from the DOM
+   */
   hideGuides(): void {
-    if (this.verticalGuide) {
-      this.verticalGuide.remove();
-      this.verticalGuide = null;
-    }
-    if (this.horizontalGuide) {
-      this.horizontalGuide.remove();
-      this.horizontalGuide = null;
-    }
+    this.guides.forEach(guide => guide.remove());
+    this.guides = [];
   }
 }
