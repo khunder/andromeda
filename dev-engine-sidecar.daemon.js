@@ -19,12 +19,21 @@ Logger.warn(`
  * This daemon uses a socket file, implemented using the node-ipc npm package, to communicate with the engine.
  */`)
 
-const socketPath = path.join(process.cwd() , '/temp/andromeda.ipc.sock');
-rimraf.sync(socketPath);
+// Use Windows named pipe format on Windows, Unix socket on other platforms
+const socketPath = process.platform === 'win32' 
+    ? 'andromeda-daemon-ipc' // Windows named pipe
+    : path.join(process.cwd(), '/temp/andromeda.ipc.sock'); // Unix socket
 
-config.unlink = false;
-ipc.config.retry= 2000;
+// Only try to remove file-based sockets, not Windows named pipes
+if (process.platform !== 'win32') {
+    rimraf.sync(socketPath);
+}
+
+ipc.config.unlink = false;
+ipc.config.retry = 2000;
 ipc.config.id = 'andromeda_daemon';
+ipc.config.silent = true; // Reduce IPC logging
+ipc.config.networkHost = 'localhost'; // For Windows compatibility
 
 
 
@@ -41,7 +50,10 @@ function shutdown(){
         }
     }
     finally {
-        rimraf.sync(socketPath);
+        // Only try to remove file-based sockets, not Windows named pipes
+        if (process.platform !== 'win32') {
+            rimraf.sync(socketPath);
+        }
     }
 
     process.exit(0);

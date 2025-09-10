@@ -6,46 +6,125 @@ import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
 import FormData from "form-data";
-import axios from "axios";
-import assert from "assert";
 import {UsedPorts} from "../used_ports.js";
 import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
+import { it, expect, describe, beforeAll, afterAll } from 'vitest';
 
-describe('StartProcessInstance::Integration', function () {
+describe('StartProcessInstance::Integration', () => {
+    const TEST_TIMEOUT = 30000; // 30 seconds timeout for integration test
+    let deploymentId = "cov/scenario_script2";
+    let testPort;
+    
+    beforeAll(async () => {
+        // Initialize PersistenceModule
+        try {
+            await PersistenceModule.init();
+        } catch (e) {
+            console.log('PersistenceModule init error (may already be initialized):', e.message);
+        }
+        
+        // Use a dynamic port to avoid conflicts
+        testPort = await findAvailablePort();
+        console.log(`Using port ${testPort} for test`);
+    }, TEST_TIMEOUT);
+    afterAll(async () => {
+        // Clean up: stop container if still running
+        try {
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+        } catch (e) {
+            // Container might already be stopped
+        }
+        
+        // Clean up deployment folder
+        try {
+            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            if (fs.existsSync(deploymentPath)) {
+                fs.rmSync(deploymentPath, { recursive: true, force: true });
+            }
+        } catch (e) {
+            console.error('Cleanup error:', e);
+        }
+    });
 
     it('Start process instance', async () => {
+        // Setup
+        let fileContents = [];
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const bpmnPath = path.join(__dirname, "../resources", "scenario_script.bpmn");
+        
+        // Check if BPMN file exists
+        expect(fs.existsSync(bpmnPath), `BPMN file not found at ${bpmnPath}`).toBe(true);
+        
+        fileContents.push(fs.readFileSync(bpmnPath, {encoding: 'utf8'}));
+        
+        /**
+         * @type {ContainerParsingContext} containerParsingContext
+         */
+        let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
+        ctx.includeGalaxyModule = true;
+
+        // Generate container
+        const engineService = new EngineService();
+        await engineService.generateContainer(ctx);
+        
+        // Start embedded container with dynamic port
+        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+
+        // Prepare form data
+        const form = new FormData();
+        form.append('bpmnFile', fs.readFileSync(bpmnPath), {
+            filename: 'scenario_script.bpmn',
+            contentType: 'application/xml'
+        });
+        form.append('deploymentId', 'compileBpmn');
+        
+        // Make request to start process using native fetch
+        let response;
+        let procData;
         try {
-            let deploymentId = "cov/scenario_script2";
-            let fileContents = [];
-            const __filename = fileURLToPath(import.meta.url);
-            const __dirname = path.dirname(__filename);
-            fileContents.push(fs.readFileSync(path.join(__dirname  ,"../resources", "scenario_script.bpmn"  ), {encoding: 'utf8'}));
-            /**
-             * @type {ContainerParsingContext} containerParsingContext
-             */
-            let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
-            ctx.includeGalaxyModule = true;
-
-
-            const engineService = new EngineService();
-            await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: UsedPorts.StartProcessInstance});
-
-
-            const form = new FormData();
-            form.append('bpmnFile', fs.readFileSync(path.join(process.cwd(), "./test/resources/scenario_script.bpmn")), "bpmnFile");
-            form.append('deploymentId', "compileBpmn");
-
-            const config = { headers: form.getHeaders()};
-            // when
-            let proc = await axios.post(`http://127.0.0.1:${UsedPorts.StartProcessInstance}/start`, form, config);
-            const count = await PersistenceModule.getConnection().db.collection("ProcessInstance").count({_id: proc.data.id})
-            assert.equal(count, 1)
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, UsedPorts.StartProcessInstance);
-        } catch (e) {
-            console.error(e)
+            response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+                method: 'POST',
+                body: form,
+                headers: form.getHeaders()
+            });
+            
+            expect(response.ok).toBe(true);
+            expect(response.status).toBe(200);
+            
+            procData = await response.json();
+            expect(procData).toBeDefined();
+            expect(procData.id).toBeDefined();
+        } catch (error) {
+            console.error('Failed to start process:', error.message);
+            if (response && !response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', errorText);
+            }
+            throw error;
         }
-    })
+        
+        // Verify process instance was created in database
+        const connection = PersistenceModule.getConnection();
+        const count = await connection.db.collection("ProcessInstance").countDocuments({_id: procData.id});
+        expect(count).toBe(1);
+        
+        // Cleanup
+        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+    }, TEST_TIMEOUT);
+    
+    // Helper function to find available port
+    async function findAvailablePort() {
+        const net = await import('net');
+        return new Promise((resolve, reject) => {
+            const server = net.createServer();
+            server.listen(0, '127.0.0.1', () => {
+                const port = server.address().port;
+                server.close(() => resolve(port));
+            });
+            server.on('error', reject);
+        });
+    }
 
 });

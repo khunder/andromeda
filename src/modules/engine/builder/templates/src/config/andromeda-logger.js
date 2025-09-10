@@ -1,80 +1,105 @@
-import log4js from  "log4js";
+import pino from 'pino';
+import PinoConfig from './pino.config.js';
 
-import log4jsConfig from "./log4js.config.js";
+// Create singleton logger instance
+const pinoConfig = new PinoConfig();
+const defaultLogger = pino(pinoConfig.getConfig());
 
-log4js.addLayout('json', function (config) {
-    return function (logEvent) {
-        // logEvent.app = ContainerService.getInstance().containerId || "container";
-        logEvent.processId = process.pid;
-        if (process.env.IP) {
-            logEvent.ip = process.env.IP;
-        }
-        if (process.env.ENV) {
-            logEvent.ENV = process.env.ENV;
-        }
-        if (logEvent.data && logEvent.data.length > 0) {
-            logEvent.message = logEvent.data[0];
-            delete logEvent.data;
-        }
-        return JSON.stringify(logEvent);
-    };
-});
-const logSingleton = log4js.getLogger('container');
-
-log4js.configure(log4jsConfig);
-
+/**
+ * AndromedaLogger - Wrapper around Pino logger for backward compatibility
+ * Provides the same interface as the old log4js-based logger
+ */
 export class AndromedaLogger {
     logger;
-    loggerOptions;
+    name;
 
-    constructor(args) {
-        this.logger = logSingleton;
-    }
-
-    get Logger() {
-        return this.logger;
-    }
-
-    static configGlobal(options) {
-        this.loggerOptions = options;
+    constructor(name, config) {
+        if (name) {
+            this.name = name;
+            // Create a child logger with the specific name
+            this.logger = defaultLogger.child({ name });
+        } else {
+            this.logger = defaultLogger.child({ name: 'engine' });
+        }
+        
+        // If custom config provided, create new logger instance
+        if (config) {
+            this.logger = pino(config);
+        }
     }
 
     info(message) {
-        this.logger.info(message);
+        if (this.isObject(message)) {
+            this.logger.info(message);
+        } else {
+            this.logger.info(message);
+        }
     }
 
     isObject(val) {
-        return (typeof val === 'object');
+        return typeof val === 'object' && val !== null;
     }
 
     error(message, trace) {
-        if(this.isObject(message)){
-            this.logger.error(`${message.message || ''} -> (${trace || message.stack || 'trace not provided !'})`);
-        }else{
-            this.logger.error(`${message} -> (${trace || 'trace not provided !'})`);
+        if (this.isObject(message)) {
+            this.logger.error(
+                { 
+                    err: message,
+                    trace: trace || message.stack 
+                },
+                message.message || String(message)
+            );
+        } else {
+            if (trace) {
+                this.logger.error({ trace }, message);
+            } else {
+                this.logger.error(message);
+            }
         }
     }
 
     warn(message) {
-        this.logger.warn(message);
+        if (this.isObject(message)) {
+            this.logger.warn(message);
+        } else {
+            this.logger.warn(message);
+        }
     }
 
     debug(message, context) {
-        this.logger.debug(message);
+        if (context) {
+            this.logger.debug({ context }, message);
+        } else if (this.isObject(message)) {
+            this.logger.debug(message);
+        } else {
+            this.logger.debug(message);
+        }
     }
 
     trace(message, context) {
-        this.logger.trace(message);
+        if (context) {
+            this.logger.trace({ context }, message);
+        } else if (this.isObject(message)) {
+            this.logger.trace(message);
+        } else {
+            this.logger.trace(message);
+        }
     }
 
     fatal(message, context) {
-        this.logger.fatal(message);
+        if (context) {
+            this.logger.fatal({ context }, message);
+        } else if (this.isObject(message)) {
+            this.logger.fatal(message);
+        } else {
+            this.logger.fatal(message);
+        }
     }
 
-    child() {
-        return new AndromedaLogger()
-    };
-
-
+    child(bindings) {
+        const childLogger = new AndromedaLogger();
+        childLogger.logger = this.logger.child(bindings || {});
+        return childLogger;
+    }
 }
-export default AndromedaLogger;
+

@@ -1,4 +1,4 @@
-import AndromedaLogger from "../../../../config/andromeda-logger.js";
+import { AndromedaLogger } from "../../../../config/andromeda-logger.js";
 import {ProcessInstanceRepository} from "../repositories/process-instance.repository.js";
 import {EventTypes} from "../event-types.js";
 

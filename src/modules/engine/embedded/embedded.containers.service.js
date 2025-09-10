@@ -106,7 +106,7 @@ export class EmbeddedContainerService {
         if (Config.getInstance().isLocalMode) {
             Logger.info(`Launching embedded.sidecar.daemon.service`)
             const daemon = await import("../embedded/embedded.sidecar.daemon.service.js");
-            daemon.EmbeddedSidecarDaemonService.watchContainer(childProcess.child.pid)
+            await daemon.EmbeddedSidecarDaemonService.watchContainer(childProcess.child.pid);
         }
 
         await this.waitForEmbeddedContainerStart(deploymentPath, deploymentId, allocatedPort);

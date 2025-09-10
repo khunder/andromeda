@@ -1,6 +1,6 @@
-import {AndromedaLogger} from "../config/andromeda-logger.js"
-import Utils from "../utils/utils.js";
-import path from "path";
+import { AndromedaLogger } from '../config/andromeda-logger.js';
+import Utils from '../utils/utils.js';
+import path from 'path';
 
 
 let config

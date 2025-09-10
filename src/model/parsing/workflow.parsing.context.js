@@ -1,7 +1,7 @@
 /**
  * Model used for bpmn parsing
  */
-class WorkflowParsingContext {
+export class WorkflowParsingContext {
     model;
     bpmnContent;
     processPrefix;
@@ -13,4 +13,3 @@ class WorkflowParsingContext {
     }
 }
 
-export  default WorkflowParsingContext

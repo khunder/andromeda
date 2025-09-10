@@ -1,7 +1,7 @@
 import {Config} from "../config/config.js";
 
-import  ContainerParsingContext from "../model/parsing/container.parsing.context.js"
-import  WorkflowParsingContext  from "../model/parsing/workflow.parsing.context.js";
+import { ContainerParsingContext } from "../model/parsing/container.parsing.context.js";
+import { WorkflowParsingContext } from "../model/parsing/workflow.parsing.context.js";
 import BPMNModdle from "bpmn-moddle";
 import {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();

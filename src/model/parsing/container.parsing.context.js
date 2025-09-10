@@ -1,7 +1,7 @@
 /**
  * Model used using container code-gen phase
  */
-class ContainerParsingContext {
+export class ContainerParsingContext {
   constructor(config) {
     this.deploymentId = config && config.deploymentId;
     this.port = config && config.port;
@@ -18,4 +18,3 @@ class ContainerParsingContext {
 
 }
 
-export  default  ContainerParsingContext

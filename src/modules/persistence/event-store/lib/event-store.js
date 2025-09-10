@@ -1,5 +1,5 @@
 import Ajv from "ajv";
-import AndromedaLogger from "../../../../config/andromeda-logger.js";
+import { AndromedaLogger } from "../../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
 import {EOL} from 'os';

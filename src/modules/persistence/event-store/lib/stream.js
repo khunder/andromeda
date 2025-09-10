@@ -1,4 +1,4 @@
-import AndromedaLogger from "../../../../config/andromeda-logger.js";
+import { AndromedaLogger } from "../../../../config/andromeda-logger.js";
 
 const Logger = new AndromedaLogger();
 
