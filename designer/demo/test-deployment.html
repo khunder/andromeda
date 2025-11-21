@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPMN Designer - Deployment Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #666;
+        }
+        .info p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .test-steps {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #4caf50;
+        }
+        .test-steps h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+        .test-steps ol {
+            color: #555;
+            line-height: 1.8;
+        }
+        .warning {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ff9800;
+            margin-top: 20px;
+        }
+        .warning h3 {
+            color: #e65100;
+            margin-top: 0;
+        }
+        button {
+            background: #1e88e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 BPMN Designer - Deployment Test</h1>
+        
+        <div class="info">
+            <h3>New Features Added:</h3>
+            <p>✅ <strong>Configuration Panel:</strong> Click the ⚙️ button to configure engine URL (default: http://localhost:5000)</p>
+            <p>✅ <strong>Deployment Panel:</strong> Shows when nothing is selected - enter deployment ID and deploy</p>
+            <p>✅ <strong>Deploy Button:</strong> Click 🚀 Deploy in toolbar to deploy BPMN to Andromeda engine</p>
+            <p>✅ <strong>Multipart Form Upload:</strong> BPMN XML is sent as multipart/form-data with deployment ID</p>
+        </div>
+
+        <div class="test-steps">
+            <h3>How to Test:</h3>
+            <ol>
+                <li>Open the main application at <a href="../index.html" target="_blank">index.html</a></li>
+                <li>Click the ⚙️ (settings) button in the toolbar</li>
+                <li>Configure your Andromeda engine URL (default: http://localhost:5000)</li>
+                <li>Optionally set a default deployment ID</li>
+                <li>Click "Test Connection" to verify the engine is reachable</li>
+                <li>Save the configuration</li>
+                <li>Create a BPMN diagram using the palette</li>
+                <li>Click on empty canvas to see the deployment panel</li>
+                <li>Enter a deployment ID (e.g., "my-process-v1")</li>
+                <li>Click "🚀 Deploy to Engine" button</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ Prerequisites:</h3>
+            <p>1. Ensure your Andromeda engine is running at the configured URL</p>
+            <p>2. The engine should have the /api/compile endpoint available</p>
+            <p>3. CORS should be enabled on the engine for browser requests</p>
+            <p>4. The engine should accept multipart/form-data with fields: bpmnFile and deploymentId</p>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <button onclick="window.open('../index.html', '_blank')">Open BPMN Designer</button>
+            <button onclick="testDeploymentAPI()">Test Deployment API</button>
+        </div>
+
+        <div id="test-result" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        async function testDeploymentAPI() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = '<p>Testing deployment API...</p>';
+            
+            const testBPMN = `<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" 
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             targetNamespace="http://bpmn.io/schema/bpmn">
+  <process id="TestProcess" isExecutable="true">
+    <startEvent id="start" name="Start"/>
+    <endEvent id="end" name="End"/>
+    <sequenceFlow id="flow1" sourceRef="start" targetRef="end"/>
+  </process>
+</definitions>`;
+
+            try {
+                const formData = new FormData();
+                const blob = new Blob([testBPMN], { type: 'application/xml' });
+                formData.append('bpmnFile', blob, 'test.bpmn');
+                formData.append('deploymentId', 'test-deployment');
+                
+                const response = await fetch('http://localhost:5000/api/compile', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; border: 1px solid #4caf50;">
+                            <h3 style="color: #2e7d32; margin-top: 0;">✅ Test Successful!</h3>
+                            <p>The deployment API is working correctly.</p>
+                            <pre>${await response.text()}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="background: #ffebee; padding: 15px; border-radius: 5px; border: 1px solid #f44336;">
+                            <h3 style="color: #c62828; margin-top: 0;">❌ Test Failed</h3>
+                            <p>HTTP ${response.status}: ${response.statusText}</p>
+                            <pre>${await response.text()}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background: #ffebee; padding: 15px; border-radius: 5px; border: 1px solid #f44336;">
+                        <h3 style="color: #c62828; margin-top: 0;">❌ Connection Error</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure the Andromeda engine is running at http://localhost:5000</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

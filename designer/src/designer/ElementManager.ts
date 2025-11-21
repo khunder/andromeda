@@ -4,10 +4,12 @@ export class ElementManager {
   private elements: Map<string, BPMNElement> = new Map();
   private idCounter = 0;
 
-  addElement(type: string, x: number, y: number): string {
-    const id = `element_${++this.idCounter}`;
+  addElement(type: string, x: number, y: number, id?: string): string {
+    // Use provided ID or generate new one
+    const elementId = id || `element_${++this.idCounter}`;
+    
     const element: BPMNElement = {
-      id,
+      id: elementId,
       type,
       x,
       y,
@@ -17,8 +19,15 @@ export class ElementManager {
       properties: this.getDefaultProperties(type)
     };
     
-    this.elements.set(id, element);
-    return id;
+    this.elements.set(elementId, element);
+    return elementId;
+  }
+  
+  /**
+   * Set element with all properties preserved
+   */
+  setElement(element: BPMNElement): void {
+    this.elements.set(element.id, element);
   }
 
   private getDefaultWidth(type: string): number {

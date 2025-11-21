@@ -3,7 +3,8 @@ import path from "path";
 import fastify from "fastify";
 import GracefulServer from "@gquittet/graceful-server";
 import fastifySwagger from "@fastify/swagger";
-import multer from "fastify-multer";
+import fastifyCors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import autoload from "@fastify/autoload";
 
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
@@ -30,6 +31,33 @@ export class WebModule {
 
         this.app = fastify({ logger: null })
         this.gracefulServer = GracefulServer(this.app.server)
+
+        // Configure CORS to allow requests from frontend
+        this.app.register(fastifyCors, {
+            origin: (origin, cb) => {
+                // Allow requests from localhost:3000 (your frontend)
+                const allowedOrigins = [
+                    'http://localhost:3000',
+                    'http://localhost:3001',
+                    'http://localhost:5173', // Vite default port
+                    'http://127.0.0.1:3000',
+                    'http://127.0.0.1:3001',
+                    'http://127.0.0.1:5173'
+                ];
+                
+                // Allow requests with no origin (like mobile apps or Postman)
+                if (!origin || allowedOrigins.includes(origin)) {
+                    cb(null, true);
+                } else {
+                    cb(null, false);
+                }
+            },
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            // Allow all headers - you can restrict this in production
+            allowedHeaders: ['*'],
+            exposedHeaders: ['*']
+        });
 
         this.app.register(fastifySwagger, {
             mode: "static",
@@ -71,8 +99,17 @@ export class WebModule {
             Logger.info(`Server is down because of ${error.message}`)
         })
 
-        // this.app.register(multer.contentParser, {addToBody: true})
-        this.app.register(multer.contentParser)
+        // Register multipart support for file uploads
+        this.app.register(multipart, {
+            limits: {
+                fieldNameSize: 100, // Max field name size in bytes
+                fieldSize: 1000000, // Max field value size in bytes
+                fields: 10, // Max number of non-file fields
+                fileSize: 10000000, // 10 MB - max file size
+                files: 10, // Max number of file fields
+                headerPairs: 2000 // Max number of header key=>value pairs
+            }
+        })
 
         this.app.register(autoload, {
             dir: path.join(__dirname, '../../routes'),
@@ -83,8 +120,8 @@ export class WebModule {
         let startTime = new Date().getUTCMilliseconds();
         return new Promise((async (resolve, reject) => {
             try {
-                await this.app.listen(this.port, this.host)
-                this.app.swagger()
+                await this.app.listen({ port: this.port, host: this.host })
+                await this.app.swagger()
                 let startCompleted = new Date().getUTCMilliseconds();
                 Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()

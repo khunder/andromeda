@@ -95,6 +95,24 @@ export class UndoRedoManager {
     };
   }
   
+  // Create add element command with specific ID
+  createAddElementCommandWithId(type: string, x: number, y: number, id: string): Command {
+    let elementData: BPMNElement | null = null;
+    
+    return {
+      execute: () => {
+        this.elementManager.addElement(type, x, y, id);
+        elementData = this.elementManager.getElement(id) || null;
+      },
+      undo: () => {
+        // Remove connections first
+        this.connectionManager.deleteConnectionsForElement(id);
+        this.elementManager.deleteElement(id);
+      },
+      description: `Add ${type}`
+    };
+  }
+  
   createDeleteElementCommand(elementId: string): Command {
     const element = this.elementManager.getElement(elementId);
     const connections = this.connectionManager.getConnectionsForElement(elementId);
@@ -180,6 +198,25 @@ export class UndoRedoManager {
         if (connectionId) {
           this.connectionManager.deleteConnection(connectionId);
         }
+      },
+      description: 'Add connection'
+    };
+  }
+  
+  // Create add connection command with specific ID
+  createAddConnectionCommandWithId(sourceId: string, targetId: string, id: string): Command {
+    return {
+      execute: () => {
+        this.connectionManager.addConnection(sourceId, targetId, id);
+        const connection = this.connectionManager.getConnection(id);
+        const source = this.elementManager.getElement(sourceId);
+        const target = this.elementManager.getElement(targetId);
+        if (connection && source && target) {
+          this.connectionManager.updateConnectionWaypoints(connection, source, target);
+        }
+      },
+      undo: () => {
+        this.connectionManager.deleteConnection(id);
       },
       description: 'Add connection'
     };

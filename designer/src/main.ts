@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Create designer instance
   const designer = new BPMNDesigner(canvasContainer);
   
+  // Initialize XML editor
+  const xmlEditorContainer = document.getElementById('xml-editor');
+  if (xmlEditorContainer) {
+    designer.initXMLEditor(xmlEditorContainer);
+  }
+  
   // Expose designer to window for toolbar interactions and ElementRegistryUI
   (window as any).designer = designer;
   (window as any).bpmnDesigner = designer;
@@ -65,11 +71,55 @@ function setupToolbar(designer: BPMNDesigner) {
     });
   }
   
-  // Export BPMN button (add to HTML)
+  // Import BPMN button
+  const btnImportBPMN = document.getElementById('btn-import-bpmn');
+  if (btnImportBPMN) {
+    btnImportBPMN.addEventListener('click', () => {
+      designer.importBPMN();
+    });
+  }
+  
+  // Export BPMN button
   const btnExportBPMN = document.getElementById('btn-export-bpmn');
   if (btnExportBPMN) {
-    btnExportBPMN.addEventListener('click', () => {
-      designer.exportBPMN();
+    btnExportBPMN.addEventListener('click', async () => {
+      await designer.exportBPMN();
+    });
+  }
+  
+  // Configuration button
+  const btnConfig = document.getElementById('btn-config');
+  if (btnConfig) {
+    btnConfig.addEventListener('click', () => {
+      (designer as any).configPanel?.show();
+    });
+  }
+  
+  // Deploy button
+  const btnDeploy = document.getElementById('btn-deploy');
+  if (btnDeploy) {
+    btnDeploy.addEventListener('click', async () => {
+      await (designer as any).handleDeploy();
+    });
+  }
+  
+  // View switcher buttons
+  const btnDesignerView = document.getElementById('btn-designer-view');
+  const btnXmlView = document.getElementById('btn-xml-view');
+  
+  if (btnDesignerView) {
+    btnDesignerView.addEventListener('click', () => {
+      designer.showDesigner();
+      btnDesignerView.classList.add('active');
+      btnXmlView?.classList.remove('active');
+    });
+  }
+  
+  if (btnXmlView) {
+    btnXmlView.addEventListener('click', async () => {
+      await designer.showXMLEditor();
+      btnXmlView.classList.add('active');
+      btnDesignerView?.classList.remove('active');
     });
   }
   

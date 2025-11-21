@@ -11,7 +11,12 @@ import { BPMNExporter } from './BPMNExporter';
 import { ElementRegistry } from './ElementDefinition';
 import { PropertyEditor } from './PropertyEditor';
 import { UndoRedoManager } from './UndoRedoManager';
-import { Point, BPMNElement } from './types';
+import { Point, BPMNElement, Connection } from './types';
+import { ConfigurationManager } from './ConfigurationManager';
+import { ConfigurationPanel } from './ConfigurationPanel';
+import { DeploymentService } from './DeploymentService';
+import { MonacoXMLEditor } from './MonacoXMLEditor';
+import { BPMNModdleStore } from './BPMNModdleStore';
 
 export class BPMNDesigner {
   private svg: SVGSVGElement;
@@ -26,6 +31,11 @@ export class BPMNDesigner {
   private elementRegistry: ElementRegistry;
   private propertyEditor: PropertyEditor | null = null;
   private undoRedoManager: UndoRedoManager;
+  private configManager: ConfigurationManager;
+  private configPanel: ConfigurationPanel;
+  private deploymentService: DeploymentService;
+  private xmlEditor: MonacoXMLEditor;
+  private moddleStore: BPMNModdleStore;
   
   private selectedElementId: string | null = null;
   private draggedPaletteType: string | null = null;
@@ -38,6 +48,15 @@ export class BPMNDesigner {
     // Create SVG
     this.svg = this.createSVG();
     container.appendChild(this.svg);
+    
+    // Initialize moddle store first
+    this.moddleStore = BPMNModdleStore.getInstance();
+    
+    // Expose moddle store globally for XML editors
+    (window as any).moddleStore = this.moddleStore;
+    
+    // Don't auto-sync on every change - we'll sync manually when needed
+    // this.moddleStore.subscribe(() => this.syncFromModdle());
     
     // Initialize managers
     this.elementManager = new ElementManager();
@@ -83,6 +102,14 @@ export class BPMNDesigner {
     );
     this.contextMenu = new ContextMenu();
     this.elementRegistry = new ElementRegistry();
+    
+    // Initialize configuration and deployment
+    this.configManager = new ConfigurationManager();
+    this.configPanel = new ConfigurationPanel(this.configManager);
+    this.deploymentService = new DeploymentService(this.configManager);
+    
+    // Initialize XML editor
+    this.xmlEditor = new MonacoXMLEditor(this.elementManager, this.connectionManager);
     
     // Initialize property editor if container exists
     setTimeout(() => {
@@ -499,19 +526,67 @@ export class BPMNDesigner {
   }
 
   public addElement(type: string, x: number, y: number, skipUndo: boolean = false): string {
+    // Generate a unique ID that will be preserved
+    const id = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
     if (!skipUndo) {
-      const command = this.undoRedoManager.createAddElementCommand(type, x, y);
+      // Pass the ID to the command creator
+      const command = this.undoRedoManager.createAddElementCommandWithId(type, x, y, id);
       this.undoRedoManager.executeCommand(command);
-      // Get the ID of the newly created element
-      const elements = this.elementManager.getAllElements();
-      const lastElement = elements[elements.length - 1];
-      this.render();
-      return lastElement ? lastElement.id : '';
-    } else {
-      const id = this.elementManager.addElement(type, x, y);
+      const element = this.elementManager.getElement(id);
+      
+      if (element) {
+        // Sync to moddle store
+        this.addElementToModdle(element);
+      }
+      
       this.render();
       return id;
+    } else {
+      const elementId = this.elementManager.addElement(type, x, y, id);
+      const element = this.elementManager.getElement(elementId);
+      
+      if (element) {
+        // Sync to moddle store
+        this.addElementToModdle(element);
+      }
+      
+      this.render();
+      return elementId;
     }
+  }
+  
+  /**
+   * Add element to moddle store
+   */
+  private addElementToModdle(element: BPMNElement): void {
+    const moddle = this.moddleStore.getModdle();
+    const bpmnType = this.mapSimpleTypeToModdleType(element.type);
+    
+    // Create flow element
+    const flowElement = moddle.create(bpmnType, {
+      id: element.id,
+      name: element.label
+    });
+    
+    // Add without notifying to avoid sync loops
+    this.moddleStore.addFlowElement(flowElement, false);
+    
+    // Create shape
+    const shape = moddle.create('bpmndi:BPMNShape', {
+      id: `${element.id}_di`,
+      bpmnElement: flowElement
+    });
+    
+    shape.bounds = moddle.create('dc:Bounds', {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height
+    });
+    
+    // Add without notifying to avoid sync loops
+    this.moddleStore.addShape(shape, false);
   }
 
   public addConnection(sourceId: string, targetId: string, skipUndo: boolean = false): string | null {
@@ -520,24 +595,72 @@ export class BPMNDesigner {
     
     if (!source || !target) return null;
     
+    // Generate a unique ID that will be preserved
+    const id = `Flow_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
     if (!skipUndo) {
-      const command = this.undoRedoManager.createAddConnectionCommand(sourceId, targetId);
+      const command = this.undoRedoManager.createAddConnectionCommandWithId(sourceId, targetId, id);
       this.undoRedoManager.executeCommand(command);
       this.render();
-      // Get the last connection ID
-      const connections = this.connectionManager.getAllConnections();
-      return connections.length > 0 ? connections[connections.length - 1].id : null;
-    } else {
-      const id = this.connectionManager.addConnection(sourceId, targetId);
       const connection = this.connectionManager.getConnection(id);
       
       if (connection) {
+        // Sync to moddle store
+        this.addConnectionToModdle(connection);
+      }
+      
+      return id;
+    } else {
+      const connectionId = this.connectionManager.addConnection(sourceId, targetId, id);
+      const connection = this.connectionManager.getConnection(connectionId);
+      
+      if (connection) {
         this.connectionManager.updateConnectionWaypoints(connection, source, target);
+        // Sync to moddle store
+        this.addConnectionToModdle(connection);
         this.render();
-        return id;
+        return connectionId;
       }
       
       return null;
+    }
+  }
+  
+  /**
+   * Add connection to moddle store
+   */
+  private addConnectionToModdle(connection: Connection): void {
+    const moddle = this.moddleStore.getModdle();
+    const process = this.moddleStore.getProcess();
+    
+    // Find source and target elements in moddle
+    const sourceElement = process.flowElements?.find((e: any) => e.id === connection.source);
+    const targetElement = process.flowElements?.find((e: any) => e.id === connection.target);
+    
+    if (sourceElement && targetElement) {
+      // Create sequence flow
+      const sequenceFlow = moddle.create('bpmn:SequenceFlow', {
+        id: connection.id,
+        sourceRef: sourceElement,
+        targetRef: targetElement,
+        name: connection.label
+      });
+      
+      // Add without notifying to avoid sync loops
+      this.moddleStore.addFlowElement(sequenceFlow, false);
+      
+      // Create edge
+      const edge = moddle.create('bpmndi:BPMNEdge', {
+        id: `${connection.id}_di`,
+        bpmnElement: sequenceFlow
+      });
+      
+      edge.waypoint = connection.waypoints.map(wp => 
+        moddle.create('dc:Point', { x: wp.x, y: wp.y })
+      );
+      
+      // Add without notifying to avoid sync loops
+      this.moddleStore.addEdge(edge, false);
     }
   }
 
@@ -563,9 +686,9 @@ export class BPMNDesigner {
     if (this.propertyEditor) {
       this.propertyEditor.clear();
     }
-    this.hidePropertiesPanel();
+    // Show deployment panel when nothing is selected
+    this.showDeploymentPanel();
   }
-  
   private showPropertiesPanel(): void {
     const panel = document.querySelector('.properties-panel');
     if (panel) {
@@ -577,6 +700,175 @@ export class BPMNDesigner {
     const panel = document.querySelector('.properties-panel');
     if (panel) {
       panel.classList.remove('visible');
+    }
+  }
+  
+  private handleSelectionChange(): void {
+    // Placeholder for multi-selection handling
+    const selectedElements = new Set();
+    const selectedConnections = new Set();
+    
+    if (selectedElements.size > 0) {
+      // Show properties panel with multi-selection info
+      this.showPropertiesPanel();
+      if (this.propertyEditor) {
+        // For now, show count of selected elements
+        const propertiesContent = document.getElementById('properties-content');
+        if (propertiesContent) {
+          propertiesContent.innerHTML = `
+            <div style="padding: 16px;">
+              <h3>Multiple Selection</h3>
+              <p>${selectedElements.size} elements selected</p>
+              <p>${selectedConnections.size} connections selected</p>
+              <p style="color: #666; font-size: 12px; margin-top: 16px;">
+                • Use Ctrl/Cmd+Click to add/remove elements<br>
+                • Use Shift+Drag to select area<br>
+                • Press Delete to remove all selected<br>
+                • Drag any selected element to move all
+              </p>
+            </div>
+          `;
+        }
+      }
+    } else {
+      this.hidePropertiesPanel();
+    }
+    
+    // Re-render to update visual states
+    this.render();
+  }
+  
+  private async handleDeploy(): Promise<void> {
+    try {
+      // Export BPMN XML from moddle store
+      const bpmnXml = await this.moddleStore.toXML(true);
+      
+      // Get deployment ID
+      const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement;
+      const deploymentId = deploymentInput?.value || this.configManager.getDeploymentId();
+      
+      if (!deploymentId) {
+        alert('Please enter a deployment ID');
+        return;
+      }
+      
+      // Show loading state
+      const deployButton = document.getElementById('deploy-from-panel') as HTMLButtonElement;
+      const originalText = deployButton?.textContent || '';
+      if (deployButton) {
+        deployButton.disabled = true;
+        deployButton.textContent = 'Deploying...';
+      }
+      
+      // Deploy
+      const result = await this.deploymentService.deploy(bpmnXml, deploymentId);
+      
+      // Show result
+      if (result.success) {
+        alert(`✅ Deployment successful!\n\n${result.message}`);
+      } else {
+        alert(`❌ Deployment failed!\n\n${result.message}`);
+      }
+      
+      // Restore button state
+      if (deployButton) {
+        deployButton.disabled = false;
+        deployButton.textContent = originalText;
+      }
+    } catch (error) {
+      console.error('Deployment error:', error);
+      alert(`❌ Deployment failed!\n\n${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Restore button state
+      const deployButton = document.getElementById('deploy-from-panel') as HTMLButtonElement;
+      if (deployButton) {
+        deployButton.disabled = false;
+        deployButton.textContent = '🚀 Deploy to Engine';
+      }
+    }
+  }
+  
+  private showDeploymentPanel(): void {
+    const panel = document.querySelector('.properties-panel');
+    if (panel) {
+      panel.classList.add('visible');
+      const content = document.getElementById('properties-content');
+      if (content) {
+        content.innerHTML = `
+          <div style="padding: 16px;">
+            <h3>Deployment Settings</h3>
+            <div style="margin-top: 20px;">
+              <label style="display: block; font-size: 13px; color: #555; margin-bottom: 5px;">Deployment ID:</label>
+              <input 
+                type="text" 
+                id="deployment-id-input" 
+                placeholder="Enter deployment ID" 
+                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                value=""
+              />
+              <small style="display: block; margin-top: 5px; font-size: 11px; color: #999;">Unique identifier for this deployment</small>
+            </div>
+            <div style="margin-top: 20px;">
+              <label style="display: block; font-size: 13px; color: #555; margin-bottom: 5px;">Engine URL:</label>
+              <input 
+                type="text" 
+                id="engine-url-display" 
+                readonly
+                style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; background: #f5f5f5; color: #666;"
+                value=""
+              />
+              <small style="display: block; margin-top: 5px; font-size: 11px; color: #999;">Configure in settings</small>
+            </div>
+            <div style="margin-top: 25px;">
+              <button 
+                id="deploy-from-panel" 
+                style="width: 100%; padding: 10px; background: #4caf50; color: white; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor: pointer;"
+              >
+                🚀 Deploy to Engine
+              </button>
+            </div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+              <p style="font-size: 12px; color: #666; line-height: 1.6;">
+                <strong>Quick Tips:</strong><br>
+                • Use Shift+Drag to select multiple elements<br>
+                • Right-click for context menus<br>
+                • Drag from palette to add new elements<br>
+                • Alt+Shift+Drag to create connections
+              </p>
+            </div>
+          </div>
+        `;
+        
+        // Set the values from configuration
+        const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement;
+        const engineUrlDisplay = document.getElementById('engine-url-display') as HTMLInputElement;
+        const deployButton = document.getElementById('deploy-from-panel') as HTMLButtonElement;
+        
+        if (this.configManager) {
+          if (deploymentInput) {
+            deploymentInput.value = this.configManager.getDeploymentId() || this.configManager.getLastUsedDeploymentId() || '';
+          }
+          if (engineUrlDisplay) {
+            engineUrlDisplay.value = this.configManager.getEngineUrl();
+          }
+        }
+        
+        // Add event listeners
+        if (deploymentInput) {
+          deploymentInput.addEventListener('input', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            if (this.configManager) {
+              this.configManager.setDeploymentId(value);
+            }
+          });
+        }
+        
+        if (deployButton) {
+          deployButton.addEventListener('click', () => {
+            this.handleDeploy();
+          });
+        }
+      }
     }
   }
   
@@ -708,6 +1000,401 @@ export class BPMNDesigner {
   public getZoom(): number {
     return this.zoom;
   }
+  
+  /**
+   * Import BPMN from XML string
+   */
+  public async importFromXML(xml: string): Promise<void> {
+    // Load XML into moddle store
+    await this.moddleStore.loadFromXML(xml);
+    
+    // Manually sync from moddle to designer
+    this.syncFromModdle();
+  }
+  
+  /**
+   * Sync from moddle store to designer
+   */
+  private syncFromModdle(): void {
+    // Get all flow elements from moddle
+    const flowElements = this.moddleStore.getAllFlowElements();
+    const shapes = this.moddleStore.getAllShapes();
+    const edges = this.moddleStore.getAllEdges();
+    
+    // Create maps of current elements for comparison
+    const currentElements = new Map<string, BPMNElement>();
+    this.elementManager.getAllElements().forEach(elem => {
+      currentElements.set(elem.id, elem);
+    });
+    
+    const currentConnections = new Map<string, Connection>();
+    this.connectionManager.getAllConnections().forEach(conn => {
+      currentConnections.set(conn.id, conn);
+    });
+    
+    // Track which elements and connections are still in moddle
+    const activeElementIds = new Set<string>();
+    const activeConnectionIds = new Set<string>();
+    
+    // Create shape map for quick lookup
+    const shapeMap = new Map();
+    shapes.forEach(shape => {
+      if (shape.bpmnElement) {
+        shapeMap.set(shape.bpmnElement.id, shape);
+      }
+    });
+    
+    // Update or add flow elements (excluding sequence flows)
+    flowElements.forEach(element => {
+      if (element.$type !== 'bpmn:SequenceFlow') {
+        activeElementIds.add(element.id);
+        const shape = shapeMap.get(element.id);
+        
+        if (shape?.bounds) {
+          const existingElement = currentElements.get(element.id);
+          const type = this.mapModdleTypeToSimpleType(element.$type);
+          
+          if (existingElement) {
+            // Update existing element
+            existingElement.type = type;
+            existingElement.x = shape.bounds.x;
+            existingElement.y = shape.bounds.y;
+            existingElement.width = shape.bounds.width;
+            existingElement.height = shape.bounds.height;
+            existingElement.label = element.name || '';
+          } else {
+            // Create new element with preserved ID
+            const bpmnElement: BPMNElement = {
+              id: element.id,
+              type: type,
+              x: shape.bounds.x,
+              y: shape.bounds.y,
+              width: shape.bounds.width,
+              height: shape.bounds.height,
+              label: element.name || '',
+              properties: {}
+            };
+            
+            // Add element with its original ID
+            this.elementManager.setElement(bpmnElement);
+          }
+        }
+      }
+    });
+    
+    // Update or add sequence flows
+    flowElements.forEach(element => {
+      if (element.$type === 'bpmn:SequenceFlow') {
+        activeConnectionIds.add(element.id);
+        const sourceId = element.sourceRef?.id;
+        const targetId = element.targetRef?.id;
+        
+        if (sourceId && targetId) {
+          const existingConnection = currentConnections.get(element.id);
+          const edge = edges.find((e: any) => e.bpmnElement?.id === element.id);
+          
+          if (existingConnection) {
+            // Update existing connection
+            existingConnection.source = sourceId;
+            existingConnection.target = targetId;
+            existingConnection.waypoints = edge?.waypoint ? 
+              edge.waypoint.map((wp: any) => ({ x: wp.x, y: wp.y })) : 
+              existingConnection.waypoints;
+            existingConnection.label = element.name || '';
+          } else {
+            // Create new connection with preserved ID
+            const connection: Connection = {
+              id: element.id,
+              source: sourceId,
+              target: targetId,
+              waypoints: edge?.waypoint ? 
+                edge.waypoint.map((wp: any) => ({ x: wp.x, y: wp.y })) : [],
+              label: element.name || ''
+            };
+            
+            // Add connection with its original ID
+            this.connectionManager.setConnection(connection);
+          }
+        }
+      }
+    });
+    
+    // Remove elements that no longer exist in moddle
+    currentElements.forEach((elem, id) => {
+      if (!activeElementIds.has(id)) {
+        this.elementManager.deleteElement(id);
+      }
+    });
+    
+    // Remove connections that no longer exist in moddle
+    currentConnections.forEach((conn, id) => {
+      if (!activeConnectionIds.has(id)) {
+        this.connectionManager.deleteConnection(id);
+      }
+    });
+    
+    // Re-render the designer
+    this.render();
+  }
+  
+  /**
+   * Sync from designer to moddle store
+   */
+  private syncToModdle(): void {
+    const moddle = this.moddleStore.getModdle();
+    const process = this.moddleStore.getProcess();
+    const plane = this.moddleStore.getPlane();
+    
+    // Create maps of existing elements for comparison
+    const existingFlowElements = new Map();
+    const existingShapes = new Map();
+    const existingEdges = new Map();
+    
+    // Map existing flow elements
+    (process.flowElements || []).forEach((elem: any) => {
+      existingFlowElements.set(elem.id, elem);
+    });
+    
+    // Map existing shapes and edges
+    (plane.planeElement || []).forEach((elem: any) => {
+      if (elem.$type === 'bpmndi:BPMNShape') {
+        existingShapes.set(elem.bpmnElement?.id, elem);
+      } else if (elem.$type === 'bpmndi:BPMNEdge') {
+        existingEdges.set(elem.bpmnElement?.id, elem);
+      }
+    });
+    
+    // Track which elements are still in use
+    const usedElementIds = new Set<string>();
+    const usedConnectionIds = new Set<string>();
+    
+    // Update or add elements
+    this.elementManager.getAllElements().forEach(element => {
+      usedElementIds.add(element.id);
+      
+      // Check if element already exists in moddle
+      let flowElement = existingFlowElements.get(element.id);
+      let shape = existingShapes.get(element.id);
+      
+      if (flowElement) {
+        // Update existing element
+        flowElement.name = element.label;
+      } else {
+        // Create new element
+        const bpmnType = this.mapSimpleTypeToModdleType(element.type);
+        flowElement = moddle.create(bpmnType, {
+          id: element.id,
+          name: element.label
+        });
+        process.flowElements.push(flowElement);
+      }
+      
+      if (shape) {
+        // Update existing shape bounds
+        if (!shape.bounds) {
+          shape.bounds = moddle.create('dc:Bounds');
+        }
+        shape.bounds.x = element.x;
+        shape.bounds.y = element.y;
+        shape.bounds.width = element.width;
+        shape.bounds.height = element.height;
+      } else {
+        // Create new shape
+        shape = moddle.create('bpmndi:BPMNShape', {
+          id: `${element.id}_di`,
+          bpmnElement: flowElement
+        });
+        
+        shape.bounds = moddle.create('dc:Bounds', {
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height
+        });
+        
+        plane.planeElement.push(shape);
+      }
+    });
+    
+    // Update or add connections
+    this.connectionManager.getAllConnections().forEach(connection => {
+      usedConnectionIds.add(connection.id);
+      
+      // Check if connection already exists
+      let sequenceFlow = existingFlowElements.get(connection.id);
+      let edge = existingEdges.get(connection.id);
+      
+      const sourceElement = existingFlowElements.get(connection.source) || 
+                           process.flowElements.find((e: any) => e.id === connection.source);
+      const targetElement = existingFlowElements.get(connection.target) || 
+                           process.flowElements.find((e: any) => e.id === connection.target);
+      
+      if (sourceElement && targetElement) {
+        if (sequenceFlow) {
+          // Update existing sequence flow
+          sequenceFlow.sourceRef = sourceElement;
+          sequenceFlow.targetRef = targetElement;
+          sequenceFlow.name = connection.label;
+        } else {
+          // Create new sequence flow
+          sequenceFlow = moddle.create('bpmn:SequenceFlow', {
+            id: connection.id,
+            sourceRef: sourceElement,
+            targetRef: targetElement,
+            name: connection.label
+          });
+          process.flowElements.push(sequenceFlow);
+        }
+        
+        if (edge) {
+          // Update existing edge waypoints
+          edge.waypoint = connection.waypoints.map(wp => 
+            moddle.create('dc:Point', { x: wp.x, y: wp.y })
+          );
+        } else {
+          // Create new edge
+          edge = moddle.create('bpmndi:BPMNEdge', {
+            id: `${connection.id}_di`,
+            bpmnElement: sequenceFlow
+          });
+          
+          edge.waypoint = connection.waypoints.map(wp => 
+            moddle.create('dc:Point', { x: wp.x, y: wp.y })
+          );
+          
+          plane.planeElement.push(edge);
+        }
+      }
+    });
+    
+    // Remove elements that no longer exist
+    process.flowElements = process.flowElements.filter((elem: any) => {
+      if (elem.$type === 'bpmn:SequenceFlow') {
+        return usedConnectionIds.has(elem.id);
+      } else {
+        return usedElementIds.has(elem.id);
+      }
+    });
+    
+    // Remove shapes and edges that no longer exist
+    plane.planeElement = plane.planeElement.filter((elem: any) => {
+      if (elem.$type === 'bpmndi:BPMNShape') {
+        return usedElementIds.has(elem.bpmnElement?.id);
+      } else if (elem.$type === 'bpmndi:BPMNEdge') {
+        return usedConnectionIds.has(elem.bpmnElement?.id);
+      }
+      return true;
+    });
+  }
+  
+  /**
+   * Map moddle type to simple type
+   */
+  private mapModdleTypeToSimpleType(moddleType: string): string {
+    const mapping: Record<string, string> = {
+      'bpmn:StartEvent': 'startEvent',
+      'bpmn:EndEvent': 'endEvent',
+      'bpmn:Task': 'task',
+      'bpmn:UserTask': 'userTask',
+      'bpmn:ServiceTask': 'serviceTask',
+      'bpmn:ScriptTask': 'scriptTask',
+      'bpmn:ExclusiveGateway': 'exclusiveGateway',
+      'bpmn:ParallelGateway': 'parallelGateway'
+    };
+    return mapping[moddleType] || 'task';
+  }
+  
+  /**
+   * Map simple type to moddle type
+   */
+  private mapSimpleTypeToModdleType(simpleType: string): string {
+    const mapping: Record<string, string> = {
+      'startEvent': 'bpmn:StartEvent',
+      'endEvent': 'bpmn:EndEvent',
+      'task': 'bpmn:Task',
+      'userTask': 'bpmn:UserTask',
+      'serviceTask': 'bpmn:ServiceTask',
+      'scriptTask': 'bpmn:ScriptTask',
+      'exclusiveGateway': 'bpmn:ExclusiveGateway',
+      'parallelGateway': 'bpmn:ParallelGateway'
+    };
+    return mapping[simpleType] || 'bpmn:Task';
+  }
+  
+  /**
+   * Initialize the XML editor
+   */
+  public initXMLEditor(container: HTMLElement): void {
+    this.xmlEditor.init(container);
+    
+    // Set up XML change handler for syncing
+    this.xmlEditor.setOnXmlChange(async (xml: string) => {
+      // Only sync if editor is visible to avoid conflicts
+      if (this.xmlEditor.getIsVisible()) {
+        try {
+          await this.importFromXML(xml);
+        } catch (error) {
+          console.error('Error parsing XML:', error);
+          // Don't update if XML is invalid
+        }
+      }
+    });
+  }
+  
+  /**
+   * Show the designer view
+   */
+  public showDesigner(): void {
+    const canvas = document.getElementById('bpmn-canvas');
+    const xmlEditor = document.getElementById('xml-editor');
+    
+    if (canvas) canvas.style.display = 'block';
+    if (xmlEditor) xmlEditor.style.display = 'none';
+    
+    this.xmlEditor.hide();
+    this.render();
+  }
+  
+  /**
+   * Show the XML editor view
+   */
+  public async showXMLEditor(): Promise<void> {
+    const canvas = document.getElementById('bpmn-canvas');
+    const xmlEditor = document.getElementById('xml-editor');
+    
+    if (canvas) canvas.style.display = 'none';
+    if (xmlEditor) xmlEditor.style.display = 'block';
+    
+    // Sync current designer state to moddle
+    this.syncToModdle();
+    
+    // Get XML from moddle store
+    const xml = await this.moddleStore.toXML(true);
+    
+    // Update XML content and show editor
+    this.xmlEditor.updateXML(xml);
+    this.xmlEditor.show();
+  }
+  
+  /**
+   * Toggle between designer and XML views
+   */
+  public toggleView(): void {
+    if (this.xmlEditor.getIsVisible()) {
+      this.showDesigner();
+    } else {
+      this.showXMLEditor();
+    }
+  }
+  
+  /**
+   * Sync XML editor with current designer state
+   */
+  public syncXMLEditor(): void {
+    if (this.xmlEditor.getIsVisible()) {
+      this.xmlEditor.updateXML();
+    }
+  }
 
   private render(): void {
     this.renderer.clear();
@@ -729,6 +1416,9 @@ export class BPMNDesigner {
         this.renderer.renderSelection(element);
       }
     }
+    
+    // Sync with XML editor if visible
+    this.syncXMLEditor();
   }
 
   public exportSVG(): void {
@@ -742,11 +1432,12 @@ export class BPMNDesigner {
     URL.revokeObjectURL(url);
   }
   
-  public exportBPMN(): void {
-    const elements = this.elementManager.getAllElements();
-    const connections = this.connectionManager.getAllConnections();
+  public async exportBPMN(): Promise<void> {
+    // Sync current designer state to moddle
+    this.syncToModdle();
     
-    const xml = BPMNExporter.exportToXML(elements, connections);
+    // Get XML from moddle store
+    const xml = await this.moddleStore.toXML(true);
     
     const blob = new Blob([xml], { type: 'text/xml' });
     const url = URL.createObjectURL(blob);
@@ -757,29 +1448,33 @@ export class BPMNDesigner {
     URL.revokeObjectURL(url);
   }
   
-  public async importBPMN(file: File): Promise<void> {
-    const text = await file.text();
-    const { elements, connections } = await BPMNExporter.importFromXML(text);
+  public async importBPMN(file?: File): Promise<void> {
+    // If no file provided, open file dialog
+    if (!file) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.bpmn,.xml';
+      
+      input.onchange = async (e) => {
+        const target = e.target as HTMLInputElement;
+        const selectedFile = target.files?.[0];
+        if (selectedFile) {
+          await this.importBPMN(selectedFile);
+        }
+      };
+      
+      input.click();
+      return;
+    }
     
-    // Clear current diagram
-    this.clear();
-    
-    // Import elements
-    elements.forEach(element => {
-      this.elementManager.addElement(element.type, element.x, element.y);
-      // Update with full element data
-      const addedElement = Array.from(this.elementManager.getElementsMap().values()).pop();
-      if (addedElement) {
-        Object.assign(addedElement, element);
-      }
-    });
-    
-    // Import connections
-    connections.forEach(connection => {
-      this.addConnection(connection.source, connection.target);
-    });
-    
-    this.render();
+    try {
+      const text = await file.text();
+      await this.importFromXML(text);
+      console.log('BPMN file imported successfully');
+    } catch (error) {
+      console.error('Error importing BPMN file:', error);
+      alert('Error importing BPMN file. Please check the file format.');
+    }
   }
 
   // Getters for external access

@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "bpmn-moddle": "^9.0.3",
-    "moddle-xml": "^11.0.0"
+    "moddle-xml": "^11.0.0",
+    "monaco-editor": "^0.44.0"
   }
 }

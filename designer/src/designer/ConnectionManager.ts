@@ -8,17 +8,26 @@ export class ConnectionManager {
   private connections: Map<string, Connection> = new Map();
   private idCounter = 0;
 
-  addConnection(sourceId: string, targetId: string): string {
-    const id = `connection_${++this.idCounter}`;
+  addConnection(sourceId: string, targetId: string, id?: string): string {
+    // Use provided ID or generate new one
+    const connectionId = id || `connection_${++this.idCounter}`;
+    
     const connection: Connection = {
-      id,
+      id: connectionId,
       source: sourceId,
       target: targetId,
       waypoints: []
     };
     
-    this.connections.set(id, connection);
-    return id;
+    this.connections.set(connectionId, connection);
+    return connectionId;
+  }
+  
+  /**
+   * Set connection with all properties preserved
+   */
+  setConnection(connection: Connection): void {
+    this.connections.set(connection.id, connection);
   }
 
   getConnection(id: string): Connection | undefined {
