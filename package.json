@@ -26,6 +26,7 @@
     "@fastify/cors": "^11.1.0",
     "@fastify/multipart": "^9.2.1",
     "@fastify/swagger": "^9.5.2",
+    "@fastify/swagger-ui": "^5.2.3",
     "@gquittet/graceful-server": "^3.0.0",
     "ajv": "^8.11.0",
     "axios": "1.11.0",

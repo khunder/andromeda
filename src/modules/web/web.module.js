@@ -3,6 +3,7 @@ import path from "path";
 import fastify from "fastify";
 import GracefulServer from "@gquittet/graceful-server";
 import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUI from "@fastify/swagger-ui";
 import fastifyCors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import autoload from "@fastify/autoload";
@@ -59,14 +60,27 @@ export class WebModule {
             exposedHeaders: ['*']
         });
 
+        // Register the OpenAPI spec (served as JSON)
         this.app.register(fastifySwagger, {
             mode: "static",
-            routePrefix: '/api',
             hideUntagged: true,
             openapi: '3.0.3',
             specification: {
-                path: './specification.yaml'
+                // Resolve from the running container directory so it works in generated deployments
+                path: path.resolve(process.cwd(), 'specification.yaml')
+            }
+        })
+
+        // Serve the Swagger UI at /api
+        this.app.register(fastifySwaggerUI, {
+            routePrefix: '/api',
+            uiConfig: {
+                docExpansion: 'none',
+                deepLinking: false
             },
+            staticCSP: true,
+            transformStaticCSP: (header) => header,
+            // ensure route is exposed
             exposeRoute: true
         })
 
@@ -121,9 +135,10 @@ export class WebModule {
         return new Promise((async (resolve, reject) => {
             try {
                 await this.app.listen({ port: this.port, host: this.host })
+                // Ensure the swagger JSON is generated and ready
                 await this.app.swagger()
                 let startCompleted = new Date().getUTCMilliseconds();
-                Logger.info(`Engine started in ${startCompleted - startTime} ms, (${Config.getInstance().environment} mode)`)
+                Logger.info(`Engine started to listen at port ${this.port}, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
                 resolve(this.app);
             } catch (err) {

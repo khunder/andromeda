@@ -11,7 +11,7 @@ export interface EngineConfiguration {
 
 export class ConfigurationManager {
   private static readonly STORAGE_KEY = 'bpmn-designer-config';
-  private static readonly DEFAULT_ENGINE_URL = '';
+  private static readonly DEFAULT_ENGINE_URL = 'http://127.0.0.1:5000';
   
   private config: EngineConfiguration;
   
@@ -112,10 +112,10 @@ export class ConfigurationManager {
    */
   getCompileEndpoint(): string {
     // If no URL is configured, use relative path for Vite proxy
-    if (!this.config.url || this.config.url === ConfigurationManager.DEFAULT_ENGINE_URL) {
-      return '/api/compile';
-    }
+    // if (!this.config.url || this.config.url === ConfigurationManager.DEFAULT_ENGINE_URL) {
+    //   return '/api/compile';
+    // }
     const baseUrl = this.config.url.replace(/\/$/, ''); // Remove trailing slash
-    return `${baseUrl}/api/compile`;
+    return `http://127.0.0.1:5000/api/compile`;
   }
 }
