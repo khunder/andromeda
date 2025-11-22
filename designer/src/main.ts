@@ -102,6 +102,14 @@ function setupToolbar(designer: BPMNDesigner) {
       await (designer as any).handleDeploy();
     });
   }
+
+  // Run Embedded button
+  const btnRun = document.getElementById('btn-run-embedded');
+  if (btnRun) {
+    btnRun.addEventListener('click', async () => {
+      await (designer as any).runEmbedded();
+    });
+  }
   
   // View switcher buttons
   const btnDesignerView = document.getElementById('btn-designer-view');

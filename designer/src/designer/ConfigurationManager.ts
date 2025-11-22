@@ -111,11 +111,12 @@ export class ConfigurationManager {
    * Get full API endpoint for compilation
    */
   getCompileEndpoint(): string {
-    // If no URL is configured, use relative path for Vite proxy
-    // if (!this.config.url || this.config.url === ConfigurationManager.DEFAULT_ENGINE_URL) {
-    //   return '/api/compile';
-    // }
-    const baseUrl = this.config.url.replace(/\/$/, ''); // Remove trailing slash
-    return `http://127.0.0.1:5000/api/compile`;
+    const baseUrl = (this.config.url || ConfigurationManager.DEFAULT_ENGINE_URL).replace(/\/$/, '');
+    return `${baseUrl}/api/compile`;
+  }
+
+  getRunEmbeddedEndpoint(): string {
+    const baseUrl = (this.config.url || ConfigurationManager.DEFAULT_ENGINE_URL).replace(/\/$/, '');
+    return `${baseUrl}/api/run-embedded`;
   }
 }

@@ -788,6 +788,25 @@ export class BPMNDesigner {
     }
   }
   
+  public async runEmbedded(): Promise<void> {
+    try {
+      const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement;
+      const deploymentId = deploymentInput?.value || this.configManager.getDeploymentId();
+      if (!deploymentId) {
+        alert('Please enter a deployment ID');
+        return;
+      }
+      const result = await this.deploymentService.runEmbedded(deploymentId);
+      if (result.success) {
+        alert(`▶️ Run embedded started for ${deploymentId}`);
+      } else {
+        alert(`❌ ${result.message}`);
+      }
+    } catch (e) {
+      alert(`❌ ${(e as Error).message}`);
+    }
+  }
+
   private showDeploymentPanel(): void {
     const panel = document.querySelector('.properties-panel');
     if (panel) {

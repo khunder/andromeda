@@ -66,3 +66,5 @@ typings/
 /deployments/*
 
 /package-lock.json
+
+/.pid_[0-9]*

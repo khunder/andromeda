@@ -61,7 +61,7 @@ export class ConfigurationPanel {
             <h3>Andromeda Engine Settings</h3>
             <div class="config-field">
               <label for="engine-url">Engine URL:</label>
-              <input type="text" id="engine-url" placeholder="http://localhost:5000" value="${this.configManager.getEngineUrl()}">
+              <input type="text" id="engine-url" placeholder="http://127.0.0.1:5000" value="${this.configManager.getEngineUrl()}">
               <small>The base URL of your Andromeda engine instance</small>
             </div>
             <div class="config-field">

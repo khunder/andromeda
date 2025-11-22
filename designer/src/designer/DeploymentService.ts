@@ -17,6 +17,34 @@ export class DeploymentService {
   constructor(configManager: ConfigurationManager) {
     this.configManager = configManager;
   }
+
+  async runEmbedded(deploymentId: string): Promise<DeploymentResult> {
+    const endpoint = this.configManager.getRunEmbeddedEndpoint();
+    try {
+      const formData = new FormData();
+      formData.append('deploymentId', deploymentId);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+        mode: 'cors',
+        headers: {
+          'Accept': '*/*',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        return { success: true, message: `Run embedded triggered for ${deploymentId}` };
+      } else {
+        const errorText = await response.text();
+        return { success: false, message: `Run embedded failed (HTTP ${response.status}): ${errorText}` };
+      }
+    } catch (error) {
+      return { success: false, message: `Run embedded failed: ${error instanceof Error ? error.message : 'Unknown error'}`, details: error };
+    }
+  }
   
   /**
    * Deploy BPMN XML to the Andromeda engine
