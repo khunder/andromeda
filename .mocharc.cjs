@@ -13,4 +13,4 @@ module.exports = {
     ],
     "inline-diffs": false,
     "ui": "bdd"
-}
+} 

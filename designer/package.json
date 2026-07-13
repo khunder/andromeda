@@ -36,6 +36,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "bpmn-js": "^18.21.0",
     "bpmn-moddle": "^9.0.3",
     "moddle-xml": "^11.0.0",
     "monaco-editor": "^0.44.0"

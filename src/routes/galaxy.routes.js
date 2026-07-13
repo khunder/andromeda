@@ -5,17 +5,10 @@ import {AndromedaLogger} from "../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 function route (fastify, opts, next) {
-
-    if(Config.getInstance().activateModules.filter(e=> e === constants.GALAXY).length > 0) {
-        Logger.info(`Activating Galaxy module routes`);
-        fastify.route(
-            {
-                method: 'GET',
-                url: '/processinstance',
-                handler: GalaxyController.getProcessInstances,
-            }
-        )
-    }
+    Logger.info(`Activating Galaxy module routes`);
+    fastify.route({ method: 'POST', url: '/galaxy/heartbeat', handler: GalaxyController.heartbeat })
+    fastify.route({ method: 'GET', url: '/galaxy/containers', handler: GalaxyController.listContainers })
+    fastify.route({ method: 'POST', url: '/galaxy/clear', handler: GalaxyController.clearRegistry })
     next();
 }
 

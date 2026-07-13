@@ -5,6 +5,7 @@
 
 export interface EngineConfiguration {
   url: string;
+  galaxyUrl?: string;
   deploymentId?: string;
   lastUsedDeploymentId?: string;
 }
@@ -12,6 +13,7 @@ export interface EngineConfiguration {
 export class ConfigurationManager {
   private static readonly STORAGE_KEY = 'bpmn-designer-config';
   private static readonly DEFAULT_ENGINE_URL = 'http://127.0.0.1:5000';
+  private static readonly DEFAULT_GALAXY_URL = 'http://127.0.0.1:5001';
   
   private config: EngineConfiguration;
   
@@ -30,7 +32,8 @@ export class ConfigurationManager {
         return {
           url: parsed.url || ConfigurationManager.DEFAULT_ENGINE_URL,
           deploymentId: parsed.deploymentId,
-          lastUsedDeploymentId: parsed.lastUsedDeploymentId
+          lastUsedDeploymentId: parsed.lastUsedDeploymentId,
+          galaxyUrl: parsed.galaxyUrl || ConfigurationManager.DEFAULT_GALAXY_URL
         };
       }
     } catch (error) {
@@ -40,7 +43,8 @@ export class ConfigurationManager {
     return {
       url: ConfigurationManager.DEFAULT_ENGINE_URL,
       deploymentId: '',
-      lastUsedDeploymentId: ''
+      lastUsedDeploymentId: '',
+      galaxyUrl: ConfigurationManager.DEFAULT_GALAXY_URL
     };
   }
   
@@ -102,8 +106,17 @@ export class ConfigurationManager {
     this.config = {
       url: ConfigurationManager.DEFAULT_ENGINE_URL,
       deploymentId: '',
-      lastUsedDeploymentId: this.config.lastUsedDeploymentId
+      lastUsedDeploymentId: this.config.lastUsedDeploymentId,
+      galaxyUrl: ConfigurationManager.DEFAULT_GALAXY_URL
     };
+    this.saveConfiguration();
+  }
+
+  getGalaxyUrl(): string {
+    return this.config.galaxyUrl || ConfigurationManager.DEFAULT_GALAXY_URL;
+  }
+  setGalaxyUrl(url: string): void {
+    this.config.galaxyUrl = url || ConfigurationManager.DEFAULT_GALAXY_URL;
     this.saveConfiguration();
   }
   
@@ -120,3 +133,4 @@ export class ConfigurationManager {
     return `${baseUrl}/api/run-embedded`;
   }
 }
+

@@ -46,6 +46,10 @@ export class App {
             await this.initServerModule();
         }
 
+        if (Utils.moduleIsActive(constants.GALAXY)) {
+            await this.initGalaxyModule();
+        }
+
         await this.executePromisesSequentially(this.modules);
     }
 
@@ -78,6 +82,17 @@ export class App {
             let webModule = new web.WebModule(this.host, this.port);
             this.modules.push(webModule.start.bind(webModule));
         } catch (e) {
+            Logger.error(e)
+        }
+    }
+
+    async initGalaxyModule(){
+        try{
+            Logger.debug(`loading galaxy module`)
+            const g = await import('./src/modules/galaxy/galaxy.module.js');
+            const galaxy = new g.GalaxyModule();
+            this.modules.push(galaxy.start.bind(galaxy));
+        }catch(e){
             Logger.error(e)
         }
     }

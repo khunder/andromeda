@@ -69,6 +69,11 @@ export class ConfigurationPanel {
               <input type="text" id="default-deployment-id" placeholder="my-deployment" value="${this.configManager.getDeploymentId()}">
               <small>Default ID to use for deployments (can be changed per deployment)</small>
             </div>
+            <div class="config-field">
+              <label for="galaxy-url">Galaxy URL (optional):</label>
+              <input type="text" id="galaxy-url" placeholder="http://127.0.0.1:5001" value="${(this.configManager as any).getGalaxyUrl()}">
+              <small>Galaxy service base URL for container registry</small>
+            </div>
           </div>
           <div class="config-section">
             <h3>Connection Test</h3>
@@ -153,6 +158,7 @@ export class ConfigurationPanel {
     
     const urlInput = this.modal.querySelector('#engine-url') as HTMLInputElement;
     const deploymentIdInput = this.modal.querySelector('#default-deployment-id') as HTMLInputElement;
+    const galaxyUrlInput = this.modal.querySelector('#galaxy-url') as HTMLInputElement;
     
     if (urlInput) {
       this.configManager.setEngineUrl(urlInput.value);
@@ -160,6 +166,9 @@ export class ConfigurationPanel {
     
     if (deploymentIdInput) {
       this.configManager.setDeploymentId(deploymentIdInput.value);
+    }
+    if (galaxyUrlInput) {
+      (this.configManager as any).setGalaxyUrl(galaxyUrlInput.value);
     }
     
     this.hide();

@@ -1,6 +1,8 @@
 import { BPMNDesigner } from './designer';
-import { ElementRegistryUI } from './designer/ElementRegistryUI';
 import './style.css';
+import 'bpmn-js/dist/assets/diagram-js.css';
+import 'bpmn-js/dist/assets/bpmn-js.css';
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
 
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -36,7 +38,7 @@ function setupToolbar(designer: BPMNDesigner) {
   const btnUndo = document.getElementById('btn-undo');
   if (btnUndo) {
     btnUndo.addEventListener('click', () => {
-      (designer as any).undoRedoManager?.undo();
+      designer.undo();
     });
   }
   
@@ -44,23 +46,14 @@ function setupToolbar(designer: BPMNDesigner) {
   const btnRedo = document.getElementById('btn-redo');
   if (btnRedo) {
     btnRedo.addEventListener('click', () => {
-      (designer as any).undoRedoManager?.redo();
+      designer.redo();
     });
   }
   
-  // Register element button
+  // BPMN.io owns the palette/modeling stack, so the old custom registry UI is hidden.
   const btnRegister = document.getElementById('btn-register-element');
   if (btnRegister) {
-    btnRegister.addEventListener('click', () => {
-      const registryUI = new ElementRegistryUI(
-        designer.getElementRegistry(),
-        () => {
-          // Refresh palette event handlers
-          setupPalette(designer);
-        }
-      );
-      registryUI.show();
-    });
+    btnRegister.style.display = 'none';
   }
   
   // Export SVG button
@@ -95,7 +88,7 @@ function setupToolbar(designer: BPMNDesigner) {
     });
   }
   
-  // Deploy button
+  // Deploy button (label shows "Compile")
   const btnDeploy = document.getElementById('btn-deploy');
   if (btnDeploy) {
     btnDeploy.addEventListener('click', async () => {
@@ -108,6 +101,14 @@ function setupToolbar(designer: BPMNDesigner) {
   if (btnRun) {
     btnRun.addEventListener('click', async () => {
       await (designer as any).runEmbedded();
+    });
+  }
+
+  // Galaxy button
+  const btnGalaxy = document.getElementById('btn-galaxy');
+  if (btnGalaxy) {
+    btnGalaxy.addEventListener('click', () => {
+      (designer as any).showGalaxyPanel();
     });
   }
   
@@ -209,3 +210,4 @@ function setupPalette(designer: BPMNDesigner) {
 
 // Export designer class for use in other modules
 export { BPMNDesigner };
+

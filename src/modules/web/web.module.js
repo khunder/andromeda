@@ -140,11 +140,34 @@ export class WebModule {
                 let startCompleted = new Date().getUTCMilliseconds();
                 Logger.info(`Engine started to listen at port ${this.port}, (${Config.getInstance().environment} mode)`)
                 this.gracefulServer.setReady()
+                this.startGalaxyHeartbeat();
                 resolve(this.app);
             } catch (err) {
                 Logger.error(err)
                 reject(err)
             }
         }))
+    }
+
+    startGalaxyHeartbeat(){
+        try{
+            const galaxyUrl = process.env.GALAXY_URL || Config.getInstance().galaxyUrl;
+            const deploymentId = process.env.DEPLOYMENT_ID || process.env.deploymentId;
+            if(!galaxyUrl || !deploymentId){
+                return;
+            }
+            const port = this.port;
+            const send = async()=>{
+                try{
+                    await fetch(`${galaxyUrl}/galaxy/heartbeat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deploymentId, port })
+                    });
+                }catch(e){/* ignore */}
+            }
+            send();
+            this.__galaxyBeat = setInterval(send, 30000);
+        }catch(e){/* ignore */}
     }
 }

@@ -38,5 +38,8 @@ export class Config {
         this.isUnitTestMode= process.env.isUnitTestMode === "true";
         this.host= process.env.host || "127.0.0.1";
         this.port= process.env.port || "5000";
+        this.galaxyHost = process.env.GALAXY_HOST || '127.0.0.1';
+        this.galaxyPort = process.env.GALAXY_PORT || '5001';
+        this.galaxyUrl = process.env.GALAXY_URL || `http://${this.galaxyHost}:${this.galaxyPort}`;
     }
 }
