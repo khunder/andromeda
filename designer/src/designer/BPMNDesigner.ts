@@ -3,23 +3,50 @@ import { ElementRegistry } from './ElementDefinition';
 import { ConfigurationManager } from './ConfigurationManager';
 import { ConfigurationPanel } from './ConfigurationPanel';
 import { DeploymentService } from './DeploymentService';
-import { GalaxyModal } from './GalaxyModal';
+import './GalaxyModal';
+import type { GalaxyModal } from './GalaxyModal';
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   id="Definitions_1"
                   targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="StartEvent_1" name="Start" />
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="ScriptTask_1" name="Script Task">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent_1" name="End">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="ScriptTask_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_1" targetRef="EndEvent_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
       <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
         <dc:Bounds x="156" y="96" width="36" height="36" />
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTask_1_di" bpmnElement="ScriptTask_1">
+        <dc:Bounds x="260" y="74" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="430" y="96" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="192" y="114" />
+        <di:waypoint x="260" y="114" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="114" />
+        <di:waypoint x="430" y="114" />
+      </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
@@ -167,6 +194,7 @@ export class BPMNDesigner {
     }) as BpmnModeler;
 
     this.setupPropertiesPanel();
+    this.renderPropertiesPanel(null);
 
     this.importFromXML(EMPTY_BPMN).catch((error) => {
       console.error('Failed to initialize BPMN.io modeler:', error);
@@ -343,7 +371,7 @@ export class BPMNDesigner {
   public async runEmbedded(): Promise<void> {
     try {
       const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement | null;
-      const deploymentId = deploymentInput?.value || 'process';
+      const deploymentId = deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
       const result = await this.deploymentService.runEmbedded(deploymentId);
 
       if (result.success) {
@@ -366,6 +394,7 @@ export class BPMNDesigner {
     }
 
     modal.setGalaxyUrl(this.configManager.getGalaxyUrl());
+    modal.setDeploymentService(this.deploymentService);
     void modal.load();
   }
 
@@ -395,13 +424,12 @@ export class BPMNDesigner {
       return;
     }
 
+    panel.classList.add('visible');
+
     if (!element?.businessObject || element.type === 'label') {
-      panel.classList.remove('visible');
-      content.innerHTML = '<p style="color: #999; font-size: 13px;">Select an element to view properties</p>';
+      this.renderDeploymentConfigPanel(content);
       return;
     }
-
-    panel.classList.add('visible');
 
     const businessObject = element.businessObject;
     const isScriptTask = businessObject.$type === 'bpmn:ScriptTask';
@@ -437,6 +465,50 @@ export class BPMNDesigner {
       this.bindPropertyInput('bpmn-prop-script-format', element, 'scriptFormat');
       this.bindPropertyInput('bpmn-prop-script', element, 'script');
     }
+  }
+
+  private renderDeploymentConfigPanel(content: HTMLElement): void {
+    const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
+    const defaultContainerId = definitions?.id || this.configManager.getDeploymentId();
+
+    content.innerHTML = `
+      <p style="color: #999; font-size: 12px; margin-bottom: 15px;">Select an element to edit its properties, or set your deployment defaults below.</p>
+      <div class="property-group">
+        <label>Engine URL</label>
+        <input id="bpmn-cfg-engine-url" type="text" placeholder="http://127.0.0.1:5000" value="${this.escapeHtml(this.configManager.getEngineUrl())}">
+      </div>
+      <div class="property-group">
+        <label>Container ID</label>
+        <input id="bpmn-cfg-container-id" type="text" placeholder="my-container" value="${this.escapeHtml(defaultContainerId)}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Same as the diagram's definitions id</small>
+      </div>
+      <div class="property-group">
+        <label>Galaxy URL</label>
+        <input id="bpmn-cfg-galaxy-url" type="text" placeholder="http://127.0.0.1:5001" value="${this.escapeHtml(this.configManager.getGalaxyUrl())}">
+      </div>
+    `;
+
+    this.bindConfigInput('bpmn-cfg-engine-url', (value) => this.configManager.setEngineUrl(value));
+    this.bindConfigInput('bpmn-cfg-container-id', (value) => {
+      this.configManager.setDeploymentId(value);
+      this.setDefinitionsId(value);
+    });
+    this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
+  }
+
+  private setDefinitionsId(value: string): void {
+    if (!value) {
+      return;
+    }
+    const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
+    if (definitions) {
+      definitions.id = value;
+    }
+  }
+
+  private bindConfigInput(inputId: string, apply: (value: string) => void): void {
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    input?.addEventListener('change', () => apply(input.value));
   }
 
   private bindPropertyInput(inputId: string, element: any, propertyName: string): void {

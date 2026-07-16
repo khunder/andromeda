@@ -26,6 +26,28 @@ class EmbeddedServerController {
         }
     }
 
+    static stopEmbeddedContainer = async (req, reply) => {
+
+        if(!req.body.deploymentId){
+            throw new Error("DeploymentId must be specified");
+        }
+        if(!req.body.port){
+            throw new Error("port must be specified");
+        }
+        const deploymentId = req.body.deploymentId
+        const port = req.body.port
+        try {
+            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, port);
+            return {};
+        } catch (err) {
+            const returnError = new Error();
+            returnError.statusCode = 500;
+            returnError.message = err;
+            returnError.stack=err;
+            throw returnError;
+        }
+    }
+
 }
 
 export default EmbeddedServerController

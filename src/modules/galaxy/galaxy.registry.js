@@ -15,6 +15,9 @@ class GalaxyRegistry {
   list(){
     return Array.from(this.store.values());
   }
+  remove(deploymentId, port){
+    return this.store.delete(`${deploymentId}:${port}`);
+  }
   clear(){
     this.store.clear();
   }

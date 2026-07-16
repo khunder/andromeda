@@ -7,7 +7,7 @@ import {fileURLToPath} from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-LoadDotEnvConfig({path: path.join(__dirname, '../../..', '.env' )});
+LoadDotEnvConfig({ path: path.resolve(__dirname, '../../../..', '.env') });
 const Logger = new AndromedaLogger();
 export class Config {
     mongoDbUri;

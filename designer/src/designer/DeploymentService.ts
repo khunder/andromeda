@@ -45,7 +45,31 @@ export class DeploymentService {
       return { success: false, message: `Run embedded failed: ${error instanceof Error ? error.message : 'Unknown error'}`, details: error };
     }
   }
-  
+
+  async stopEmbedded(deploymentId: string, port: number | string): Promise<DeploymentResult> {
+    const endpoint = this.configManager.getStopEmbeddedEndpoint();
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Accept': '*/*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ deploymentId, port })
+      });
+
+      if (response.ok) {
+        return { success: true, message: `Stopped ${deploymentId}` };
+      } else {
+        const errorText = await response.text();
+        return { success: false, message: `Stop failed (HTTP ${response.status}): ${errorText}` };
+      }
+    } catch (error) {
+      return { success: false, message: `Stop failed: ${error instanceof Error ? error.message : 'Unknown error'}`, details: error };
+    }
+  }
+
   /**
    * Deploy BPMN XML to the Andromeda engine
    */

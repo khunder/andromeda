@@ -33,6 +33,16 @@ class GalaxyController {
         reply.send({ ok: true });
     }
 
+    static removeContainer = async (req, reply) => {
+        const { deploymentId, port } = req.body || {};
+        if(!deploymentId || !port){
+            reply.code(400).send({ error: 'deploymentId and port are required' });
+            return;
+        }
+        galaxyRegistry.remove(deploymentId, String(port));
+        reply.send({ ok: true });
+    }
+
 
 }
 

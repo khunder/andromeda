@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node bootstrap.js",
-    "start:container:local": "dotenv -e ../../../.env ../../../node_modules/node-dev/bin/node-dev bootstrap.js"
+    "start:container:local": "node ../../node_modules/node-dev/bin/node-dev -r dotenv/config bootstrap.js dotenv_config_path=../../.env"
   },
   "author": "Zied Ben Rhouma",
   "license": "ISC",
@@ -24,3 +24,5 @@
     "mongoose": "^6.1.2"
   }
 }
+
+

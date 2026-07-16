@@ -132,5 +132,10 @@ export class ConfigurationManager {
     const baseUrl = (this.config.url || ConfigurationManager.DEFAULT_ENGINE_URL).replace(/\/$/, '');
     return `${baseUrl}/api/run-embedded`;
   }
+
+  getStopEmbeddedEndpoint(): string {
+    const baseUrl = (this.config.url || ConfigurationManager.DEFAULT_ENGINE_URL).replace(/\/$/, '');
+    return `${baseUrl}/api/stop-embedded`;
+  }
 }
 

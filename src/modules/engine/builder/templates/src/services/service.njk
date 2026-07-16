@@ -31,7 +31,7 @@ class {{ServiceClassName}} {
     static async createInstance(processInstanceId)
     {
         try{
-            const instance = new BasicScenarioProcessInstanceService(processInstanceId)
+            const instance = new {{ServiceClassName}}(processInstanceId)
             await PersistenceGateway.newProcessInstance({
                 processInstanceId: instance.processInstanceId,
                 deploymentId: Config.getInstance().deploymentId,

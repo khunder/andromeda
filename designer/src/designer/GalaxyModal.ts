@@ -1,7 +1,9 @@
+import { DeploymentService } from './DeploymentService';
 
 export class GalaxyModal extends HTMLElement {
     private shadow: ShadowRoot;
     private galaxyUrl: string = '';
+    private deploymentService: DeploymentService | null = null;
     private items: any[] = [];
 
     constructor() {
@@ -16,6 +18,10 @@ export class GalaxyModal extends HTMLElement {
 
     setGalaxyUrl(url: string) {
         this.galaxyUrl = url;
+    }
+
+    setDeploymentService(deploymentService: DeploymentService) {
+        this.deploymentService = deploymentService;
     }
 
     async load() {
@@ -51,8 +57,11 @@ export class GalaxyModal extends HTMLElement {
                             <div class="item-id"><strong>${i.deploymentId}</strong></div>
                             <div class="item-meta">port: ${i.port} • lastSeen: ${new Date(i.lastSeen).toLocaleTimeString()}</div>
                         </div>
-                        <div class="item-status status-${i.status === 'ready' ? 'ready' : 'error'}">
-                            ${i.status || 'unknown'}
+                        <div class="item-actions">
+                            <div class="item-status status-${i.status === 'ready' ? 'ready' : 'error'}">
+                                ${i.status || 'unknown'}
+                            </div>
+                            <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
                         </div>
                     </div>
                 `).join('')}
@@ -65,9 +74,31 @@ export class GalaxyModal extends HTMLElement {
         try {
             await fetch(`${this.galaxyUrl}/galaxy/clear`, { method: 'POST' });
             await this.load();
-        } catch (e) { 
-            /* ignore */ 
+        } catch (e) {
+            /* ignore */
         }
+    }
+
+    async stopContainer(deploymentId: string, port: string) {
+        if (!this.deploymentService) {
+            alert('Engine connection is not configured, cannot stop container.');
+            return;
+        }
+        const result = await this.deploymentService.stopEmbedded(deploymentId, port);
+        if (!result.success) {
+            alert(result.message);
+            return;
+        }
+        if (this.galaxyUrl) {
+            try {
+                await fetch(`${this.galaxyUrl.replace(/\/$/, '')}/galaxy/remove`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deploymentId, port })
+                });
+            } catch (e) { /* ignore, list refresh will just show it unreachable */ }
+        }
+        await this.load();
     }
 
     private addEventListeners() {
@@ -75,6 +106,7 @@ export class GalaxyModal extends HTMLElement {
         const overlay = this.shadow.querySelector('.overlay');
         const footerCloseBtn = this.shadow.getElementById('btn-close');
         const clearBtn = this.shadow.getElementById('galaxy-clear');
+        const listDiv = this.shadow.getElementById('galaxy-list');
 
         const close = () => {
             this.remove();
@@ -83,8 +115,17 @@ export class GalaxyModal extends HTMLElement {
         closeBtn?.addEventListener('click', close);
         overlay?.addEventListener('click', close);
         footerCloseBtn?.addEventListener('click', close);
-        
+
         clearBtn?.addEventListener('click', () => this.clearRegistry());
+
+        listDiv?.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('btn-stop')) {
+                const deploymentId = target.getAttribute('data-deployment-id') || '';
+                const port = target.getAttribute('data-port') || '';
+                void this.stopContainer(deploymentId, port);
+            }
+        });
     }
 
     render() {
@@ -246,12 +287,29 @@ export class GalaxyModal extends HTMLElement {
                     color: #777;
                 }
                 
+                .item-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
                 .item-status {
                     font-size: 13px;
                     font-weight: 600;
                     padding: 4px 10px;
                     border-radius: 12px;
                     background: #eee;
+                }
+
+                .btn-stop {
+                    background: white;
+                    color: #c62828;
+                    border-color: #f3c0c0;
+                }
+
+                .btn-stop:hover {
+                    background: #ffebee;
+                    border-color: #c62828;
                 }
                 
                 .status-ready {

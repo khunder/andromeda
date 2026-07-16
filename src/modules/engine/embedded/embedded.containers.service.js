@@ -70,12 +70,20 @@ export class EmbeddedContainerService {
         Logger.info(`starting container on port ${allocatedPort}`)
         let deploymentPath = `./deployments/${deploymentId}`;
 
-        this.deleteEmbeddedContainerPidFile(deploymentPath, allocatedPort);
+        this.deleteEmbeddedContainerPidFile(deploymentId, allocatedPort);
 
         let childProcess;
         let executor = '';
         let args = []
         executor = path.join(process.cwd(), "deployments", deploymentId, "/bootstrap.js")
+
+        // Validate the deployment exists before handing off to forever: if the cwd or
+        // entry script is missing, the underlying spawn fails asynchronously with no
+        // attached error listener, which otherwise crashes the whole engine process.
+        if (!fs.existsSync(path.join(process.cwd(), "deployments", deploymentId)) || !fs.existsSync(executor)) {
+            throw new Error(`cannot start child process: deployment "${deploymentId}" was not found`);
+        }
+
         try {
             childProcess = forever.start(executor, {
                 max: 1,
@@ -85,12 +93,19 @@ export class EmbeddedContainerService {
                     port: String(allocatedPort),
                     mongoDbUri: Config.getInstance().mongoDbUri,
                     deploymentId: deploymentId,
+                    GALAXY_URL: Config.getInstance().galaxyUrl,
                     socketCallBacks: options.socketCallBacks
                 },
                 cwd: deploymentPath,
                 args: args
             });
 
+            // Backstop: without an 'error' listener, an async spawn failure here
+            // (e.g. a bad cwd or missing node binary) becomes an uncaught exception
+            // and takes down the entire engine instead of just this container.
+            childProcess.on('error', (err) => {
+                Logger.error(`container ${deploymentId} failed to start: ${err.message}`);
+            });
         } catch (e) {
             Logger.error(e)
         }
@@ -183,5 +198,8 @@ export class EmbeddedContainerService {
                 forever.kill(e.model.pid)
             }
         });
+        EmbeddedContainerService.containers = EmbeddedContainerService.containers.filter(
+            e => e.model.deploymentId !== deploymentId
+        );
     }
 }

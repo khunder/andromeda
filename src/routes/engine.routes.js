@@ -105,6 +105,14 @@ function route (fastify, opts, next) {
                 handler: serverController.runEmbeddedContainer
             }
         )
+
+        fastify.route(
+            {
+                method: 'POST',
+                url: '/api/stop-embedded',
+                handler: serverController.stopEmbeddedContainer
+            }
+        )
     }
 
 

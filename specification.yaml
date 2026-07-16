@@ -77,3 +77,22 @@ paths:
               properties:
                 deploymentId:
                   type: string
+  /api/stop-embedded:
+    post:
+      tags:
+        - engine
+      description: stop a running embedded container
+      responses:
+        200:
+          description: 'Container stopped'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deploymentId:
+                  type: string
+                port:
+                  type: integer

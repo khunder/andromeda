@@ -9,6 +9,7 @@ function route (fastify, opts, next) {
     fastify.route({ method: 'POST', url: '/galaxy/heartbeat', handler: GalaxyController.heartbeat })
     fastify.route({ method: 'GET', url: '/galaxy/containers', handler: GalaxyController.listContainers })
     fastify.route({ method: 'POST', url: '/galaxy/clear', handler: GalaxyController.clearRegistry })
+    fastify.route({ method: 'POST', url: '/galaxy/remove', handler: GalaxyController.removeContainer })
     next();
 }
 
