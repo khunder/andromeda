@@ -20,11 +20,18 @@ export class FakeRepositoryBase {
 
 
   async findById(id) {
-    return this.objects.find(e=> e.id === id)[0];
+    return this.objects.find(e=> e._id === id);
   }
 
-  async findOne(cond, fields, options) {
-    throw `not implemented`
+  async findOne(cond = {}, fields, options = {}) {
+    let results = this.objects.filter(o =>
+      Object.entries(cond).every(([k, v]) => o[k] === v)
+    );
+    if (options.sort) {
+      const [field, dir] = Object.entries(options.sort)[0];
+      results = [...results].sort((a, b) => (a[field] - b[field]) * dir);
+    }
+    return results.length > 0 ? results[0] : null;
   }
 
   async find(
@@ -34,6 +41,23 @@ export class FakeRepositoryBase {
     sortOptions,
   ){
     throw `not implemented`
+  }
+
+  async retrieve() {
+    return this.objects;
+  }
+
+  async createMany(items) {
+    this.objects.push(...items);
+    return items;
+  }
+
+  async dumpAll() {
+    return [...this.objects];
+  }
+
+  async restoreAll(docs) {
+    this.objects = docs ? [...docs] : [];
   }
 
   async count(cond) {
@@ -55,7 +79,7 @@ export class FakeRepositoryBase {
   }
 
   async delete(id) {
-    this.objects = this.objects.filter(e=> e.id !== id)
+    this.objects = this.objects.filter(e=> e._id !== id)
   }
 
   async deleteAll() {

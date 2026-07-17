@@ -6,14 +6,21 @@ import {ProcessInstanceStatus} from "../internal/models/process-instance.orm-mod
 import {EventTypes} from "../event-types.js";
 import {StreamIds} from "../streams/stream-ids.js";
 import assert from "assert";
-import {PersistenceGateway} from "../../persistence-gateway.js";
-import Utils from "../../../../utils/utils.js";
+import {afterAll, beforeAll} from "vitest";
 
 
 
 
 
 describe('Persistence::Process Instance', function () {
+
+    beforeAll(async () => {
+        await PersistenceModule.init();
+    });
+
+    afterAll(async () => {
+        await PersistenceModule.dispose();
+    });
 
 
 it('Insert event',
@@ -25,9 +32,8 @@ it('Insert event',
     async () => {
         await EventStore.apply({
             id: v4(),
-            streamId: "PROCESS_INSTANCE",
-            type: "CREATE_PROCESS_INSTANCE",
-            streamPosition: 0,
+            streamId: StreamIds.PROCESS_INSTANCE,
+            type: EventTypes.CREATE_PROCESS_INSTANCE,
             data:{
                 id: v4(),
                 deploymentId: "deploymentId",
@@ -40,9 +46,8 @@ it('Insert event',
 
         await EventStore.apply({
             id: v4(),
-            streamId: "PROCESS_INSTANCE",
-            type: "CREATE_PROCESS_INSTANCE",
-            streamPosition: 0,
+            streamId: StreamIds.PROCESS_INSTANCE,
+            type: EventTypes.CREATE_PROCESS_INSTANCE,
             data:{
                 id: v4(),
                 deploymentId: "deploymentId",
@@ -68,7 +73,6 @@ it('Create/Close process instance',
             id:  v4(),
             streamId: StreamIds.PROCESS_INSTANCE,
             type: EventTypes.CREATE_PROCESS_INSTANCE,
-            streamPosition: 0,
             data:{
                 id: processInstancesId,
                 deploymentId: "deploymentId",
@@ -83,7 +87,6 @@ it('Create/Close process instance',
             id:  v4(),
             streamId: StreamIds.PROCESS_INSTANCE,
             type: EventTypes.CLOSE_PROCESS_INSTANCE,
-            streamPosition: 0,
             data:{
                 id: processInstancesId,
                 containerId: v4()

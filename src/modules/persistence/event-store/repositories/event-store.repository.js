@@ -46,5 +46,30 @@ export class EventStoreRepository {
         await this.repo.create(event)
     }
 
+    /**
+     * Events of a stream ordered by position, optionally starting after a snapshot.
+     * @param {string} streamId
+     * @param {number} fromPosition
+     * @returns {Promise<object[]>}
+     */
+    async getEvents(streamId, fromPosition = 0) {
+        return this.repo.find(
+            {streamId, streamPosition: {$gte: fromPosition}},
+            null,
+            null,
+            {streamPosition: 1}
+        );
+    }
+
+    /**
+     * Highest persisted position for a stream, -1 when the stream has no events
+     * (so the next position is always max + 1).
+     * @param {string} streamId
+     * @returns {Promise<number>}
+     */
+    async getMaxStreamPosition(streamId) {
+        const last = await this.repo.findOne({streamId}, null, {sort: {streamPosition: -1}});
+        return last ? last.streamPosition : -1;
+    }
 
 }

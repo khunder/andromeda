@@ -13,6 +13,12 @@ export class Stream {
     eventsRegistry = {}
     validators = {}
 
+    // object exposing captureState/restoreState/reset for the stream's read
+    // model — required for snapshots and replay (set by PersistenceGateway)
+    snapshotHandler = null
+    // persist a snapshot every N events; 0 disables automatic snapshots
+    snapshotFrequency = 0
+
 
     constructor(streamId) {
         this.streamId = streamId;

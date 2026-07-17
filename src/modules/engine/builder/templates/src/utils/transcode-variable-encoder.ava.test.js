@@ -65,7 +65,7 @@ describe('Transcode variables', function () {
 
             strVal = "notValidValue";
             const error = await Utils.getError(() => VariableEncoder.transcodeVariable(strVal, "boolean", "boolVar"))
-            assert.deepEqual(error, new Error('cannot transcode variable boolVar of type boolean, possible values [true|false]'))
+            assert.deepEqual(error, new Error('cannot transcode variable boolVar of type boolean, possible values [true|false|""]'))
 
             strVal = undefined;
             val = VariableEncoder.transcodeVariable(strVal, "boolean", "boolVar")

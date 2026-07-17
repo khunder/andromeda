@@ -25,4 +25,16 @@ export class ProcessInstanceProjection {
         }
 
     }
+
+    async captureState() {
+        return {processInstances: await this.repo.repo.dumpAll()};
+    }
+
+    async restoreState(state) {
+        await this.repo.repo.restoreAll(state ? state.processInstances : []);
+    }
+
+    async reset() {
+        await this.repo.repo.restoreAll([]);
+    }
 }

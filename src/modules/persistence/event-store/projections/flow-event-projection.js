@@ -33,4 +33,16 @@ export class FlowEventProjection {
             await this.repo.failFlowEvent(event.data.processInstance, event.data.flowId)
         }
     }
+
+    async captureState() {
+        return {flowEvents: await this.repo.repo.dumpAll()};
+    }
+
+    async restoreState(state) {
+        await this.repo.repo.restoreAll(state ? state.flowEvents : []);
+    }
+
+    async reset() {
+        await this.repo.repo.restoreAll([]);
+    }
 }

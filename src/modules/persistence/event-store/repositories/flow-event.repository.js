@@ -48,7 +48,7 @@ export class FlowEventRepository {
             processInstance: processInstanceId,
             flowId: flowId,
         }
-        await this.repo.upsert(processInstance, { status: FlowEventStatus.Completed})
+        await this.repo.update(processInstance, { status: FlowEventStatus.Completed})
     }
 
     /**
@@ -63,7 +63,7 @@ export class FlowEventRepository {
             processInstance: processInstanceId,
             flowId: flowId,
         }
-        await this.repo.upsert(processInstance, { status: FlowEventStatus.Aborted})
+        await this.repo.update(processInstance, { status: FlowEventStatus.Aborted})
     }
 
 
@@ -79,7 +79,7 @@ export class FlowEventRepository {
             processInstance: processInstanceId,
             flowId: flowId,
         }
-        await this.repo.upsert(processInstance, { status: FlowEventStatus.Error})
+        await this.repo.update(processInstance, { status: FlowEventStatus.Error})
     }
 
 

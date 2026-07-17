@@ -2,6 +2,7 @@ import Ajv from "ajv";
 import { AndromedaLogger } from "../../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
+import {SnapshotRepository} from "../repositories/snapshot.repository.js";
 import {EOL} from 'os';
 
 const Logger = new AndromedaLogger();
@@ -27,12 +28,15 @@ export class EventStore {
         additionalProperties: false,
     }
 
+    // compiled once: Ajv compilation is expensive and the schema never changes
+    static validateEvent = EventStore.ajv.compile(EventStore.eventSchema)
+
     static async apply(event) {
         if(!event){
             throw new Error(`event is not defined`)
         }
         Logger.trace(`applying event ${event.id}`)
-        const validate = EventStore.ajv.compile(EventStore.eventSchema)
+        const validate = EventStore.validateEvent
         const valid = validate(event)
         if (!valid){
             const error = new Error(`cannot validate event ${JSON.stringify(event)}`)
@@ -44,7 +48,26 @@ export class EventStore {
         await EventStore.routeEventToCorrespondingStream(event);
         // save the event
         await new EventStoreRepository().persistEvent(event)
+        // snapshot only after the event is safely in the log, so a snapshot
+        // never reflects state the log does not contain
+        await EventStore.maybeSnapshot(event)
 
+    }
+
+    /**
+     * Persist a snapshot of the stream's read-model state every
+     * snapshotFrequency events (disabled when 0 or no handler is set).
+     */
+    static async maybeSnapshot(event) {
+        const stream = EventStore.streamsRegistry[event.streamId];
+        if (!stream || !stream.snapshotHandler || !stream.snapshotFrequency) {
+            return;
+        }
+        if ((event.streamPosition + 1) % stream.snapshotFrequency !== 0) {
+            return;
+        }
+        const state = await stream.snapshotHandler.captureState();
+        await new SnapshotRepository().saveSnapshot(stream.streamId, event.streamPosition, state);
     }
 
     //
@@ -70,7 +93,8 @@ export class EventStore {
     }
 
     static updateStreamPosition(event, stream) {
-        if (!event.streamPosition) {
+        // null-aware: 0 is a valid position and must not be overwritten
+        if (event.streamPosition == null) {
             event.streamPosition = stream.streamPosition;
         }
         stream.streamPosition++;

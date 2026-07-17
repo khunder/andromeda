@@ -6,6 +6,7 @@ import {ProcessInstanceProjection} from "./event-store/projections/process-insta
 import {FlowEventStreamBuilder} from "./event-store/streams/fow-event/flow-event.stream-builder.js";
 import {StreamIds} from "./event-store/streams/stream-ids.js";
 import {FlowEventProjection} from "./event-store/projections/flow-event-projection.js";
+import {ReplayService} from "./event-store/lib/replay.service.js";
 
 export class PersistenceGateway {
 
@@ -15,7 +16,6 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.PROCESS_INSTANCE,
                 type: EventTypes.CREATE_PROCESS_INSTANCE,
-                streamPosition: 0,
                 data: {
                     id: processInstanceId,
                     deploymentId: deploymentId,
@@ -23,7 +23,7 @@ export class PersistenceGateway {
                     status: 0,
                     containerId: containerId
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     }
@@ -34,11 +34,10 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.PROCESS_INSTANCE,
                 type: EventTypes.CLOSE_PROCESS_INSTANCE,
-                streamPosition: 0,
                 data: {
                     id: processInstanceId
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     };
@@ -50,13 +49,12 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.FLOW_EVENT,
                 type: EventTypes.CREATE_FLOW_EVENT,
-                streamPosition: 0,
                 data: {
                     processInstance: processInstanceId,
                     flowId: flowId,
                     status: status
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     };
@@ -67,12 +65,11 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.FLOW_EVENT,
                 type: EventTypes.CLOSE_FLOW_EVENT,
-                streamPosition: 0,
                 data: {
                     processInstance: processInstanceId,
                     flowId: flowId,
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     };
@@ -83,12 +80,11 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.FLOW_EVENT,
                 type: EventTypes.FAIL_FLOW_EVENT,
-                streamPosition: 0,
                 data: {
                     processInstance: processInstanceId,
                     flowId: flowId,
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     };
@@ -99,31 +95,67 @@ export class PersistenceGateway {
                 id: v4(),
                 streamId: StreamIds.FLOW_EVENT,
                 type: EventTypes.ABORT_FLOW_EVENT,
-                streamPosition: 0,
                 data: {
                     processInstance: processInstanceId,
                     flowId: flowId,
                 },
-                timestamp: new Date().toString()
+                timestamp: new Date().toISOString()
             }
         )
     };
 
-    static init() {
+    static async init() {
         PersistenceGateway.registerStreams()
+        // continue stream numbering from the persisted log after a restart
+        await ReplayService.seedStreamPositions()
     }
+
+    // persist a read-model snapshot every N events, bounding replay time
+    static SNAPSHOT_FREQUENCY = 100;
 
     static registerStreams(){
         const stream = ProcessInstanceStreamBuilder.build()
-        this.registerProjections(stream, stream.eventsRegistry.CREATE_PROCESS_INSTANCE, new ProcessInstanceProjection());
-        this.registerProjections(stream, stream.eventsRegistry.CLOSE_PROCESS_INSTANCE, new ProcessInstanceProjection());
+        const processInstanceProjection = new ProcessInstanceProjection();
+        this.registerProjections(stream, stream.eventsRegistry.CREATE_PROCESS_INSTANCE, processInstanceProjection);
+        this.registerProjections(stream, stream.eventsRegistry.CLOSE_PROCESS_INSTANCE, processInstanceProjection);
+        stream.snapshotHandler = processInstanceProjection;
+        stream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
 
         const flowEventStream = FlowEventStreamBuilder.build()
-        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CREATE_FLOW_EVENT, new FlowEventProjection());
-        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CLOSE_FLOW_EVENT, new FlowEventProjection());
-        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.ABORT_FLOW_EVENT, new FlowEventProjection());
-        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.FAIL_FLOW_EVENT, new FlowEventProjection());
+        const flowEventProjection = new FlowEventProjection();
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CREATE_FLOW_EVENT, flowEventProjection);
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.CLOSE_FLOW_EVENT, flowEventProjection);
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.ABORT_FLOW_EVENT, flowEventProjection);
+        this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.FAIL_FLOW_EVENT, flowEventProjection);
+        flowEventStream.snapshotHandler = flowEventProjection;
+        flowEventStream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
 
+    }
+
+    /**
+     * Rebuild a stream's read model from its latest snapshot plus the event log.
+     * @param {string} streamId
+     * @returns {Promise<number>} number of events replayed
+     */
+    static async replayStream(streamId) {
+        return ReplayService.replayStream(streamId)
+    }
+
+    /**
+     * Rebuild every read model from snapshots plus the event log.
+     * @returns {Promise<object>} replayed event count per streamId
+     */
+    static async replayAll() {
+        return ReplayService.replayAll()
+    }
+
+    /**
+     * Force a snapshot of a stream's current read-model state.
+     * @param {string} streamId
+     * @returns {Promise<void>}
+     */
+    static async snapshotStream(streamId) {
+        return ReplayService.snapshotStream(streamId)
     }
 
     /**

@@ -60,7 +60,7 @@ class BaseRepository {
 
   async count(cond) {
     Logger.trace(`Base repository: count: cond:${JSON.stringify(cond)}`);
-    return this._model.count(cond);
+    return this._model.countDocuments(cond);
   }
 
   async upsert(cond, item){
@@ -75,14 +75,40 @@ class BaseRepository {
     return  this._model.findOneAndUpdate(cond, item, options);
   }
 
+  // updates an existing document only: no document is created when cond matches
+  // nothing, unlike upsert which would insert a partial (and unvalidated) doc
+  async update(cond, item){
+    Logger.trace(`Base repository: update: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
+    return this._model.findOneAndUpdate(cond, item, { new: true });
+  }
+
+  async createMany(items) {
+    Logger.trace(`Base repository: creating ${items.length} items`);
+    return this._model.insertMany(items);
+  }
+
+  // full collection dump as plain objects, used to capture snapshot state
+  async dumpAll() {
+    const docs = await this._model.find({});
+    return docs.map((d) => d.toObject());
+  }
+
+  // replaces the whole collection with the given docs, used to restore a snapshot
+  async restoreAll(docs) {
+    await this.deleteAll();
+    if (docs && docs.length > 0) {
+      await this.createMany(docs);
+    }
+  }
+
   async delete(_id) {
     Logger.trace(`Base repository: delete: id:${_id}`);
-    return this._model.remove({ _id: _id });
+    return this._model.deleteOne({ _id: _id });
   }
 
   async deleteAll() {
     Logger.trace(`Base repository: delete all`);
-    return this._model.remove({});
+    return this._model.deleteMany({});
   }
 }
 

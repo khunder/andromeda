@@ -16,7 +16,7 @@ const Lock = new mongoose.Schema({
 const processInstanceSchema = new mongoose.Schema({
     _id: {
         type: String,
-        default: v4()
+        default: () => v4()
     },
 
     deploymentId: {

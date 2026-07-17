@@ -4,7 +4,6 @@ const constants = {
     SERVER: "server",
     GALAXY: "galaxy",
     PERSISTENCE: "persistence",
+};
 
-}
-
-export  default constants
+export default constants;

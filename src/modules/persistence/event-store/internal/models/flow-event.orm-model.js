@@ -12,7 +12,7 @@ export const FlowEventStatus = {
 const FlowEventSchema = new mongoose.Schema({
     _id: {
         type: String,
-        default: v4()
+        default: () => v4()
     },
 
     flowId: {
