@@ -151,6 +151,11 @@ export class WebModule {
 
     startGalaxyHeartbeat(){
         try{
+            // standalone / "lone wolf" mode: container starts without galaxy support and never pings
+            if(process.env.WITH_GALAXY === 'false'){
+                Logger.info(`Galaxy support disabled (standalone mode), skipping galaxy heartbeat`);
+                return;
+            }
             const galaxyUrl = process.env.GALAXY_URL || Config.getInstance().galaxyUrl;
             const deploymentId = process.env.DEPLOYMENT_ID || process.env.deploymentId;
             if(!galaxyUrl || !deploymentId){

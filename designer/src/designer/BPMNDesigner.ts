@@ -18,9 +18,10 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:startEvent id="StartEvent_1" name="Start">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:scriptTask id="ScriptTask_1" name="Script Task">
+    <bpmn:scriptTask id="ScriptTask_1" name="Script Task" scriptFormat="javascript">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>console.log("----->")</bpmn:script>
     </bpmn:scriptTask>
     <bpmn:endEvent id="EndEvent_1" name="End">
       <bpmn:incoming>Flow_2</bpmn:incoming>

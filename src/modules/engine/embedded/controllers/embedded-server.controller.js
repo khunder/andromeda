@@ -14,8 +14,10 @@ class EmbeddedServerController {
             throw new Error("DeploymentId must be specified");
         }
         const deploymentId =req.body.deploymentId
+        // form fields arrive as strings; only an explicit "false" opts into standalone/lone-wolf mode
+        const withGalaxy = req.body.withGalaxy !== 'false' && req.body.withGalaxy !== false;
         try {
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {});
+            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {withGalaxy});
             return {};
         } catch (err) {
             const returnError = new Error();

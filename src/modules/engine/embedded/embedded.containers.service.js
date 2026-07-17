@@ -94,6 +94,8 @@ export class EmbeddedContainerService {
                     mongoDbUri: Config.getInstance().mongoDbUri,
                     deploymentId: deploymentId,
                     GALAXY_URL: Config.getInstance().galaxyUrl,
+                    // standalone / "lone wolf" mode: container starts without galaxy support and never pings
+                    WITH_GALAXY: options.withGalaxy === false ? 'false' : 'true',
                     socketCallBacks: options.socketCallBacks
                 },
                 cwd: deploymentPath,

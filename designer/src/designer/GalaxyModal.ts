@@ -61,6 +61,7 @@ export class GalaxyModal extends HTMLElement {
                             <div class="item-status status-${i.status === 'ready' ? 'ready' : 'error'}">
                                 ${i.status || 'unknown'}
                             </div>
+                            <button class="btn btn-api" data-port="${i.port}">API</button>
                             <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
                         </div>
                     </div>
@@ -124,8 +125,23 @@ export class GalaxyModal extends HTMLElement {
                 const deploymentId = target.getAttribute('data-deployment-id') || '';
                 const port = target.getAttribute('data-port') || '';
                 void this.stopContainer(deploymentId, port);
+            } else if (target.classList.contains('btn-api')) {
+                const port = target.getAttribute('data-port') || '';
+                window.open(`http://${this.getContainerHost()}:${port}/api`, '_blank');
             }
         });
+    }
+
+    /**
+     * Containers are assumed reachable on the same host as Galaxy (matches the
+     * 127.0.0.1 liveness check the engine itself uses when listing containers).
+     */
+    private getContainerHost(): string {
+        try {
+            return new URL(this.galaxyUrl).hostname;
+        } catch {
+            return '127.0.0.1';
+        }
     }
 
     render() {
@@ -299,6 +315,17 @@ export class GalaxyModal extends HTMLElement {
                     padding: 4px 10px;
                     border-radius: 12px;
                     background: #eee;
+                }
+
+                .btn-api {
+                    background: white;
+                    color: #1565c0;
+                    border-color: #bbdefb;
+                }
+
+                .btn-api:hover {
+                    background: #e3f2fd;
+                    border-color: #1565c0;
                 }
 
                 .btn-stop {

@@ -19,7 +19,12 @@ export class AndromedaLogger {
             // Create a child logger with the specific name
             this.logger = defaultLogger.child({ name });
         } else {
-            this.logger = defaultLogger.child({ name: 'engine' });
+            // running as a generated container: tag every log line with (deploymentId:port)
+            // so it's distinguishable from the engine's own logs
+            const containerName = process.env.deploymentId && process.env.port
+                ? `${process.env.deploymentId}:${process.env.port}`
+                : 'engine';
+            this.logger = defaultLogger.child({ name: containerName });
         }
         
         // If custom config provided, create new logger instance
