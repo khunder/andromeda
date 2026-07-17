@@ -8,8 +8,8 @@ when I specify a container, it's not a docker container, it's a term used to spe
 
 ## What this is
 
-Andromeda is a workflow engine that mainly supports BPMN not only, but in the future I plan to go for another standard.
-Andromeda is built around **code generation**:
+Andromeda is a workflow engine that mainly supports BPMN not only but in the future I plan to go for another standard.
+Andromeda built around **code generation**:
 a BPMN diagram is translated into a fully functional, standalone Node.js app (a **container**, conceptually a microservice). 
 
 I aim to implement simple Bpmn branching logic, but I plan to implement more complex logic in the future.

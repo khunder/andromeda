@@ -43,7 +43,7 @@ export class PinoConfig {
                             options: {
                                 colorize: true,
                                 translateTime: 'yyyy-mm-dd HH:MM:ss.l',
-                                ignore: 'pid,hostname'
+                                ignore: 'pid,hostname,application,ENV,ip'
                             }
                         },
                         {
