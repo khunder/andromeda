@@ -5,6 +5,7 @@
  */
 
 import { DeploymentService } from './DeploymentService';
+import { loadMonaco } from './MonacoLoader';
 
 declare const monaco: any;
 
@@ -20,7 +21,7 @@ export class ProcessStartModal {
 
   async show(host: string, port: string | number, deploymentId: string): Promise<void> {
     this.createModal(host, port, deploymentId);
-    await this.loadMonaco();
+    await loadMonaco();
     this.createEditor();
   }
 
@@ -92,31 +93,6 @@ export class ProcessStartModal {
       resultDiv.className = `start-params-result ${result.success ? 'success' : 'error'}`;
       resultDiv.textContent = result.message;
     }
-  }
-
-  private async loadMonaco(): Promise<void> {
-    return new Promise((resolve) => {
-      if ((window as any).monaco) {
-        resolve();
-        return;
-      }
-
-      const loaderScript = document.createElement('script');
-      loaderScript.src = 'https://unpkg.com/monaco-editor@0.44.0/min/vs/loader.js';
-      loaderScript.onload = () => {
-        (window as any).require.config({
-          paths: {
-            vs: 'https://unpkg.com/monaco-editor@0.44.0/min/vs'
-          }
-        });
-
-        (window as any).require(['vs/editor/editor.main'], () => {
-          resolve();
-        });
-      };
-
-      document.head.appendChild(loaderScript);
-    });
   }
 
   private createEditor(): void {

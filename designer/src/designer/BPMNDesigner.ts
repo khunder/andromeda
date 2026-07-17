@@ -3,8 +3,11 @@ import { ElementRegistry } from './ElementDefinition';
 import { ConfigurationManager } from './ConfigurationManager';
 import { ConfigurationPanel } from './ConfigurationPanel';
 import { DeploymentService } from './DeploymentService';
+import { loadMonaco } from './MonacoLoader';
 import './GalaxyModal';
 import type { GalaxyModal } from './GalaxyModal';
+
+declare const monaco: any;
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -179,8 +182,8 @@ export class BPMNDesigner {
   private configPanel = new ConfigurationPanel(this.configManager);
   private deploymentService = new DeploymentService(this.configManager);
   private xmlEditorContainer: HTMLElement | null = null;
-  private xmlTextarea: HTMLTextAreaElement | null = null;
-  private xmlChangeTimer: number | null = null;
+  private xmlEditor: any = null;
+  private xmlEditorReadyPromise: Promise<void> | null = null;
   private zoom = 1;
 
   constructor(private container: HTMLElement) {
@@ -218,24 +221,40 @@ export class BPMNDesigner {
     copyButton.className = 'xml-btn';
     copyButton.textContent = 'Copy';
     copyButton.addEventListener('click', async () => {
-      if (this.xmlTextarea) {
-        await navigator.clipboard.writeText(this.xmlTextarea.value);
+      const value = this.xmlEditor?.getValue();
+      if (value) {
+        await navigator.clipboard.writeText(value);
       }
     });
 
     toolbar.append(applyButton, copyButton);
 
-    this.xmlTextarea = document.createElement('textarea');
-    this.xmlTextarea.className = 'bpmn-xml-textarea';
-    this.xmlTextarea.spellcheck = false;
-    this.xmlTextarea.addEventListener('input', () => {
-      if (this.xmlChangeTimer) {
-        window.clearTimeout(this.xmlChangeTimer);
-      }
-      this.xmlChangeTimer = window.setTimeout(() => this.applyXMLFromEditor(), 800);
-    });
+    const monacoContainer = document.createElement('div');
+    monacoContainer.className = 'bpmn-xml-monaco';
+    container.append(toolbar, monacoContainer);
 
-    container.append(toolbar, this.xmlTextarea);
+    this.xmlEditorReadyPromise = loadMonaco().then(() => {
+      this.xmlEditor = monaco.editor.create(monacoContainer, {
+        value: '',
+        language: 'xml',
+        theme: 'vs',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        fontSize: 13,
+        wordWrap: 'on',
+        tabSize: 2,
+        insertSpaces: true
+      });
+
+      let changeTimer: number | null = null;
+      this.xmlEditor.onDidChangeModelContent(() => {
+        if (changeTimer) {
+          window.clearTimeout(changeTimer);
+        }
+        changeTimer = window.setTimeout(() => this.applyXMLFromEditor(), 800);
+      });
+    });
   }
 
   public async showDesigner(): Promise<void> {
@@ -254,14 +273,15 @@ export class BPMNDesigner {
   public async showXMLEditor(): Promise<void> {
     const xml = await this.getXML();
 
-    if (this.xmlTextarea) {
-      this.xmlTextarea.value = xml;
-    }
+    await this.xmlEditorReadyPromise;
+    this.xmlEditor?.setValue(xml);
 
     this.container.style.display = 'none';
     if (this.xmlEditorContainer) {
       this.xmlEditorContainer.style.display = 'block';
     }
+
+    this.xmlEditor?.layout();
   }
 
   public async toggleView(): Promise<void> {
@@ -550,7 +570,7 @@ export class BPMNDesigner {
   }
 
   private async applyXMLFromEditor(): Promise<void> {
-    const xml = this.xmlTextarea?.value.trim();
+    const xml = this.xmlEditor?.getValue()?.trim();
 
     if (!xml) {
       return;

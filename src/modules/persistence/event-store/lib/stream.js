@@ -18,18 +18,10 @@ export class Stream {
         this.streamId = streamId;
     }
 
-    get streamPosition() {
-        return this.streamPosition
-    }
-    set streamPosition(value) {
-        this.streamPosition = value
-    }
-
-
-    dispatch(event) {
+    async dispatch(event) {
         Logger.trace(`dispatching event ${JSON.stringify(event)}`)
         if (event.type in this.projections){
-            this.projections[event.type].process(event)
+            await this.projections[event.type].process(event)
         }
 
     }

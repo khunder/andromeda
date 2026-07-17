@@ -241,14 +241,7 @@ body {
     border-color: #1e88e5;
 }
 
-.bpmn-xml-textarea {
+.bpmn-xml-monaco {
     width: 100%;
     height: calc(100% - 41px);
-    border: 0;
-    outline: none;
-    resize: none;
-    padding: 16px;
-    font: 13px/1.5 Consolas, 'Courier New', monospace;
-    color: #1f2933;
-    background: #fff;
 }

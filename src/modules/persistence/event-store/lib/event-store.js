@@ -66,7 +66,7 @@ export class EventStore {
         if (event.type in stream.validators) {
             EventDataPayloadValidator.validate(event, stream.validators[event.type]);
         }
-        stream.dispatch(event);
+        await stream.dispatch(event);
     }
 
     static updateStreamPosition(event, stream) {

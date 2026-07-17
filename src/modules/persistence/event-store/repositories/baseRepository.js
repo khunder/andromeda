@@ -26,6 +26,7 @@ class BaseRepository {
       return await this._model.create(item);
     } catch (e) {
       Logger.error(e);
+      throw e;
     }
   }
 
