@@ -160,6 +160,37 @@ export class DeploymentService {
   }
   
   /**
+   * Start a new process instance on a running container, optionally with variables.
+   * Caller supplies host/port directly (e.g. from a Galaxy registry list entry).
+   */
+  async startProcessInstance(host: string, port: string | number, deploymentId: string, variables?: Record<string, unknown>): Promise<DeploymentResult> {
+    try {
+      const formData = new FormData();
+      formData.append('variables', JSON.stringify(variables || {}));
+
+      const response = await fetch(`http://${host}:${port}/start`, {
+        method: 'POST',
+        body: formData,
+        mode: 'cors'
+      });
+
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return { success: true, message: `Process instance started on ${deploymentId}: ${data.id || 'ok'}`, details: data };
+      }
+
+      const errorText = await response.text();
+      return { success: false, message: `Start failed (HTTP ${response.status}): ${errorText}` };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Start failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        details: error
+      };
+    }
+  }
+
+  /**
    * Create multipart form data boundary
    */
   private createBoundary(): string {

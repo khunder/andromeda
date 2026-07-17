@@ -371,8 +371,7 @@ export class BPMNDesigner {
 
   public async runEmbedded(): Promise<void> {
     try {
-      const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement | null;
-      const deploymentId = deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
+      const deploymentId = this.getActiveDeploymentId();
       const result = await this.deploymentService.runEmbedded(deploymentId);
 
       if (result.success) {
@@ -384,6 +383,11 @@ export class BPMNDesigner {
       console.error('Run embedded failed:', error);
       alert('Run embedded failed. Check the console for details.');
     }
+  }
+
+  private getActiveDeploymentId(): string {
+    const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement | null;
+    return deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
   }
 
   public showGalaxyPanel(): void {

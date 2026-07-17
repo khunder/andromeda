@@ -12,7 +12,6 @@ Why ES6
 
 
 
-[-] Move to mocha  
 [-] Code coverage  
 [-] Container K8S Pod declaration 
 [-] Multiple Containers HA mode MC-HA   
@@ -29,3 +28,5 @@ INDEX
 PI = process instance
 MC = multiple containers
 HA = high availability
+
+1. [Getting Started](getting-started.md)

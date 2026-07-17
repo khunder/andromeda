@@ -1,9 +1,11 @@
 import { DeploymentService } from './DeploymentService';
+import { ProcessStartModal } from './ProcessStartModal';
 
 export class GalaxyModal extends HTMLElement {
     private shadow: ShadowRoot;
     private galaxyUrl: string = '';
     private deploymentService: DeploymentService | null = null;
+    private processStartModal: ProcessStartModal | null = null;
     private items: any[] = [];
 
     constructor() {
@@ -22,6 +24,7 @@ export class GalaxyModal extends HTMLElement {
 
     setDeploymentService(deploymentService: DeploymentService) {
         this.deploymentService = deploymentService;
+        this.processStartModal = new ProcessStartModal(deploymentService);
     }
 
     async load() {
@@ -62,6 +65,8 @@ export class GalaxyModal extends HTMLElement {
                                 ${i.status || 'unknown'}
                             </div>
                             <button class="btn btn-api" data-port="${i.port}">API</button>
+                            <button class="btn btn-play" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance">▶</button>
+                            <button class="btn btn-play-params" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance with Parameters">▶⚙</button>
                             <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
                         </div>
                     </div>
@@ -128,8 +133,25 @@ export class GalaxyModal extends HTMLElement {
             } else if (target.classList.contains('btn-api')) {
                 const port = target.getAttribute('data-port') || '';
                 window.open(`http://${this.getContainerHost()}:${port}/api`, '_blank');
+            } else if (target.classList.contains('btn-play')) {
+                const deploymentId = target.getAttribute('data-deployment-id') || '';
+                const port = target.getAttribute('data-port') || '';
+                void this.startProcessInstance(deploymentId, port);
+            } else if (target.classList.contains('btn-play-params')) {
+                const deploymentId = target.getAttribute('data-deployment-id') || '';
+                const port = target.getAttribute('data-port') || '';
+                void this.processStartModal?.show(this.getContainerHost(), port, deploymentId);
             }
         });
+    }
+
+    private async startProcessInstance(deploymentId: string, port: string): Promise<void> {
+        if (!this.deploymentService) {
+            alert('Engine connection is not configured, cannot start process instance.');
+            return;
+        }
+        const result = await this.deploymentService.startProcessInstance(this.getContainerHost(), port, deploymentId, {});
+        alert(result.message);
     }
 
     /**
@@ -326,6 +348,17 @@ export class GalaxyModal extends HTMLElement {
                 .btn-api:hover {
                     background: #e3f2fd;
                     border-color: #1565c0;
+                }
+
+                .btn-play, .btn-play-params {
+                    background: white;
+                    color: #00796b;
+                    border-color: #b2dfdb;
+                }
+
+                .btn-play:hover, .btn-play-params:hover {
+                    background: #e0f2f1;
+                    border-color: #00796b;
                 }
 
                 .btn-stop {
