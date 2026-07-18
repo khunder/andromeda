@@ -3,6 +3,8 @@ import {AndromedaLogger} from "../../../config/andromeda-logger.js";
 import StartNodeProcessor from "./processors/start.node.processor.js";
 import EndNodeProcessor from "./processors/end.node.processor.js";
 import ScriptTaskNodeProcessor from "./processors/script.node.processor.js";
+import ExclusiveGatewayNodeProcessor from "./processors/exclusive-gateway.node.processor.js";
+import ParallelGatewayNodeProcessor from "./processors/parallel-gateway.node.processor.js";
 import path from "path";
 import nunjucks from "nunjucks";
 import fs from "fs";
@@ -21,6 +23,8 @@ class BpmnProcessor {
         this.processors[StartNodeProcessor.type] = new StartNodeProcessor();
         this.processors[EndNodeProcessor.type] = new EndNodeProcessor();
         this.processors[ScriptTaskNodeProcessor.type] = new ScriptTaskNodeProcessor();
+        this.processors[ExclusiveGatewayNodeProcessor.type] = new ExclusiveGatewayNodeProcessor();
+        this.processors[ParallelGatewayNodeProcessor.type] = new ParallelGatewayNodeProcessor();
     }
 
     /**

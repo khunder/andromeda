@@ -14,7 +14,11 @@ async fn_{{nodeContext.id}} (flowModel) {
 {% if nodeContext.args and nodeContext.args.executeBody !== null  %}
     if(flowModel.executeBody) {
 {% endif %}
+{% if nodeContext.executeInWorker %}
+      await this.runScriptTaskInWorker({{ stringify(nodeContext.body) }}, __localMethodContext);
+{% else %}
       {{ nodeContext.body }}
+{% endif %}
       await this.variables.saveContext();
 {% if nodeContext.args and nodeContext.args.resumeExecution %}
       if(flowModel.resumeExecution){
@@ -36,4 +40,5 @@ async fn_{{nodeContext.id}} (flowModel) {
     throw error;
   }
 }
+
 

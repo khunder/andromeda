@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import Utils from "../../src/utils/utils.js";
 import EngineService from "../../src/modules/engine/engine.service.js";
 import fs from "fs";
@@ -6,16 +5,15 @@ import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
 import FormData from "form-data";
-import {UsedPorts} from "../used_ports.js";
 import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 import { it, expect, describe, beforeAll, afterAll } from 'vitest';
 
-describe('StartProcessInstance::Integration', () => {
+describe('ParallelGatewayJoin::Integration', () => {
     const TEST_TIMEOUT = 30000; // 30 seconds timeout for integration test
-    let deploymentId = "cov/scenario_script2";
+    let deploymentId = "cov/parallel_gateway_join";
     let testPort;
-    
+
     beforeAll(async () => {
         // Initialize PersistenceModule
         try {
@@ -23,11 +21,12 @@ describe('StartProcessInstance::Integration', () => {
         } catch (e) {
             console.log('PersistenceModule init error (may already be initialized):', e.message);
         }
-        
+
         // Use a dynamic port to avoid conflicts
         testPort = await findAvailablePort();
         console.log(`Using port ${testPort} for test`);
     }, TEST_TIMEOUT);
+
     afterAll(async () => {
         // Clean up: stop container if still running
         try {
@@ -35,7 +34,7 @@ describe('StartProcessInstance::Integration', () => {
         } catch (e) {
             // Container might already be stopped
         }
-        
+
         // Clean up deployment folder
         try {
             const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
@@ -47,18 +46,17 @@ describe('StartProcessInstance::Integration', () => {
         }
     });
 
-    it('Start process instance', async () => {
+    it('joins a diverging parallel gateway only after both branches arrive', async () => {
         // Setup
         let fileContents = [];
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
-        const bpmnPath = path.join(__dirname, "../resources", "scenario_script.bpmn");
-        
-        // Check if BPMN file exists
+        const bpmnPath = path.join(__dirname, "../resources", "parallel-gateway-join.bpmn");
+
         expect(fs.existsSync(bpmnPath), `BPMN file not found at ${bpmnPath}`).toBe(true);
-        
+
         fileContents.push(fs.readFileSync(bpmnPath, {encoding: 'utf8'}));
-        
+
         /**
          * @type {ContainerParsingContext} containerParsingContext
          */
@@ -68,18 +66,18 @@ describe('StartProcessInstance::Integration', () => {
         // Generate container
         const engineService = new EngineService();
         await engineService.generateContainer(ctx);
-        
+
         // Start embedded container with dynamic port
         await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
 
         // Prepare form data
         const form = new FormData();
         form.append('bpmnFile', fs.readFileSync(bpmnPath), {
-            filename: 'scenario_script.bpmn',
+            filename: 'parallel-gateway-join.bpmn',
             contentType: 'application/xml'
         });
         form.append('deploymentId', 'compileBpmn');
-        
+
         // Make request to start process using native fetch
         let response;
         let procData;
@@ -89,10 +87,10 @@ describe('StartProcessInstance::Integration', () => {
                 body: form,
                 headers: form.getHeaders()
             });
-            
+
             expect(response.ok).toBe(true);
             expect(response.status).toBe(200);
-            
+
             procData = await response.json();
             expect(procData).toBeDefined();
             expect(procData.id).toBeDefined();
@@ -104,15 +102,24 @@ describe('StartProcessInstance::Integration', () => {
             }
             throw error;
         }
-        
-        // Verify process instance was created in database
-        const count = await PersistenceModule.countDocuments("ProcessInstance", {_id: procData.id});
-        expect(count).toBe(1);
-        
+
+        // The process instance record is created synchronously (awaited by the
+        // controller before it responds), but the workflow itself (bootstrap ->
+        // fork -> both script tasks -> join -> end) runs fire-and-forget in the
+        // background, so poll for the join gateway's outgoing flow event
+        // (Flow_6, the edge from Gateway_Join to EndEvent_1) instead of
+        // asserting immediately.
+        const flow6Count = await waitForFlowEventCount(procData.id, 'Flow_6', 1, TEST_TIMEOUT - 5000);
+
+        // If join synchronization were broken (each incoming flow independently
+        // falling through instead of waiting for the other), Gateway_Join would
+        // fire its outgoing flow once per incoming branch instead of once total.
+        expect(flow6Count).toBe(1);
+
         // Cleanup
         await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
     }, TEST_TIMEOUT);
-    
+
     // Helper function to find available port
     async function findAvailablePort() {
         const net = await import('net');
@@ -124,6 +131,26 @@ describe('StartProcessInstance::Integration', () => {
             });
             server.on('error', reject);
         });
+    }
+
+    // Polls the FlowEvent collection until the given flow reaches the expected
+    // count (or the timeout elapses), since the workflow runs asynchronously
+    // after /start responds.
+    async function waitForFlowEventCount(processInstanceId, flowId, expectedCount, timeoutMs) {
+        const pollIntervalMs = 250;
+        const deadline = Date.now() + timeoutMs;
+        let count = 0;
+        while (Date.now() < deadline) {
+            count = await PersistenceModule.countDocuments("FlowEvent", {
+                processInstance: processInstanceId,
+                flowId: flowId
+            });
+            if (count >= expectedCount) {
+                return count;
+            }
+            await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        }
+        return count;
     }
 
 });

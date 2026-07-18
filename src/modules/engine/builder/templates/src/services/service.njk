@@ -6,6 +6,33 @@ import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js"
 import {ContainerService} from "../modules/container/container.service.js";
 import {WorkflowModel} from "../modules/container/workflow-model.js";
 import {Config} from "../config/config.js";
+import {Worker} from "node:worker_threads";
+
+const SCRIPT_TASK_WORKER_SOURCE = String.raw`
+import { parentPort, workerData } from "node:worker_threads";
+
+async function run() {
+    const variables = workerData.variables || {};
+    const scriptThis = { variables };
+    const script = new Function(
+        "variables",
+        "\"use strict\";\nreturn (async function() {\n" + workerData.script + "\n}).call(this);\n",
+    );
+
+    await script.call(scriptThis, variables);
+    parentPort.postMessage({ variables: scriptThis.variables });
+}
+
+run().catch((error) => {
+    parentPort.postMessage({
+        error: {
+            message: error && error.message ? error.message : String(error),
+            stack: error && error.stack ? error.stack : undefined,
+            name: error && error.name ? error.name : "Error",
+        },
+    });
+});
+`;
 
 class {{ServiceClassName}} {
 
@@ -80,6 +107,39 @@ class {{ServiceClassName}} {
         }
     }
 
+    async runScriptTaskInWorker(scriptBody, __localMethodContext) {
+        const variables = this.variables.toPlainObject();
+        const result = await new Promise((resolve, reject) => {
+            const worker = new Worker(SCRIPT_TASK_WORKER_SOURCE, {
+                eval: true,
+                workerData: {
+                    script: scriptBody || "",
+                    variables,
+                    context: __localMethodContext,
+                },
+            });
+
+            worker.once("message", (message) => {
+                if (message?.error) {
+                    const error = new Error(message.error.message);
+                    error.name = message.error.name;
+                    error.stack = message.error.stack;
+                    reject(error);
+                    return;
+                }
+                resolve(message);
+            });
+            worker.once("error", reject);
+            worker.once("exit", (code) => {
+                if (code !== 0) {
+                    reject(new Error(`Script task worker stopped with exit code ${code}`));
+                }
+            });
+        });
+
+        this.variables.applySnapshot(result.variables);
+    }
+
     createFlowEvent(flowEventId){
         let flowEvent = { processInstanceId: this.processInstanceId, flowId: flowEventId, status: 1 };
         if(WorkflowModel[flowEventId] && this.isTwoPhaseComponent(WorkflowModel[flowEventId].target.$type) ){
@@ -101,6 +161,16 @@ class {{ServiceClassName}} {
             });
     }
 
+    canPassParallelGateway(gatewayMap)
+    {
+        Logger.trace(`canPassParallelGateway called, ${JSON.stringify(Array.from(gatewayMap.entries()))}`);
+        if (gatewayMap.size === 0) {
+            throw new Error("gateway connections must be more than one");
+        }
+        // to continue execution, every incoming flow must have arrived (status = 1)
+        return Array.from(gatewayMap.values()).every((status) => status === 1);
+    }
+
     callFunction(func, localContext, args  )
     {
         let fnArgs = args || {}
@@ -118,3 +188,7 @@ class {{ServiceClassName}} {
 }
 
 export default {{ServiceClassName}}
+
+
+
+

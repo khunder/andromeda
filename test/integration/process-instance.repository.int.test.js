@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import {v4} from 'uuid';
 
 import assert from "assert";
@@ -22,8 +21,7 @@ describe('ProcessInstanceRepo::Basic', function () {
             const processInstanceRepository = new ProcessInstanceRepository();
             const containerId = v4();
             await processInstanceRepository.createNewProcessInstance(id, "deploymentID", "processDef", containerId)
-            const processInstanceCollection = PersistenceModule.getConnection().db.collection('ProcessInstance');
-            const res = await processInstanceCollection.findOne({_id: id})
+            const res = await PersistenceModule.findOne('ProcessInstance', {_id: id})
             assert.ok(res);
             assert.equal(res.deploymentId, "deploymentID")
             assert.ok(res.lock)
@@ -45,8 +43,7 @@ describe('ProcessInstanceRepo::Basic', function () {
             // when
             await processInstanceRepository.removeLock(id)
             //then
-            const processInstanceCollection = PersistenceModule.getConnection().db.collection('ProcessInstance');
-            const res = await processInstanceCollection.findOne({_id: id})
+            const res = await PersistenceModule.findOne('ProcessInstance', {_id: id})
             assert.ok(res);
             assert.equal(res.lock, null)
             ;

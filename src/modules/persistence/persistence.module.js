@@ -3,6 +3,8 @@ import {Config} from "../../config/config.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
  import {PersistenceGateway} from "./persistence-gateway.js";
 import SqliteConnection from "./event-store/internal/sqlite/sqlite-connection.js";
+import SqliteRepositoryBase from "./event-store/repositories/sqlite.repository.base.js";
+import {TABLE_DEFINITIONS} from "./event-store/internal/sqlite/table-definitions.js";
 
 const Logger = new AndromedaLogger();
 
@@ -69,6 +71,27 @@ export class PersistenceModule {
             return {db: SqliteConnection.db};
         }
         return this.mongoose.connection
+    }
+
+    /**
+     * Driver-agnostic read helpers for tests/tooling that need to assert on
+     * persisted state without knowing whether the current run is backed by
+     * MongoDB or sqlite. `tableName` is the collection/table name shared by
+     * both drivers (e.g. "ProcessInstance", "FlowEvent") — see
+     * TABLE_DEFINITIONS for the sqlite side.
+     */
+    static async countDocuments(tableName, cond = {}) {
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            return new SqliteRepositoryBase(TABLE_DEFINITIONS[tableName]).count(cond);
+        }
+        return this.mongoose.connection.db.collection(tableName).countDocuments(cond);
+    }
+
+    static async findOne(tableName, cond = {}) {
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            return new SqliteRepositoryBase(TABLE_DEFINITIONS[tableName]).findOne(cond);
+        }
+        return this.mongoose.connection.db.collection(tableName).findOne(cond);
     }
 
     static async dispose(){

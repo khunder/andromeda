@@ -104,6 +104,20 @@ export const ALLOWED_BPMN_ELEMENTS: AllowedBpmnElement[] = [
     bpmnType: 'bpmn:ScriptTask',
     paletteClass: 'bpmn-icon-script-task',
     group: 'activity'
+  },
+  {
+    key: 'exclusiveGatewayNode',
+    label: 'Exclusive Gateway',
+    bpmnType: 'bpmn:ExclusiveGateway',
+    paletteClass: 'bpmn-icon-gateway-xor',
+    group: 'gateway'
+  },
+  {
+    key: 'parallelGatewayNode',
+    label: 'Parallel Gateway',
+    bpmnType: 'bpmn:ParallelGateway',
+    paletteClass: 'bpmn-icon-gateway-parallel',
+    group: 'gateway'
   }
 ];
 

@@ -1,7 +1,6 @@
 import {EventStore} from "../lib/event-store.js";
 import {v4} from "uuid";
 import PersistenceModule from "../../persistence.module.js";
-import mongoose from "mongoose";
 import {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
 import {EventTypes} from "../event-types.js";
 import {StreamIds} from "../streams/stream-ids.js";
@@ -94,7 +93,7 @@ it('Create/Close process instance',
             timestamp: new Date().toString()
         });
 
-        const pi = await mongoose.connection.db.collection("ProcessInstance").findOne({_id: processInstancesId})
+        const pi = await PersistenceModule.findOne("ProcessInstance", {_id: processInstancesId})
         assert.equal(pi.status, ProcessInstanceStatus.Completed)
 
     })

@@ -22,6 +22,7 @@ class ScriptTaskNodeProcessor {
             type: currentNode.$type,
             name: currentNode.name || currentNode.id,
             body: currentNode.script,
+            executeInWorker: true,
         };
 
         // if we want to customize script event flow

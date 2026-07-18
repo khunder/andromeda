@@ -17,6 +17,24 @@ export class {{ ProcessDef }}ProcessInstanceContext {
     set {{ var.name }}(val) { this.#{{ var.name }}.value = val; }
 {% endfor %}
 
+    toPlainObject(){
+        return this.__variablesRef.reduce((snapshot, variable) => {
+            snapshot[variable.name] = variable.value;
+            return snapshot;
+        }, {});
+    }
+
+    applySnapshot(snapshot){
+        if (!snapshot) {
+            return;
+        }
+        this.__variablesRef.forEach((variable) => {
+            if (Object.prototype.hasOwnProperty.call(snapshot, variable.name)) {
+                this[variable.name] = snapshot[variable.name];
+            }
+        });
+    }
+
     async saveContext(){
         const dirtyVariables = this.__variablesRef.filter(variable => variable.needToSave());
         if (dirtyVariables.length === 0) {
@@ -32,3 +50,4 @@ export class {{ ProcessDef }}ProcessInstanceContext {
     }
 
 }
+

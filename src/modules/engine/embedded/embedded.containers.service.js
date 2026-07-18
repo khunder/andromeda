@@ -64,6 +64,23 @@ export class EmbeddedContainerService {
     }
 
 
+    /**
+     * Decides whether a spawned container should ping galaxy (heartbeat/registration).
+     * Callers that care always pass an explicit boolean (e.g. embedded-server.controller.js,
+     * driven by the API's `withGalaxy` field). When it's left unspecified, containers
+     * spawned under the test suite default to standalone mode so test runs never fire
+     * heartbeat/register requests at galaxy; outside tests the legacy default (`true`) applies.
+     */
+    static resolveWithGalaxy(options) {
+        if (options.withGalaxy === false) {
+            return 'false';
+        }
+        if (options.withGalaxy === undefined && Config.getInstance().environment === 'test') {
+            return 'false';
+        }
+        return 'true';
+    }
+
     static async startEmbeddedContainer(deploymentId, options) {
         let allocatedPort = await this.allocatePort(options);
 
@@ -95,7 +112,7 @@ export class EmbeddedContainerService {
                     deploymentId: deploymentId,
                     GALAXY_URL: Config.getInstance().galaxyUrl,
                     // standalone / "lone wolf" mode: container starts without galaxy support and never pings
-                    WITH_GALAXY: options.withGalaxy === false ? 'false' : 'true',
+                    WITH_GALAXY: this.resolveWithGalaxy(options),
                     socketCallBacks: options.socketCallBacks,
                     // propagate the engine's own driver choice so an embedded container
                     // uses the same backend — and, for sqlite, the exact same file — as
