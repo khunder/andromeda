@@ -57,13 +57,16 @@ export class Variable {
     }
 
     set value(value) {
-        VariableEncoder.transcodeVariable(value, this.type, this.name);
+        // transcode (and validate) against the declared type, so a variable
+        // always holds a properly-typed value regardless of what was passed in
+        // (e.g. a caller sending {"age": "20"} for a declared "number" variable)
+        const transcodedValue = VariableEncoder.transcodeVariable(value, this.type, this.name);
         if(this.type !== "object"){
-            Logger.debug(`Set variable ${this.name} to ${value}`)
+            Logger.debug(`Set variable ${this.name} to ${transcodedValue}`)
         }else {
-            Logger.debug(`set variable '${this.name}' to ${JSON.stringify(value)}`)
+            Logger.debug(`set variable '${this.name}' to ${JSON.stringify(transcodedValue)}`)
         }
         this.#oldValue = this.#currentValue;
-        this.#currentValue = value;
+        this.#currentValue = transcodedValue;
     }
 }

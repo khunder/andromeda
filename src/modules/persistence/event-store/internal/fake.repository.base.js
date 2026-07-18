@@ -35,12 +35,19 @@ export class FakeRepositoryBase {
   }
 
   async find(
-    cond,
+    cond = {},
     fields,
     options,
     sortOptions,
   ){
-    throw `not implemented`
+    let results = this.objects.filter(o =>
+      Object.entries(cond).every(([k, v]) => o[k] === v)
+    );
+    if (sortOptions) {
+      const [field, dir] = Object.entries(sortOptions)[0];
+      results = [...results].sort((a, b) => (a[field] - b[field]) * dir);
+    }
+    return results;
   }
 
   async retrieve() {
@@ -58,6 +65,25 @@ export class FakeRepositoryBase {
 
   async restoreAll(docs) {
     this.objects = docs ? [...docs] : [];
+  }
+
+  // supports the {updateOne: {filter, update: {$set, $setOnInsert}, upsert}} shape
+  // BaseRepository.bulkWrite callers use (see VariableRepository)
+  async bulkWrite(operations) {
+    operations.forEach(({updateOne}) => {
+      const {filter, update, upsert} = updateOne;
+      let match = this.objects.find(o =>
+        Object.entries(filter).every(([k, v]) => o[k] === v)
+      );
+      if (!match) {
+        if (!upsert) {
+          return;
+        }
+        match = {...(update['$setOnInsert'] || {})};
+        this.objects.push(match);
+      }
+      Object.assign(match, update['$set'] || {});
+    });
   }
 
   async count(cond) {

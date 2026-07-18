@@ -205,6 +205,7 @@ class WorkflowBuilder {
             template,
             {
                 ProcessDef: normalizedProcessDef,
+                processVariables: this.getProcessVariables(parsedModel.model),
             },
         );
         let destFile = path.join(Utils.getDeploymentPath(containerParsingContext), "src", "services", `${normalizedProcessDef.toLowerCase()}.process-instance-context.js`);
@@ -293,6 +294,74 @@ class WorkflowBuilder {
     }
 
     /**
+     * Reads <bpmn:property> declarations off the process element (e.g.
+     * <bpmn:property id="p1" itemSubjectRef="_ageItem" name="age" />, paired with
+     * an <bpmn:itemDefinition id="_ageItem" structureRef="number" />) into the
+     * {name, type} pairs the process-instance-context template generates
+     * typed variable accessors for.
+     * @param model
+     * @returns {Array<{name: string, type: string}>}
+     */
+    getProcessVariables(model) {
+        const variables = [];
+        this.getProcessesModel(model).forEach((bpmnProcess) => {
+            (bpmnProcess.properties || []).forEach((property) => {
+                if (!property.name) {
+                    Logger.warn(`skipping unnamed process property on ${bpmnProcess.id}`);
+                    return;
+                }
+                variables.push({
+                    name: property.name,
+                    type: property.itemSubjectRef?.structureRef || 'string',
+                });
+            });
+        });
+        return variables;
+    }
+
+    /**
+     * Maps a BPMN itemDefinition structureRef to an OpenAPI schema type + example value.
+     * @param {string} type
+     * @returns {{schema: object, example: *}}
+     */
+    mapVariableType(type) {
+        switch (type) {
+            case 'number':
+                return {schema: {type: 'number'}, example: 0};
+            case 'boolean':
+                return {schema: {type: 'boolean'}, example: true};
+            case 'object':
+                return {schema: {type: 'object'}, example: {}};
+            case 'Date':
+                return {schema: {type: 'string', format: 'date-time'}, example: new Date().toISOString()};
+            case 'string':
+            default:
+                return {schema: {type: 'string'}, example: 'value'};
+        }
+    }
+
+    /**
+     * Builds an OpenAPI schema (with a matching example) for the JSON "variables"
+     * request body property, from a process's declared <bpmn:property> variables.
+     * @param {Array<{name: string, type: string}>} processVariables
+     * @returns {object}
+     */
+    buildVariablesSchema(processVariables) {
+        const schema = {
+            type: 'object',
+            description: 'Process variables to set on the new process instance',
+            properties: {},
+            example: {}
+        };
+        processVariables.forEach((variable) => {
+            const {schema: propertySchema, example} = this.mapVariableType(variable.type);
+            schema.properties[variable.name] = propertySchema;
+            schema.example[variable.name] = example;
+        });
+        return schema;
+    }
+
+    /**
      *
      * @param {string} normalizedProcessDef
      * @param {WorkflowParsingContext} bpmnModel
@@ -302,24 +371,51 @@ class WorkflowBuilder {
     generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
             const controllerName= `${normalizedProcessDef}Controller`
 
-        workflowCodegenContext.containerCodegenContext.openApiCodegen.addPath("/start" , "post")
-        workflowCodegenContext.containerCodegenContext.openApiCodegen.addResponse("/start" , "post" , {
-            "responses": {
-                "200": {
-                    "description": "Process instance id"
-                },
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "deploymentId": {
-                                        "type": "string"
-                                    }
-                                }
+        const variablesSchema = this.buildVariablesSchema(this.getProcessVariables(bpmnModel.model));
+
+        const openApiCodegen = workflowCodegenContext.containerCodegenContext.openApiCodegen;
+        openApiCodegen.addPath("/start" , "post")
+        openApiCodegen.addPathDescription("/start", "post", "Start a new process instance, optionally with variables")
+        openApiCodegen.addPathTags("/start", "post", ["Process Instance"])
+        // status code -> response, not nested under a "responses" key (addResponse merges its
+        // argument directly into .responses)
+        openApiCodegen.addResponse("/start" , "post" , {
+            "200": {
+                "description": "Process instance created",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string", "description": "The created process instance id"}
                             }
+                        }
+                    }
+                }
+            }
+        })
+        // requestBody is a sibling of responses in OpenAPI, not nested inside it —
+        // it needs its own call, not folding into addResponse's argument
+        openApiCodegen.setRequestBody("/start", "post", {
+            "required": false,
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "variables": {
+                                "type": "string",
+                                "description": "JSON-encoded process variables object",
+                                "example": JSON.stringify(variablesSchema.example)
+                            }
+                        }
+                    }
+                },
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "variables": variablesSchema
                         }
                     }
                 }

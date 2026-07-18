@@ -10,7 +10,29 @@ function route (fastify, opts, next) {
             method: '{{ item.verb }}',
             url: '{{ item.path }}',
             handler: {{ normalizedProcessDef }}Controller.{{ item.method }},
-            consumes: ['multipart/form-data']
+            consumes: ['multipart/form-data', 'application/json'],
+            preHandler: async (request, reply) => {
+                // @fastify/multipart is registered without attachFieldsToBody, so
+                // request.body is never populated for multipart requests unless we
+                // consume the stream ourselves here. JSON requests are left alone —
+                // Fastify's built-in JSON parser already populates request.body.
+                const contentType = request.headers['content-type'] || '';
+                if (contentType.startsWith('multipart/form-data')) {
+                    const parts = request.parts();
+                    const files = [];
+                    const body = {};
+                    for await (const part of parts) {
+                        if (part.type === 'file') {
+                            const buffer = await part.toBuffer();
+                            files.push({ fieldname: part.fieldname, filename: part.filename, buffer, mimetype: part.mimetype });
+                        } else {
+                            body[part.fieldname] = part.value;
+                        }
+                    }
+                    request.files = files;
+                    request.body = body;
+                }
+            }
         }
     {% else %}
         {

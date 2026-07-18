@@ -87,6 +87,13 @@ class BaseRepository {
     return this._model.insertMany(items);
   }
 
+  // raw passthrough for per-document upserts that need $set/$setOnInsert
+  // (a plain upsert() can't express "update many docs, each with its own filter")
+  async bulkWrite(operations) {
+    Logger.trace(`Base repository: bulkWrite ${operations.length} operations`);
+    return this._model.bulkWrite(operations, {ordered: true});
+  }
+
   // full collection dump as plain objects, used to capture snapshot state
   async dumpAll() {
     const docs = await this._model.find({});

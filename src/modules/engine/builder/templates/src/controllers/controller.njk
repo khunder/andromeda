@@ -8,7 +8,11 @@ class {{ ControllerClassName }} {
         try {
             let variables = {};
             if(req.body && req.body.variables){
-                variables = JSON.parse(req.body.variables);
+                // multipart/form-data sends "variables" as a JSON-encoded string field;
+                // application/json bodies arrive already parsed as an object
+                variables = typeof req.body.variables === 'string'
+                    ? JSON.parse(req.body.variables)
+                    : req.body.variables;
             }
 
             if(req.files){

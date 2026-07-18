@@ -15,7 +15,7 @@ async fn_{{nodeContext.id}} (flowModel) {
     if(flowModel.executeBody) {
 {% endif %}
       {{ nodeContext.body }}
-      this._context.saveContext();
+      await this.variables.saveContext();
 {% if nodeContext.args and nodeContext.args.resumeExecution %}
       if(flowModel.resumeExecution){
 {% endif %}

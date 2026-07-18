@@ -6,6 +6,8 @@ import {ProcessInstanceProjection} from "./event-store/projections/process-insta
 import {FlowEventStreamBuilder} from "./event-store/streams/fow-event/flow-event.stream-builder.js";
 import {StreamIds} from "./event-store/streams/stream-ids.js";
 import {FlowEventProjection} from "./event-store/projections/flow-event-projection.js";
+import {VariableStreamBuilder} from "./event-store/streams/variable/variable.stream-builder.js";
+import {VariableProjection} from "./event-store/projections/variable-projection.js";
 import {ReplayService} from "./event-store/lib/replay.service.js";
 
 export class PersistenceGateway {
@@ -104,6 +106,33 @@ export class PersistenceGateway {
         )
     };
 
+    /**
+     * Persist only the variables that actually changed (dirty-checked by the caller).
+     * @param {string} processInstanceId
+     * @param {string} processDef
+     * @param {string} deploymentId
+     * @param {Array<{name: string, type: string, value: any}>} variables
+     */
+    static async saveVariables({processInstanceId, processDef, deploymentId, variables}) {
+        if (!variables || variables.length === 0) {
+            return;
+        }
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.VARIABLE,
+                type: EventTypes.BULK_UPSERT_VARIABLES,
+                data: {
+                    processInstance: processInstanceId,
+                    processDef: processDef,
+                    deploymentId: deploymentId,
+                    variables: variables,
+                },
+                timestamp: new Date().toISOString()
+            }
+        )
+    };
+
     static async init() {
         PersistenceGateway.registerStreams()
         // continue stream numbering from the persisted log after a restart
@@ -129,6 +158,12 @@ export class PersistenceGateway {
         this.registerProjections(flowEventStream, flowEventStream.eventsRegistry.FAIL_FLOW_EVENT, flowEventProjection);
         flowEventStream.snapshotHandler = flowEventProjection;
         flowEventStream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
+
+        const variableStream = VariableStreamBuilder.build()
+        const variableProjection = new VariableProjection();
+        this.registerProjections(variableStream, variableStream.eventsRegistry.BULK_UPSERT_VARIABLES, variableProjection);
+        variableStream.snapshotHandler = variableProjection;
+        variableStream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
 
     }
 

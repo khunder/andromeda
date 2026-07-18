@@ -1,0 +1,11 @@
+Road Map
+
+- Support sqlight
+- support conditional flow
+- support exclusive gateways
+- support parallel gateways
+- support custom human tasks
+- support intermediate events
+- support signal events (notify same process catch event)
+- support signal events (notify another process catch event)
+- deploy multiple processes in the same container using the same deploymentId

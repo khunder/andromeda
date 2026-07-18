@@ -10,9 +10,18 @@ import {Config} from "../config/config.js";
 class {{ServiceClassName}} {
 
     processInstanceId
-    _context = new {{ ProcessDef }}ProcessInstanceContext();
+    // exposed as `this.variables` so script tasks can read/write process
+    // variables directly, e.g. `this.variables.age = 23;`
+    variables = new {{ ProcessDef }}ProcessInstanceContext(this);
 
-    bootstrap(){
+    bootstrap(incomingVariables){
+        if (incomingVariables) {
+            Object.keys(incomingVariables).forEach((key) => {
+                if (key in this.variables) {
+                    this.variables[key] = incomingVariables[key];
+                }
+            });
+        }
     }
 
     constructor(processInstanceId)

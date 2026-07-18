@@ -65,9 +65,9 @@ export class ConfigurationPanel {
               <small>The base URL of your Andromeda engine instance</small>
             </div>
             <div class="config-field">
-              <label for="default-deployment-id">Default Deployment ID:</label>
+              <label for="default-deployment-id">Deployment ID:</label>
               <input type="text" id="default-deployment-id" placeholder="my-deployment" value="${this.configManager.getDeploymentId()}">
-              <small>Default ID to use for deployments (can be changed per deployment)</small>
+              <small>Kept in sync with the diagram's definitions id (also editable from the properties panel)</small>
             </div>
             <div class="config-field">
               <label for="galaxy-url">Galaxy URL (optional):</label>

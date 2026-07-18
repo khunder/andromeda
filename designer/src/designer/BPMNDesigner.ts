@@ -17,7 +17,9 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                   id="Definitions_1"
                   targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:itemDefinition id="ItemDefinition_age" structureRef="number" />
   <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:property id="Property_age" itemSubjectRef="ItemDefinition_age" name="age" />
     <bpmn:startEvent id="StartEvent_1" name="Start">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
@@ -495,6 +497,13 @@ export class BPMNDesigner {
   private renderDeploymentConfigPanel(content: HTMLElement): void {
     const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
     const defaultContainerId = definitions?.id || this.configManager.getDeploymentId();
+
+    // keep the stored deployment id in sync with the diagram's definitions id
+    // (e.g. after editing raw XML and clicking Apply) so Configuration Settings
+    // never shows a stale value when opened later
+    if (definitions?.id && definitions.id !== this.configManager.getDeploymentId()) {
+      this.configManager.setDeploymentId(definitions.id);
+    }
 
     content.innerHTML = `
       <p style="color: #999; font-size: 12px; margin-bottom: 15px;">Select an element to edit its properties, or set your deployment defaults below.</p>

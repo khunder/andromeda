@@ -15,7 +15,11 @@ class StartNodeProcessor {
 
         const bootstrapMethod =workflowCodegenContext.serviceClass.getMethodOrThrow('bootstrap');
         bootstrapMethod.addStatements(
-            `this.fn_${currentNode.id}()`,
+            // intentionally not awaited: bootstrap()/the /start response must
+            // return immediately while the workflow runs in the background.
+            // .catch() only ensures a failure is logged instead of vanishing
+            // as an unhandled promise rejection.
+            `this.fn_${currentNode.id}().catch((error) => { Logger.error(error); });`,
         );
         return nodeContext;
 

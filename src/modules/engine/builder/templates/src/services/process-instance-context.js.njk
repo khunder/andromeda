@@ -1,10 +1,34 @@
+import {Variable} from "../model/variable.js";
+import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
+import {Config} from "../config/config.js";
 
 export class {{ ProcessDef }}ProcessInstanceContext {
-    __variablesRef = []
+{% for var in processVariables %}
+    #{{ var.name }} = new Variable('{{ var.name }}', '{{ var.type }}');
+{% endfor %}
 
-    async saveContext(context){
-        this.__variablesRef.filter(variable => variable.needToSave());
-        // await new VariableRepository().bulkUpsertVariables(variables, this.processInstanceService.id, this.processInstanceService.processDef);
+    __variablesRef = [{% for var in processVariables %}this.#{{ var.name }},{% endfor %}]
+
+    constructor(processInstanceService) {
+        this.processInstanceService = processInstanceService;
+    }
+{% for var in processVariables %}
+    get {{ var.name }}() { return this.#{{ var.name }}.value; }
+    set {{ var.name }}(val) { this.#{{ var.name }}.value = val; }
+{% endfor %}
+
+    async saveContext(){
+        const dirtyVariables = this.__variablesRef.filter(variable => variable.needToSave());
+        if (dirtyVariables.length === 0) {
+            return;
+        }
+        await PersistenceGateway.saveVariables({
+            processInstanceId: this.processInstanceService.processInstanceId,
+            processDef: '{{ ProcessDef }}',
+            deploymentId: Config.getInstance().deploymentId,
+            variables: dirtyVariables.map(variable => ({name: variable.name, type: variable.type, value: variable.value})),
+        });
+        dirtyVariables.forEach(variable => variable.resetStatus());
     }
 
 }
