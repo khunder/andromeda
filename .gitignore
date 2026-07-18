@@ -69,6 +69,9 @@ typings/
 
 /.pid_[0-9]*
 
+# local sqlite database (PERSISTENCE_DRIVER=sqlite), reset on every engine start
+*.sqlite
+
 # Claude Code: personal overrides and hook-local state (agents/hooks/settings.json are shared)
 /.claude/settings.local.json
 /.claude/.qa-last-signal

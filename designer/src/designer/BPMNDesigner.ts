@@ -10,29 +10,32 @@ import type { GalaxyModal } from './GalaxyModal';
 declare const monaco: any;
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  id="Definitions_1"
-                  targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="wee" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:itemDefinition id="ItemDefinition_age" structureRef="number" />
   <bpmn:process id="Process_1" isExecutable="false">
     <bpmn:property id="Property_age" itemSubjectRef="ItemDefinition_age" name="age" />
     <bpmn:startEvent id="StartEvent_1" name="Start">
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
-    <bpmn:scriptTask id="ScriptTask_1" name="Script Task" scriptFormat="javascript">
+    <bpmn:scriptTask id="ScriptTask_1" name="age23" scriptFormat="javascript">
       <bpmn:incoming>Flow_1</bpmn:incoming>
       <bpmn:outgoing>Flow_2</bpmn:outgoing>
-      <bpmn:script>console.log("----->")</bpmn:script>
+      <bpmn:script>console.log("-----&gt;");
+this.variables.age = 23;
+</bpmn:script>
     </bpmn:scriptTask>
     <bpmn:endEvent id="EndEvent_1" name="End">
-      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:incoming>Flow_0rwn1un</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="ScriptTask_1" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_1" targetRef="EndEvent_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="ScriptTask_1" targetRef="Activity_05rjq3s" />
+    <bpmn:scriptTask id="Activity_05rjq3s" name="age25">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_0rwn1un</bpmn:outgoing>
+      <bpmn:script>console.log("Step 2 -----&gt; changing age to 25");
+this.variables.age = 25;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:sequenceFlow id="Flow_0rwn1un" sourceRef="Activity_05rjq3s" targetRef="EndEvent_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
@@ -41,9 +44,17 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ScriptTask_1_di" bpmnElement="ScriptTask_1">
         <dc:Bounds x="260" y="74" width="100" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
-        <dc:Bounds x="430" y="96" width="36" height="36" />
+        <dc:Bounds x="622" y="96" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="630" y="132" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_05rjq3s_di" bpmnElement="Activity_05rjq3s">
+        <dc:Bounds x="450" y="74" width="100" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="192" y="114" />
@@ -51,11 +62,16 @@ const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
         <di:waypoint x="360" y="114" />
-        <di:waypoint x="430" y="114" />
+        <di:waypoint x="450" y="114" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0rwn1un_di" bpmnElement="Flow_0rwn1un">
+        <di:waypoint x="550" y="114" />
+        <di:waypoint x="622" y="114" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+</bpmn:definitions>
+`;
 
 type BpmnModeler = Modeler<Record<string, unknown>>;
 

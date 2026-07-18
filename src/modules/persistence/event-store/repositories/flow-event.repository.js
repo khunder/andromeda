@@ -1,7 +1,7 @@
-import BaseRepository from "./baseRepository.js";
-
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 import FlowEventModel, {FlowEventStatus} from "../internal/models/flow-event.orm-model.js";
+import {RepositoryFactory} from "./repository.factory.js";
+import {TABLE_DEFINITIONS} from "../internal/sqlite/table-definitions.js";
 import {v4} from "uuid";
 const Logger = new AndromedaLogger();
 
@@ -13,7 +13,7 @@ export class FlowEventRepository {
     repo;
 
     constructor() {
-        this.repo= new BaseRepository(FlowEventModel)
+        this.repo = RepositoryFactory.create(FlowEventModel, TABLE_DEFINITIONS.FlowEvent);
     }
 
     /**

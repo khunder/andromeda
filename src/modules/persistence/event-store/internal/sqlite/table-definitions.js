@@ -1,0 +1,74 @@
+/**
+ * SQLite schema definitions mirroring the Mongoose ORM models one-for-one, so
+ * SqliteRepositoryBase can offer the same shape of data as BaseRepository.
+ * `jsonFields` lists columns that hold serialized JSON (SQLite has no native
+ * object/array column type) and must be parsed on read, stringified on write.
+ */
+
+export const TABLE_DEFINITIONS = {
+    EventStore: {
+        name: 'EventStore',
+        ddl: `CREATE TABLE IF NOT EXISTS EventStore (
+            _id TEXT PRIMARY KEY,
+            streamId TEXT NOT NULL,
+            streamPosition INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            data TEXT,
+            metadata TEXT,
+            timestamp TEXT NOT NULL,
+            UNIQUE(streamId, streamPosition)
+        )`,
+        jsonFields: ['data', 'metadata'],
+    },
+    ProcessInstance: {
+        name: 'ProcessInstance',
+        ddl: `CREATE TABLE IF NOT EXISTS ProcessInstance (
+            _id TEXT PRIMARY KEY,
+            deploymentId TEXT NOT NULL,
+            processDef TEXT NOT NULL,
+            status INTEGER NOT NULL DEFAULT 0,
+            lock TEXT
+        )`,
+        jsonFields: ['lock'],
+    },
+    FlowEvent: {
+        name: 'FlowEvent',
+        ddl: `CREATE TABLE IF NOT EXISTS FlowEvent (
+            _id TEXT PRIMARY KEY,
+            flowId TEXT NOT NULL,
+            processInstance TEXT NOT NULL,
+            status INTEGER NOT NULL DEFAULT 0
+        )`,
+        jsonFields: [],
+    },
+    Variable: {
+        name: 'Variable',
+        ddl: `CREATE TABLE IF NOT EXISTS Variable (
+            _id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            value TEXT,
+            processDef TEXT NOT NULL,
+            deploymentId TEXT NOT NULL,
+            processInstance TEXT NOT NULL,
+            createdAt TEXT,
+            updatedAt TEXT,
+            UNIQUE(processInstance, name)
+        )`,
+        jsonFields: [],
+    },
+    Snapshot: {
+        name: 'Snapshot',
+        ddl: `CREATE TABLE IF NOT EXISTS Snapshot (
+            _id TEXT PRIMARY KEY,
+            streamId TEXT NOT NULL,
+            streamPosition INTEGER NOT NULL,
+            state TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            UNIQUE(streamId, streamPosition)
+        )`,
+        jsonFields: ['state'],
+    },
+};
+
+export default TABLE_DEFINITIONS;

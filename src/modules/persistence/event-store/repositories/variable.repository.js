@@ -1,9 +1,7 @@
-import BaseRepository from "./baseRepository.js";
-
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
-import {Config} from "../../../../config/config.js";
 import VariableModel from "../internal/models/variable.orm-model.js";
-import FakeRepositoryBase from "../internal/fake.repository.base.js";
+import {RepositoryFactory} from "./repository.factory.js";
+import {TABLE_DEFINITIONS} from "../internal/sqlite/table-definitions.js";
 import {v4} from "uuid";
 
 const Logger = new AndromedaLogger();
@@ -16,11 +14,7 @@ export class VariableRepository {
     repo;
 
     constructor() {
-        if(Config.getInstance().isUnitTestMode){
-            this.repo = new FakeRepositoryBase(VariableModel)
-        }else {
-            this.repo = new BaseRepository(VariableModel)
-        }
+        this.repo = RepositoryFactory.create(VariableModel, TABLE_DEFINITIONS.Variable);
     }
 
     isPrimitive(value) {

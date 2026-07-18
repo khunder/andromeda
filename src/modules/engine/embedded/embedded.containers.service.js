@@ -96,7 +96,12 @@ export class EmbeddedContainerService {
                     GALAXY_URL: Config.getInstance().galaxyUrl,
                     // standalone / "lone wolf" mode: container starts without galaxy support and never pings
                     WITH_GALAXY: options.withGalaxy === false ? 'false' : 'true',
-                    socketCallBacks: options.socketCallBacks
+                    socketCallBacks: options.socketCallBacks,
+                    // propagate the engine's own driver choice so an embedded container
+                    // uses the same backend — and, for sqlite, the exact same file — as
+                    // the engine that spawned it, rather than each resolving its own default
+                    PERSISTENCE_DRIVER: Config.getInstance().persistenceDriver,
+                    SQLITE_FILE_PATH: Config.getInstance().sqliteFilePath
                 },
                 cwd: deploymentPath,
                 args: args

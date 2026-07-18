@@ -44,6 +44,7 @@
     "nunjucks": "^3.2.3",
     "pino": "^9.9.4",
     "pino-pretty": "^13.1.1",
+    "sql.js": "^1.14.1",
     "swagger-ui": "^4.10.3",
     "ts-morph": "^14.0.0",
     "uuid": "^8.3.2",

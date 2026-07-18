@@ -2,6 +2,7 @@
 import {Config} from "../../config/config.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
  import {PersistenceGateway} from "./persistence-gateway.js";
+import SqliteConnection from "./event-store/internal/sqlite/sqlite-connection.js";
 
 const Logger = new AndromedaLogger();
 
@@ -14,6 +15,13 @@ export class PersistenceModule {
     static mongoose;
 
     static async init() {
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            return PersistenceModule.initSqlite();
+        }
+        return PersistenceModule.initMongo();
+    }
+
+    static async initMongo() {
         return new Promise( (async (resolve, reject) => {
             try {
                 Logger.info(`Mongoose trying to connect...`)
@@ -38,11 +46,39 @@ export class PersistenceModule {
 
     }
 
+    static async initSqlite() {
+        try {
+            // only the owning engine process resets the database at startup —
+            // a container (always has `deploymentId` set) connects to whatever
+            // the engine already created instead of wiping it out from under it
+            if (!process.env.deploymentId) {
+                Logger.info(`sqlite: this is the owning engine process, resetting database`)
+                await SqliteConnection.reset();
+            } else {
+                await SqliteConnection.getInstance();
+            }
+            await PersistenceGateway.init();
+        } catch (e) {
+            Logger.error(e)
+            throw e;
+        }
+    }
+
     static getConnection(){
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            return {db: SqliteConnection.db};
+        }
         return this.mongoose.connection
     }
 
     static async dispose(){
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            // best-effort: reliably resetting on next startup (see initSqlite)
+            // is what actually guarantees a fresh database every session,
+            // since a crash or force-kill would skip this graceful path
+            SqliteConnection.close();
+            return;
+        }
         await mongoose.disconnect()
     }
 

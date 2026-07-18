@@ -1,9 +1,7 @@
-import BaseRepository from "./baseRepository.js";
-
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
-import {Config} from "../../../../config/config.js";
 import SnapshotModel from "../internal/models/snapshot.orm-model.js";
-import FakeRepositoryBase from "../internal/fake.repository.base.js";
+import {RepositoryFactory} from "./repository.factory.js";
+import {TABLE_DEFINITIONS} from "../internal/sqlite/table-definitions.js";
 
 const Logger = new AndromedaLogger();
 
@@ -15,11 +13,7 @@ export class SnapshotRepository {
     repo;
 
     constructor() {
-        if(Config.getInstance().isUnitTestMode){
-            this.repo = new FakeRepositoryBase(SnapshotModel)
-        }else {
-            this.repo = new BaseRepository(SnapshotModel)
-        }
+        this.repo = RepositoryFactory.create(SnapshotModel, TABLE_DEFINITIONS.Snapshot);
     }
 
     /**

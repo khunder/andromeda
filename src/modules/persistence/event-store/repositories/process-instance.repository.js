@@ -1,7 +1,7 @@
-import BaseRepository from "./baseRepository.js";
-
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 import ProcessInstanceModel, {ProcessInstanceStatus} from "../internal/models/process-instance.orm-model.js";
+import {RepositoryFactory} from "./repository.factory.js";
+import {TABLE_DEFINITIONS} from "../internal/sqlite/table-definitions.js";
 const Logger = new AndromedaLogger();
 
 export class ProcessInstanceRepository {
@@ -12,7 +12,7 @@ export class ProcessInstanceRepository {
     repo;
 
     constructor() {
-        this.repo= new BaseRepository(ProcessInstanceModel)
+        this.repo = RepositoryFactory.create(ProcessInstanceModel, TABLE_DEFINITIONS.ProcessInstance);
     }
 
     /**
