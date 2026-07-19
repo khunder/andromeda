@@ -40,6 +40,14 @@ export class ProcessInstanceRepository {
     }
 
     /**
+     * @param {string} processInstanceId
+     * @returns {Promise<object|null>}
+     */
+    async getProcessInstance(processInstanceId) {
+        return this.repo.findById(processInstanceId);
+    }
+
+    /**
      *
      * @param {string} processInstanceId
      * @returns {Promise<void>}

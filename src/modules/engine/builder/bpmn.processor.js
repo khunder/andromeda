@@ -5,6 +5,7 @@ import EndNodeProcessor from "./processors/end.node.processor.js";
 import ScriptTaskNodeProcessor from "./processors/script.node.processor.js";
 import ExclusiveGatewayNodeProcessor from "./processors/exclusive-gateway.node.processor.js";
 import ParallelGatewayNodeProcessor from "./processors/parallel-gateway.node.processor.js";
+import CatchEventNodeProcessor from "./processors/catch-event.processor.js";
 import path from "path";
 import nunjucks from "nunjucks";
 import fs from "fs";
@@ -25,6 +26,7 @@ class BpmnProcessor {
         this.processors[ScriptTaskNodeProcessor.type] = new ScriptTaskNodeProcessor();
         this.processors[ExclusiveGatewayNodeProcessor.type] = new ExclusiveGatewayNodeProcessor();
         this.processors[ParallelGatewayNodeProcessor.type] = new ParallelGatewayNodeProcessor();
+        this.processors[CatchEventNodeProcessor.type] = new CatchEventNodeProcessor();
     }
 
     /**

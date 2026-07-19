@@ -86,10 +86,16 @@ export class WebModule {
 
         this.app.setErrorHandler(async (error, req, reply) => {
             Logger.error(error)
-            Logger.error(req)
-            Logger.error(reply)
-            reply.status(500)
-            reply.send()
+            // respect a route handler's own error.statusCode (e.g. 400/404/409
+            // for a validation/not-found/conflict case) instead of collapsing
+            // every thrown error to a bare 500 with no body - a caller can't
+            // otherwise distinguish "you sent a bad request" from "the server
+            // broke"
+            const statusCode = Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode < 600
+                ? error.statusCode
+                : 500;
+            reply.status(statusCode)
+            reply.send({message: error.message || 'Internal Server Error'})
         })
 
 

@@ -25,7 +25,7 @@ class ScriptTaskNodeProcessor {
             executeInWorker: true,
         };
 
-        // if we want to customize script event flow
+        // if we want to customize the script event flow
         workflowCodegenContext.serviceClass.addMember(`async customizeScriptTaskFlowEvent(flowEvent){
             flowEvent.status = 1
         }`)

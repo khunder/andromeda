@@ -87,6 +87,33 @@ class {{ServiceClassName}} {
         }
     }
 
+    // Reconstructs a process instance that's no longer live in this
+    // container's memory (e.g. after a restart) from persisted state, so a
+    // /signal call can resume it from a paused catch event. Returns null if
+    // the instance doesn't exist or isn't Active (0) — a completed/aborted
+    // instance is never restored. Inspired by jsflow's createInstance(id)
+    // restore path (restoreProcessInstanceFormPersistentStore /
+    // getProcessInstanceStatus / variables.restoreVariableValues), adapted
+    // since Andromeda tracks two-phase "waiting" state via FlowEvent rather
+    // than a dedicated per-node status map.
+    static async restoreInstance(processInstanceId)
+    {
+        try{
+            const persisted = await PersistenceGateway.getProcessInstance({processInstanceId});
+            if (!persisted || persisted.status !== 0) {
+                return null;
+            }
+            const instance = new {{ServiceClassName}}(processInstanceId);
+            await instance.variables.restoreVariableValues();
+            ContainerService.getInstance().lock(instance);
+            return instance;
+        }
+        catch(e){
+            Logger.error(e);
+            return null;
+        }
+    }
+
     async close(){
           try{
             ContainerService.getInstance().lock(this);
@@ -100,7 +127,7 @@ class {{ServiceClassName}} {
     }
 
     isTwoPhaseComponent(type){
-        return type === "CatchEvent" || type === "HumanTask"
+        return type === "IntermediateCatchEvent" || type === "HumanTask"
     }
 
     async evaluate(expression) {

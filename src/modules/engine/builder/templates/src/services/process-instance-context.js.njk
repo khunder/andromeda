@@ -43,6 +43,27 @@ export class {{ ProcessDef }}ProcessInstanceContext {
         });
     }
 
+    // Rehydrates variable values from persistence — used when a paused process
+    // instance is no longer live in this container's memory (e.g. after a
+    // restart) and has to be reconstructed before it can be resumed. Inspired
+    // by jsflow's ProcessModel.restoreVariableValues(): read every persisted
+    // variable row for this instance and, for each one this workflow actually
+    // declares, assign it through the real setter (so it gets transcoded to
+    // its declared type the same way any other assignment would) and mark it
+    // clean immediately - it's not a new change, it's what's already saved.
+    async restoreVariableValues(){
+        const persistedVariables = await PersistenceGateway.getVariables({
+            processInstanceId: this.processInstanceService.processInstanceId,
+        });
+        persistedVariables.forEach((persisted) => {
+            const variable = this.__variablesRef.find((v) => v.name === persisted.name);
+            if (variable) {
+                variable.value = persisted.value;
+                variable.resetStatus();
+            }
+        });
+    }
+
     async saveContext(){
         const dirtyVariables = this.__variablesRef.filter(variable => variable.needToSave());
         if (dirtyVariables.length === 0) {

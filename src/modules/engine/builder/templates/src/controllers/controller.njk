@@ -1,4 +1,7 @@
 import  {AndromedaLogger} from "../config/andromeda-logger.js";
+import {ContainerService} from "../modules/container/container.service.js";
+import {WorkflowModel} from "../modules/container/workflow-model.js";
+import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
 const Logger = new AndromedaLogger();
 
 class {{ ControllerClassName }} {
@@ -30,6 +33,82 @@ class {{ ControllerClassName }} {
             returnError.statusCode = 500;
             returnError.message = err;
             returnError.stack=err;
+            throw returnError;
+        }
+    }
+
+    // Resumes a process instance paused at an intermediate catch event (see
+    // catch-event.processor.js for how it got there). Generic across every
+    // catch event node in this workflow, rather than one route per node:
+    // the caller names which node via `nodeId`.
+    static signal = async (req, res) => {
+        try {
+            const body = req.body || {};
+            const processInstanceId = body.processInstanceId;
+            const nodeId = body.nodeId;
+            if (!processInstanceId || !nodeId) {
+                const err = new Error('processInstanceId and nodeId are required');
+                err.statusCode = 400;
+                throw err;
+            }
+
+            // usually still live in this container process's memory; if not
+            // (e.g. the container restarted since the instance paused),
+            // reconstruct it from persistence instead of giving up - see
+            // {{ startMethod.name }}ProcessInstanceService.restoreInstance()
+            let processInstance = ContainerService.getInstance().processInstances[processInstanceId];
+            if (!processInstance) {
+                processInstance = await {{ startMethod.name }}ProcessInstanceService.restoreInstance(processInstanceId);
+            }
+            if (!processInstance) {
+                const err = new Error(`process instance ${processInstanceId} was not found or is no longer active`);
+                err.statusCode = 404;
+                throw err;
+            }
+
+            const pendingFlow = Object.values(WorkflowModel).find(
+                (flow) => flow.target && flow.target.id === nodeId
+            );
+            if (!pendingFlow) {
+                const err = new Error(`node ${nodeId} is not a known catch event in this workflow`);
+                err.statusCode = 404;
+                throw err;
+            }
+
+            const activeFlowEvent = await PersistenceGateway.findActiveFlowEvent({
+                processInstanceId,
+                flowId: pendingFlow.id,
+            });
+            if (!activeFlowEvent) {
+                const err = new Error(`process instance ${processInstanceId} is not currently waiting at node ${nodeId}`);
+                err.statusCode = 409;
+                throw err;
+            }
+
+            if (body.variables) {
+                const variables = typeof body.variables === 'string' ? JSON.parse(body.variables) : body.variables;
+                Object.keys(variables).forEach((key) => {
+                    if (key in processInstance.variables) {
+                        processInstance.variables[key] = variables[key];
+                    }
+                });
+            }
+
+            await PersistenceGateway.closeFlowEvent({processInstanceId, flowId: pendingFlow.id});
+            // fire-and-forget, matching bootstrap()'s start call: the /signal
+            // response returns immediately while execution continues in the
+            // background; a failure is logged rather than surfaced here.
+            processInstance[`fn_${nodeId}`]({executeBody: true, id: pendingFlow.id})
+                .catch((error) => { Logger.error(error); });
+
+            return {resumed: true, processInstanceId, nodeId};
+
+        } catch (err) {
+            Logger.error(err);
+            const returnError = new Error();
+            returnError.statusCode = err.statusCode || 500;
+            returnError.message = err.message || err;
+            returnError.stack = err.stack || err;
             throw returnError;
         }
     }

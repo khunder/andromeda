@@ -423,6 +423,46 @@ class WorkflowBuilder {
         })
         workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 
+        openApiCodegen.addPath("/signal", "post")
+        openApiCodegen.addPathDescription("/signal", "post", "Deliver an external signal to resume a process instance paused at an intermediate catch event")
+        openApiCodegen.addPathTags("/signal", "post", ["Process Instance"])
+        openApiCodegen.addResponse("/signal", "post", {
+            "200": {
+                "description": "Process instance resumed",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "resumed": {"type": "boolean"},
+                                "processInstanceId": {"type": "string"},
+                                "nodeId": {"type": "string"}
+                            }
+                        }
+                    }
+                }
+            },
+            "404": {"description": "Process instance not active in this container, or nodeId is not a known catch event"},
+            "409": {"description": "Process instance is not currently waiting at that node"}
+        })
+        openApiCodegen.setRequestBody("/signal", "post", {
+            "required": true,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["processInstanceId", "nodeId"],
+                        "properties": {
+                            "processInstanceId": {"type": "string", "description": "The id returned by POST /start"},
+                            "nodeId": {"type": "string", "description": "The id of the intermediate catch event node to resume"},
+                            "variables": variablesSchema
+                        }
+                    }
+                }
+            }
+        })
+        workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/signal", method: "signal"})
+
 
         let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`
 

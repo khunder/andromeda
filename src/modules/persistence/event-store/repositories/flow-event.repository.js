@@ -52,6 +52,22 @@ export class FlowEventRepository {
     }
 
     /**
+     * Looks up a still-pending (Active) flow event for a specific process
+     * instance and flow — used to check whether an instance is genuinely
+     * waiting at a given intermediate catch event before resuming it.
+     * @param {string}  processInstanceId
+     * @param {string}  flowId
+     * @returns {Promise<object|null>}
+     */
+    async findActiveFlowEvent(processInstanceId, flowId) {
+        return this.repo.findOne({
+            processInstance: processInstanceId,
+            flowId: flowId,
+            status: FlowEventStatus.Active,
+        });
+    }
+
+    /**
      *
      * @param {string}  processInstanceId
      * @param {string}  flowId

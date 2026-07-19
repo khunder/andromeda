@@ -9,6 +9,9 @@ import {FlowEventProjection} from "./event-store/projections/flow-event-projecti
 import {VariableStreamBuilder} from "./event-store/streams/variable/variable.stream-builder.js";
 import {VariableProjection} from "./event-store/projections/variable-projection.js";
 import {ReplayService} from "./event-store/lib/replay.service.js";
+import {FlowEventRepository} from "./event-store/repositories/flow-event.repository.js";
+import {ProcessInstanceRepository} from "./event-store/repositories/process-instance.repository.js";
+import {VariableRepository} from "./event-store/repositories/variable.repository.js";
 
 export class PersistenceGateway {
 
@@ -132,6 +135,40 @@ export class PersistenceGateway {
             }
         )
     };
+
+    /**
+     * Checks whether a process instance is genuinely still waiting at a
+     * specific flow (i.e. an intermediate catch event's incoming flow whose
+     * event is Active/unclosed) — read-only, bypasses the event-sourced write
+     * path since there's nothing to append to the log here.
+     * @param {string} processInstanceId
+     * @param {string} flowId
+     * @returns {Promise<object|null>}
+     */
+    static async findActiveFlowEvent({processInstanceId, flowId}) {
+        return new FlowEventRepository().findActiveFlowEvent(processInstanceId, flowId);
+    }
+
+    /**
+     * Read-only lookup used to restore a process instance that's paused at a
+     * catch event but no longer live in the container's memory (e.g. after a
+     * restart) — see {ProcessDef}ProcessInstanceService.restoreInstance().
+     * @param {string} processInstanceId
+     * @returns {Promise<object|null>}
+     */
+    static async getProcessInstance({processInstanceId}) {
+        return new ProcessInstanceRepository().getProcessInstance(processInstanceId);
+    }
+
+    /**
+     * All persisted variables for a process instance, used to rehydrate a
+     * restored instance's variable values.
+     * @param {string} processInstanceId
+     * @returns {Promise<object[]>}
+     */
+    static async getVariables({processInstanceId}) {
+        return new VariableRepository().getVariables(processInstanceId);
+    }
 
     static async init() {
         PersistenceGateway.registerStreams()
