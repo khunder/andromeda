@@ -52,7 +52,7 @@ export class SqliteRepositoryBase {
                 try {
                     decoded[field] = JSON.parse(decoded[field]);
                 } catch (e) {
-                    // wasn't actually JSON — leave as-is
+                    // wasn't actually JSON , leave as-is
                 }
             }
         });

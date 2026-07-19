@@ -166,6 +166,46 @@ body {
     resize: vertical;
 }
 
+.variable-list {
+    list-style: none;
+    margin: 0 0 10px;
+    padding: 0;
+}
+
+.variable-list-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.variable-list-item .variable-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variable-list-item .variable-type {
+    color: #999;
+    font-size: 12px;
+}
+
+.variable-add-row {
+    display: flex;
+    gap: 6px;
+}
+
+.variable-add-row input {
+    flex: 1;
+}
+
+.variable-add-row select {
+    flex: 0 0 auto;
+    width: auto;
+}
+
 .zoom-controls {
     position: absolute;
     bottom: 20px;

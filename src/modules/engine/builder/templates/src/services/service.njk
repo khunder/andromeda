@@ -8,6 +8,11 @@ import {WorkflowModel} from "../modules/container/workflow-model.js";
 import {Config} from "../config/config.js";
 import {Worker} from "node:worker_threads";
 
+// Script task bodies come straight from the BPMN diagram - arbitrary, author-supplied JS - so they
+// run inside a worker_threads Worker (separate V8 isolate/global scope) rather than inline in this
+// service. That gets us: no access to live objects on the main thread (workerData/postMessage go
+// through structured clone, i.e. copies, not references), and a script that throws/hangs/crashes
+// only takes down its own worker instead of the whole container process.
 const SCRIPT_TASK_WORKER_SOURCE = String.raw`
 import { parentPort, workerData } from "node:worker_threads";
 

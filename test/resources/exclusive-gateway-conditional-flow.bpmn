@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="ExclusiveConditionalTest" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:itemDefinition id="ItemDefinition_age" structureRef="number" />
+  <bpmn:process id="Process_ExclusiveConditionalTest" isExecutable="true">
+    <bpmn:property id="Property_age" itemSubjectRef="ItemDefinition_age" name="age" />
+    <bpmn:property id="Property_0vu7vs3" itemSubjectRef="ItemDefinition_0mqlvq9" name="isAdult" />
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="SetAge" name="SetAge">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+      <bpmn:script>this.variables.age = 20;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="Gateway_Decision" name="AgeCheck">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Adult</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Minor</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EndEvent_Adult" name="AdultEnd">
+      <bpmn:incoming>Flow_1vhlgsp</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Minor" name="MinorEnd">
+      <bpmn:incoming>Flow_17u9zd9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="SetAge" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="SetAge" targetRef="Gateway_Decision" />
+    <bpmn:sequenceFlow id="Flow_Adult" sourceRef="Gateway_Decision" targetRef="Activity_0qefyz4">
+      <bpmn:conditionExpression xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="bpmn:tFormalExpression">this.variables.age &gt;= 18</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Minor" sourceRef="Gateway_Decision" targetRef="Activity_0l7shyp">
+      <bpmn:conditionExpression xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="bpmn:tFormalExpression">this.variables.age &lt; 18</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:scriptTask id="Activity_0qefyz4" name="set result">
+      <bpmn:incoming>Flow_Adult</bpmn:incoming>
+      <bpmn:outgoing>Flow_1vhlgsp</bpmn:outgoing>
+      <bpmn:script>this.variables.isAdult = true;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:sequenceFlow id="Flow_1vhlgsp" sourceRef="Activity_0qefyz4" targetRef="EndEvent_Adult" />
+    <bpmn:scriptTask id="Activity_0l7shyp" name="set result">
+      <bpmn:incoming>Flow_Minor</bpmn:incoming>
+      <bpmn:outgoing>Flow_17u9zd9</bpmn:outgoing>
+      <bpmn:script>this.variables.isAdult = false;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:sequenceFlow id="Flow_17u9zd9" sourceRef="Activity_0l7shyp" targetRef="EndEvent_Minor" />
+  </bpmn:process>
+  <bpmn:itemDefinition id="ItemDefinition_0mqlvq9" structureRef="boolean" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_ExclusiveConditionalTest">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SetAge_di" bpmnElement="SetAge">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Decision_di" bpmnElement="Gateway_Decision" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="454.5" y="113" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Adult_di" bpmnElement="EndEvent_Adult">
+        <dc:Bounds x="692" y="42" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="688" y="78" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Minor_di" bpmnElement="EndEvent_Minor">
+        <dc:Bounds x="692" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="686" y="198" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0qefyz4_di" bpmnElement="Activity_0qefyz4">
+        <dc:Bounds x="500" y="20" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0l7shyp_di" bpmnElement="Activity_0l7shyp">
+        <dc:Bounds x="500" y="140" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="395" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Adult_di" bpmnElement="Flow_Adult">
+        <di:waypoint x="420" y="95" />
+        <di:waypoint x="420" y="60" />
+        <di:waypoint x="500" y="60" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Minor_di" bpmnElement="Flow_Minor">
+        <di:waypoint x="420" y="145" />
+        <di:waypoint x="420" y="180" />
+        <di:waypoint x="500" y="180" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1vhlgsp_di" bpmnElement="Flow_1vhlgsp">
+        <di:waypoint x="600" y="60" />
+        <di:waypoint x="692" y="60" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17u9zd9_di" bpmnElement="Flow_17u9zd9">
+        <di:waypoint x="600" y="180" />
+        <di:waypoint x="692" y="180" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

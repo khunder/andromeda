@@ -72,6 +72,15 @@ describe('Transcode variables', function () {
             assert.equal(VariableEncoder.isPrimitiveValue(val), true)
             assert.equal(val, undefined);
 
+            // null is Variable's own "not yet set" sentinel (its private
+            // #currentValue field defaults to null) , applySnapshot()
+            // re-applies every declared variable through this transcoder
+            // after a worker script task runs, including ones the script
+            // never touched, so this must not throw.
+            strVal = null;
+            val = VariableEncoder.transcodeVariable(strVal, "boolean", "boolVar")
+            assert.equal(val, null);
+
 
         })
 

@@ -17,6 +17,9 @@ export class {{ ProcessDef }}ProcessInstanceContext {
     set {{ var.name }}(val) { this.#{{ var.name }}.value = val; }
 {% endfor %}
 
+    // Flattens the private #variable fields into a plain, structured-clonable object so it can be
+    // handed to a worker_threads Worker as `workerData` (worker script tasks run untrusted BPMN
+    // script bodies in an isolated thread and must never see this instance or its live references).
     toPlainObject(){
         return this.__variablesRef.reduce((snapshot, variable) => {
             snapshot[variable.name] = variable.value;
@@ -24,6 +27,11 @@ export class {{ ProcessDef }}ProcessInstanceContext {
         }, {});
     }
 
+    // Merges a worker's returned variable snapshot back onto this instance via the real setters
+    // (so Variable dirty-tracking still fires for saveContext()). Iterates our own known variable
+    // names and looks each up in `snapshot`, rather than iterating `snapshot`'s keys and assigning
+    // them - this is what stops a malicious/buggy script task from smuggling back extra keys
+    // (e.g. __proto__) and polluting anything beyond the declared process variables.
     applySnapshot(snapshot){
         if (!snapshot) {
             return;

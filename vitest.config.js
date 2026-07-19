@@ -7,7 +7,7 @@ export default defineConfig({
     setupFiles: ['./test/setup.js'],
     // separate from setupFiles: runs once in the main process before/after
     // the whole run (not per test file), which is what SINGLE_TEST_DB's
-    // end-of-run cleanup needs — see test/global-teardown.js.
+    // end-of-run cleanup needs , see test/global-teardown.js.
     globalSetup: ['./test/global-teardown.js'],
     pool: 'forks',  // Use forks instead of threads for better ESM compatibility
     include: [

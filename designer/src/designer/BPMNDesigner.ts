@@ -490,6 +490,7 @@ export class BPMNDesigner {
 
     const businessObject = element.businessObject;
     const isScriptTask = businessObject.$type === 'bpmn:ScriptTask';
+    const isSequenceFlow = businessObject.$type === 'bpmn:SequenceFlow';
 
     content.innerHTML = `
       <div class="property-group">
@@ -514,6 +515,13 @@ export class BPMNDesigner {
           <textarea id="bpmn-prop-script" placeholder="Enter script">${this.escapeHtml(businessObject.script || '')}</textarea>
         </div>
       ` : ''}
+      ${isSequenceFlow ? `
+        <div class="property-group">
+          <label>Condition (script)</label>
+          <textarea id="bpmn-prop-condition" placeholder="e.g. this.variables.age > 18">${this.escapeHtml(businessObject.conditionExpression?.body || '')}</textarea>
+          <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Evaluated as a JS expression at runtime; leave empty for an unconditional flow.</small>
+        </div>
+      ` : ''}
     `;
 
     this.bindPropertyInput('bpmn-prop-name', element, 'name');
@@ -522,6 +530,25 @@ export class BPMNDesigner {
       this.bindPropertyInput('bpmn-prop-script-format', element, 'scriptFormat');
       this.bindPropertyInput('bpmn-prop-script', element, 'script');
     }
+
+    if (isSequenceFlow) {
+      this.bindConditionInput('bpmn-prop-condition', element);
+    }
+  }
+
+  private bindConditionInput(inputId: string, element: any): void {
+    const input = document.getElementById(inputId) as HTMLTextAreaElement | null;
+    const modeling = this.modeler.get('modeling' as never) as any;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+
+    input?.addEventListener('change', () => {
+      const value = input.value.trim();
+      const conditionExpression = value
+        ? bpmnFactory.create('bpmn:FormalExpression', { body: value })
+        : undefined;
+
+      modeling.updateProperties(element, { conditionExpression });
+    });
   }
 
   private renderDeploymentConfigPanel(content: HTMLElement): void {
@@ -550,6 +577,21 @@ export class BPMNDesigner {
         <label>Galaxy URL</label>
         <input id="bpmn-cfg-galaxy-url" type="text" placeholder="http://127.0.0.1:5001" value="${this.escapeHtml(this.configManager.getGalaxyUrl())}">
       </div>
+      <div class="property-group">
+        <label>Process Variables</label>
+        ${this.renderProcessVariablesList()}
+        <div class="variable-add-row">
+          <input id="bpmn-var-name" type="text" placeholder="name">
+          <select id="bpmn-var-type">
+            <option value="string">string</option>
+            <option value="number">number</option>
+            <option value="boolean">boolean</option>
+            <option value="object">object</option>
+            <option value="Date">Date</option>
+          </select>
+          <button id="bpmn-var-add" class="xml-btn" type="button">Add</button>
+        </div>
+      </div>
     `;
 
     this.bindConfigInput('bpmn-cfg-engine-url', (value) => this.configManager.setEngineUrl(value));
@@ -558,6 +600,108 @@ export class BPMNDesigner {
       this.setDefinitionsId(value);
     });
     this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
+    this.bindProcessVariablesForm();
+  }
+
+  // <bpmn:property> declarations on the process element, each paired with an
+  // <bpmn:itemDefinition> (see EMPTY_BPMN) - this is what workflow.builder.js's
+  // getProcessVariables() reads to generate typed variable accessors on the container.
+  private getProcessElement(): any {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    return (definitions?.rootElements || []).find((element) => element.$type === 'bpmn:Process');
+  }
+
+  private renderProcessVariablesList(): string {
+    const process = this.getProcessElement();
+    const variables: any[] = process?.properties || [];
+
+    if (variables.length === 0) {
+      return `<p style="color: #999; font-size: 12px; margin: 4px 0;">No process variables yet.</p>`;
+    }
+
+    return `
+      <ul class="variable-list">
+        ${variables.map((variable) => `
+          <li class="variable-list-item">
+            <span class="variable-name">${this.escapeHtml(variable.name || '')}</span>
+            <span class="variable-type">${this.escapeHtml(variable.itemSubjectRef?.structureRef || 'string')}</span>
+            <button class="xml-btn variable-remove" type="button" data-variable-name="${this.escapeHtml(variable.name || '')}">Remove</button>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  }
+
+  private bindProcessVariablesForm(): void {
+    const addButton = document.getElementById('bpmn-var-add');
+    const nameInput = document.getElementById('bpmn-var-name') as HTMLInputElement | null;
+    const typeSelect = document.getElementById('bpmn-var-type') as HTMLSelectElement | null;
+
+    addButton?.addEventListener('click', () => {
+      const name = nameInput?.value.trim();
+      const type = typeSelect?.value || 'string';
+      if (!name) {
+        return;
+      }
+      this.addProcessVariable(name, type);
+    });
+
+    document.querySelectorAll('.variable-remove').forEach((button) => {
+      button.addEventListener('click', () => {
+        const name = (button as HTMLElement).dataset.variableName;
+        if (name) {
+          this.removeProcessVariable(name);
+        }
+      });
+    });
+  }
+
+  private addProcessVariable(name: string, type: string): void {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    const process = this.getProcessElement();
+
+    if (!definitions || !process) {
+      return;
+    }
+    if ((process.properties || []).some((variable: any) => variable.name === name)) {
+      alert(`A variable named "${name}" already exists`);
+      return;
+    }
+
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+
+    const itemDefinition = bpmnFactory.create('bpmn:ItemDefinition', { structureRef: type });
+    itemDefinition.$parent = definitions;
+    definitions.rootElements = [...(definitions.rootElements || []), itemDefinition];
+
+    const property = bpmnFactory.create('bpmn:Property', { name, itemSubjectRef: itemDefinition });
+    property.$parent = process;
+    process.properties = [...(process.properties || []), property];
+
+    this.renderPropertiesPanel(null);
+  }
+
+  private removeProcessVariable(name: string): void {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    const process = this.getProcessElement();
+
+    if (!process) {
+      return;
+    }
+
+    const property = (process.properties || []).find((variable: any) => variable.name === name);
+    if (!property) {
+      return;
+    }
+
+    process.properties = (process.properties || []).filter((variable: any) => variable.name !== name);
+    if (definitions && property.itemSubjectRef) {
+      definitions.rootElements = (definitions.rootElements || []).filter(
+        (element: any) => element !== property.itemSubjectRef
+      );
+    }
+
+    this.renderPropertiesPanel(null);
   }
 
   private setDefinitionsId(value: string): void {

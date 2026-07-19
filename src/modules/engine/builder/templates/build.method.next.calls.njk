@@ -1,36 +1,23 @@
-let flows = {};
 {% for flow in outgoingSequenceFlows %}
     // each iteration is block-scoped: with 2+ outgoing flows (e.g. a
-    // diverging parallel gateway), un-scoped `let flow`/`let nextFlowModel`
-    // below would be redeclared in the same function scope and throw a
-    // SyntaxError at load time.
+    // diverging parallel gateway), an un-scoped `let` below would be
+    // redeclared in the same function scope and throw a SyntaxError at load
+    // time.
     {
-    //
-    await PersistenceGateway.createFlowEvent(this.createFlowEvent('{{ flow.id }}'));
-    let flow ={}
+    let flowExecutable = true;
     {% if flow.conditionExpression !== '' and flow.conditionExpression !== undefined %}
-    if (await this.evaluate('{{ flow.conditionExpression.body }}')) {
-        flow.executable = true;
-    }else{
-        flow.executable = false;
-    }
-    {% else %}
-        flow.executable = true;
+    // an outgoing flow with a <bpmn:conditionExpression> is only taken when
+    // it evaluates truthy, gating both plain conditional flow and exclusive
+    // (XOR) gateway branching alike , a flow with no condition is always
+    // taken, so plain/parallel-gateway nodes (no conditions) are unaffected.
+    flowExecutable = await this.evaluate({{ stringify(flow.conditionExpression.body) }});
     {% endif %}
+    if (flowExecutable) {
+        // only record a flow event for a flow that was actually taken ,
+        // recording it unconditionally would leave a misleading audit trail
+        // for a conditioned flow that was never traversed.
+        await PersistenceGateway.createFlowEvent(this.createFlowEvent('{{ flow.id }}'));
+        this.callFunction({{ flow.targetNodeMethodSignature }} , __localMethodContext, {incomingFlowId: '{{ flow.id }}' });
     }
-{% endfor %}
-
-
-//if(flows.size > 0){
-//    await this.bulkCreateSequenceFlow(Array.from(flows.values()));
-//}
-{% for flow in outgoingSequenceFlows %}
-    {
-   // let nextFlowModel = flows.get('{{ flow.id }}');
-   let nextFlowModel = {id: '{{ flow.id }}' };
-  //  if(nextFlowModel.executable){
-   // let $args = {}
-    this.callFunction({{ flow.targetNodeMethodSignature }} , __localMethodContext, {incomingFlowId: '{{ flow.id }}' });
-   // }
     }
 {% endfor %}

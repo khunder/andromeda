@@ -7,8 +7,17 @@ export class VariableEncoder {
 
     static transcodeVariable(value, type, name) {
         let expression = `let value;`;
-        if (value === undefined) {
-            return undefined;
+        if (value === undefined || value === null) {
+            // null is Variable's own "not yet set" sentinel (its private
+            // #currentValue field defaults to null, not undefined) , pass it
+            // through unchanged rather than running it through a type's
+            // transcoding rules. This matters because applySnapshot()
+            // re-applies every declared variable's value through this same
+            // setter after a worker-executed script task, including
+            // variables that script never touched; without this, an
+            // untouched boolean variable (whose only valid non-null values
+            // are true/false/"") would throw on its own default value.
+            return value;
         } else {
             switch (type) {
                 case "string":

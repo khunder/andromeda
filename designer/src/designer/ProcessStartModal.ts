@@ -47,7 +47,7 @@ export class ProcessStartModal {
           <button class="start-params-close" title="Close">×</button>
         </div>
         <div class="start-params-body">
-          <p class="start-params-hint">Variables (JSON) for <strong>${this.escapeHtml(deploymentId)}</strong> — this object <em>is</em> your variables, e.g. <code>{"age": 20}</code>. Do not wrap it in a <code>variables</code> key, that's added automatically.</p>
+          <p class="start-params-hint">Variables (JSON) for <strong>${this.escapeHtml(deploymentId)}</strong> , this object <em>is</em> your variables, e.g. <code>{"age": 20}</code>. Do not wrap it in a <code>variables</code> key, that's added automatically.</p>
           <div id="start-params-editor" class="start-params-editor"></div>
         </div>
         <div class="start-params-footer">

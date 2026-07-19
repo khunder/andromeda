@@ -3,15 +3,20 @@ import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 const Logger = new AndromedaLogger();
 
 /**
- * Exclusive gateway. Registered so the node compiles instead of throwing
- * "cannot find suitable processor" — it does not yet implement true exclusive
- * (pick-one-branch) semantics.
+ * Exclusive (XOR) gateway. Deliberately a thin pass-through, mirroring
+ * ExclusiveGatewayProcessor: this processor doesn't touch conditions
+ * itself. build.method.next.calls.njk evaluates each outgoing flow's own
+ * <bpmn:conditionExpression> independently and only calls that flow's target
+ * when it's truthy , the same generic mechanism gates conditional flow off
+ * ANY node type, not just this one. An outgoing flow with no condition is
+ * always taken (so a gateway with unconditioned branches still behaves like
+ * a parallel fork).
  *
- * build.method.next.calls.njk already computes each outgoing flow's
- * `executable` from its condition expression, but nothing currently gates the
- * call to the next node on that flag ("support conditional flow" is a
- * separate, not-yet-implemented roadmap item) — so today an exclusive gateway
- * behaves the same as a parallel one: every outgoing flow fires.
+ * Note this means branch selection is NOT first-match/mutually-exclusive:
+ * if two outgoing flows' conditions are both true, both fire (same as
+ * andromeda , it relies on the diagram's conditions actually being exclusive,
+ * it doesn't enforce it). There is also no `default` sequence flow support;
+ * neither andromeda nor this processor reads the gateway's `default` attribute.
  */
 class ExclusiveGatewayNodeProcessor {
     static type = "bpmn:ExclusiveGateway"

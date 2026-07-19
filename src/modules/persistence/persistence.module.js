@@ -50,7 +50,7 @@ export class PersistenceModule {
 
     static async initSqlite() {
         try {
-            // only the owning engine process resets the database at startup —
+            // only the owning engine process resets the database at startup ,
             // a container (always has `deploymentId` set) connects to whatever
             // the engine already created instead of wiping it out from under it
             if (!process.env.deploymentId) {
@@ -77,7 +77,7 @@ export class PersistenceModule {
      * Driver-agnostic read helpers for tests/tooling that need to assert on
      * persisted state without knowing whether the current run is backed by
      * MongoDB or sqlite. `tableName` is the collection/table name shared by
-     * both drivers (e.g. "ProcessInstance", "FlowEvent") — see
+     * both drivers (e.g. "ProcessInstance", "FlowEvent") , see
      * TABLE_DEFINITIONS for the sqlite side.
      */
     static async countDocuments(tableName, cond = {}) {

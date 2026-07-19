@@ -9,11 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // test/.env picks the persistence driver for the whole test run (currently
-// sqlite) before any test file gets a chance to instantiate Config — dotenv
+// sqlite) before any test file gets a chance to instantiate Config , dotenv
 // never overrides an already-set process.env var, so this must run first.
 loadDotEnvConfig({ path: path.resolve(__dirname, ".env") });
 
-// Give this test file its own sqlite file — both isolated from a dev-mode
+// Give this test file its own sqlite file , both isolated from a dev-mode
 // engine that might be running with PERSISTENCE_DRIVER=sqlite at the same
 // time, and from every other test file. sql.js's shared-file coordination
 // (SqliteConnection) is best-effort, not real multi-process locking; vitest
@@ -21,12 +21,12 @@ loadDotEnvConfig({ path: path.resolve(__dirname, ".env") });
 // fresh for each isolated test file even within the same OS process, so a
 // single fixed path would let concurrent files reset/overwrite each other's
 // database mid-run. pid + random suffix keeps every file's engine (and the
-// embedded containers it spawns, which inherit this path verbatim — see
+// embedded containers it spawns, which inherit this path verbatim , see
 // embedded.containers.service.js) on a private file. Must stay absolute: a
 // spawned container's cwd is the deployment folder, not the repo root.
 //
 // SINGLE_TEST_DB=true opts every file into one shared, fixed-path database
-// instead (see sqlite-test-db.js) — deliberately NOT cleaned up here, since
+// instead (see sqlite-test-db.js) , deliberately NOT cleaned up here, since
 // deleting it as soon as any one worker exits would yank it out from under
 // other test files still running against it; that cleanup is instead handled
 // once, globally, after the whole run finishes (test/global-teardown.js),
@@ -39,7 +39,7 @@ if (!process.env.SQLITE_FILE_PATH) {
             try {
                 fs.unlinkSync(sqliteTestFilePath);
             } catch (e) {
-                // already gone, or never created — nothing to clean up
+                // already gone, or never created , nothing to clean up
             }
         });
     }

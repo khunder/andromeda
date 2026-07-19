@@ -16,7 +16,7 @@ const VariableSchema = new mongoose.Schema({
         required: true
     },
     // stored as a string regardless of declared type, to ease debugging/ops
-    // (see src/modules/readme.md) — the declared `type` is what re-hydrates it
+    // (see src/modules/readme.md) , the declared `type` is what re-hydrates it
     value: {
         type: String,
         required: false

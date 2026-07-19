@@ -14,7 +14,7 @@ function route (fastify, opts, next) {
             preHandler: async (request, reply) => {
                 // @fastify/multipart is registered without attachFieldsToBody, so
                 // request.body is never populated for multipart requests unless we
-                // consume the stream ourselves here. JSON requests are left alone —
+                // consume the stream ourselves here. JSON requests are left alone ,
                 // Fastify's built-in JSON parser already populates request.body.
                 const contentType = request.headers['content-type'] || '';
                 if (contentType.startsWith('multipart/form-data')) {

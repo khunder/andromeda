@@ -15,7 +15,7 @@ const Logger = new AndromedaLogger();
  * file, every write exports the whole database back to disk immediately, and
  * every operation reloads from disk first if the file's mtime has moved since
  * this process last saw it. This is best-effort coordination, not real
- * multi-process locking — concurrent writes from two processes in the same
+ * multi-process locking , concurrent writes from two processes in the same
  * instant can still clobber each other. Acceptable for the ephemeral,
  * single-session sandbox use case this is built for; not a substitute for
  * MongoDB under real concurrent load.
@@ -65,7 +65,7 @@ export class SqliteConnection {
 
     /**
      * Deletes any existing database file and starts fresh. Only the owning
-     * engine process should call this, and only once at its own startup —
+     * engine process should call this, and only once at its own startup ,
      * never a container, which should just connect to whatever the engine
      * already created.
      */
@@ -75,7 +75,7 @@ export class SqliteConnection {
 
         if (fs.existsSync(SqliteConnection.filePath)) {
             fs.unlinkSync(SqliteConnection.filePath);
-            Logger.info(`sqlite: reset — deleted existing database at ${SqliteConnection.filePath}`);
+            Logger.info(`sqlite: reset , deleted existing database at ${SqliteConnection.filePath}`);
         }
         SqliteConnection.db = new SqliteConnection.SQL.Database();
         SqliteConnection.createTables();
@@ -84,7 +84,7 @@ export class SqliteConnection {
 
     /**
      * Reloads from disk if the file has changed since this process last read
-     * or wrote it (i.e. the other process — engine or container — wrote
+     * or wrote it (i.e. the other process , engine or container , wrote
      * something new). Call before any read/write.
      */
     static reloadIfStale() {

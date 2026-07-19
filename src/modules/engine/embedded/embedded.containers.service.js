@@ -115,7 +115,7 @@ export class EmbeddedContainerService {
                     WITH_GALAXY: this.resolveWithGalaxy(options),
                     socketCallBacks: options.socketCallBacks,
                     // propagate the engine's own driver choice so an embedded container
-                    // uses the same backend — and, for sqlite, the exact same file — as
+                    // uses the same backend , and, for sqlite, the exact same file , as
                     // the engine that spawned it, rather than each resolving its own default
                     PERSISTENCE_DRIVER: Config.getInstance().persistenceDriver,
                     SQLITE_FILE_PATH: Config.getInstance().sqliteFilePath
