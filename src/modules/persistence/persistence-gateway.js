@@ -150,6 +150,15 @@ export class PersistenceGateway {
     }
 
     /**
+     * Every still-pending flow event across every process instance in this
+     * container — backs GET /tasks (list waiting human tasks).
+     * @returns {Promise<object[]>}
+     */
+    static async findAllActiveFlowEvents() {
+        return new FlowEventRepository().findAllActiveFlowEvents();
+    }
+
+    /**
      * Read-only lookup used to restore a process instance that's paused at a
      * catch event but no longer live in the container's memory (e.g. after a
      * restart) — see {ProcessDef}ProcessInstanceService.restoreInstance().

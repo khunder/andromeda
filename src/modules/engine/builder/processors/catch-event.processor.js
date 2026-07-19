@@ -29,12 +29,10 @@ const Logger = new AndromedaLogger();
  *   That re-enters this same generated method with executeBody now true, so
  *   it runs `body` and falls through to the outgoing flows.
  *
- * Known limitation: resume only works while the process instance is still
- * live in this container process's memory (ContainerService.processInstances)
- * — there's no rehydration of a paused instance's variables from persistence
- * after a container restart. Fine for the embedded/sandbox use case this
- * targets today; a real "resume after restart" would need a variables-load
- * path that doesn't exist yet anywhere in the engine.
+ * If the instance isn't in that in-memory registry (e.g. the container
+ * restarted since it paused), controller.njk's /signal handler falls back to
+ * {ProcessDef}ProcessInstanceService.restoreInstance(), which reconstructs it
+ * from persistence and rehydrates its variables before resuming.
  */
 class CatchEventNodeProcessor {
     static type = "bpmn:IntermediateCatchEvent"

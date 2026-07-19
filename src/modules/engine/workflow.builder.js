@@ -424,7 +424,7 @@ class WorkflowBuilder {
         workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
 
         openApiCodegen.addPath("/signal", "post")
-        openApiCodegen.addPathDescription("/signal", "post", "Deliver an external signal to resume a process instance paused at an intermediate catch event")
+        openApiCodegen.addPathDescription("/signal", "post", "Resume a process instance paused at an intermediate catch event (deliver a signal) or a human task (complete it), optionally with variables")
         openApiCodegen.addPathTags("/signal", "post", ["Process Instance"])
         openApiCodegen.addResponse("/signal", "post", {
             "200": {
@@ -442,7 +442,7 @@ class WorkflowBuilder {
                     }
                 }
             },
-            "404": {"description": "Process instance not active in this container, or nodeId is not a known catch event"},
+            "404": {"description": "Process instance not found/active, or nodeId is not a known node in this workflow"},
             "409": {"description": "Process instance is not currently waiting at that node"}
         })
         openApiCodegen.setRequestBody("/signal", "post", {
@@ -454,7 +454,7 @@ class WorkflowBuilder {
                         "required": ["processInstanceId", "nodeId"],
                         "properties": {
                             "processInstanceId": {"type": "string", "description": "The id returned by POST /start"},
-                            "nodeId": {"type": "string", "description": "The id of the intermediate catch event node to resume"},
+                            "nodeId": {"type": "string", "description": "The id of the intermediate catch event or human task node to resume"},
                             "variables": variablesSchema
                         }
                     }
@@ -462,6 +462,31 @@ class WorkflowBuilder {
             }
         })
         workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/signal", method: "signal"})
+
+        openApiCodegen.addPath("/tasks", "get")
+        openApiCodegen.addPathDescription("/tasks", "get", "List every human task currently waiting to be completed, across every process instance in this container")
+        openApiCodegen.addPathTags("/tasks", "get", ["Process Instance"])
+        openApiCodegen.addResponse("/tasks", "get", {
+            "200": {
+                "description": "Pending human tasks",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "processInstanceId": {"type": "string"},
+                                    "nodeId": {"type": "string", "description": "Pass this as nodeId to POST /signal to complete the task"},
+                                    "nodeName": {"type": "string"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        })
+        workflowCodegenContext.containerCodegenContext.routes.push({verb: "GET", path: "/tasks", method: "tasks"})
 
 
         let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`

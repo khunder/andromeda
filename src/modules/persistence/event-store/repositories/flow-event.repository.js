@@ -68,6 +68,16 @@ export class FlowEventRepository {
     }
 
     /**
+     * Every still-pending (Active) flow event across every process instance
+     * in this container — used to list waiting human tasks (GET /tasks)
+     * without knowing which instance/flow to look for ahead of time.
+     * @returns {Promise<object[]>}
+     */
+    async findAllActiveFlowEvents() {
+        return this.repo.find({status: FlowEventStatus.Active});
+    }
+
+    /**
      *
      * @param {string}  processInstanceId
      * @param {string}  flowId

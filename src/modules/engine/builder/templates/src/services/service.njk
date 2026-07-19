@@ -127,7 +127,12 @@ class {{ServiceClassName}} {
     }
 
     isTwoPhaseComponent(type){
-        return type === "IntermediateCatchEvent" || type === "HumanTask"
+        // "UserTask" is the real (stripped) bpmn-moddle type for a
+        // <bpmn:userTask> element - a human task. "HumanTask" isn't a
+        // standard BPMN element type at all, so that check never actually
+        // matched anything (same class of bug as "CatchEvent" vs the real
+        // "IntermediateCatchEvent", fixed on 2026-07-19).
+        return type === "IntermediateCatchEvent" || type === "UserTask"
     }
 
     async evaluate(expression) {

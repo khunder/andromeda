@@ -37,10 +37,12 @@ class {{ ControllerClassName }} {
         }
     }
 
-    // Resumes a process instance paused at an intermediate catch event (see
-    // catch-event.processor.js for how it got there). Generic across every
-    // catch event node in this workflow, rather than one route per node:
-    // the caller names which node via `nodeId`.
+    // Resumes a process instance paused at a two-phase node — an
+    // intermediate catch event waiting on a signal, or a human task waiting
+    // to be completed (see catch-event.processor.js / human-task.node.processor.js
+    // for how a process instance ends up here). One generic handler for
+    // every such node in this workflow, rather than a route per node: the
+    // caller names which one via `nodeId`.
     static signal = async (req, res) => {
         try {
             const body = req.body || {};
@@ -70,7 +72,7 @@ class {{ ControllerClassName }} {
                 (flow) => flow.target && flow.target.id === nodeId
             );
             if (!pendingFlow) {
-                const err = new Error(`node ${nodeId} is not a known catch event in this workflow`);
+                const err = new Error(`node ${nodeId} is not a known node in this workflow`);
                 err.statusCode = 404;
                 throw err;
             }
@@ -107,6 +109,37 @@ class {{ ControllerClassName }} {
             Logger.error(err);
             const returnError = new Error();
             returnError.statusCode = err.statusCode || 500;
+            returnError.message = err.message || err;
+            returnError.stack = err.stack || err;
+            throw returnError;
+        }
+    }
+
+    // Lists every human task currently waiting to be completed, across every
+    // process instance in this container — without this, an external caller
+    // has no way to discover what nodeId/processInstanceId to pass to
+    // /signal. Cross-references every still-Active flow event against
+    // WorkflowModel and keeps only the ones targeting a UserTask node
+    // (an Active catch event is deliberately excluded here - it's not
+    // something a human "completes", see GET /tasks vs POST /signal).
+    static tasks = async (req, res) => {
+        try {
+            const activeFlowEvents = await PersistenceGateway.findAllActiveFlowEvents();
+            return activeFlowEvents.reduce((tasks, flowEvent) => {
+                const flow = WorkflowModel[flowEvent.flowId];
+                if (flow && flow.target && flow.target.$type === 'UserTask') {
+                    tasks.push({
+                        processInstanceId: flowEvent.processInstance,
+                        nodeId: flow.target.id,
+                        nodeName: flow.target.name || flow.target.id,
+                    });
+                }
+                return tasks;
+            }, []);
+        } catch (err) {
+            Logger.error(err);
+            const returnError = new Error();
+            returnError.statusCode = 500;
             returnError.message = err.message || err;
             returnError.stack = err.stack || err;
             throw returnError;

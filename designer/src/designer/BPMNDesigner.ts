@@ -106,6 +106,20 @@ export const ALLOWED_BPMN_ELEMENTS: AllowedBpmnElement[] = [
     group: 'activity'
   },
   {
+    key: 'humanTaskNode',
+    label: 'Human Task',
+    bpmnType: 'bpmn:UserTask',
+    paletteClass: 'bpmn-icon-user-task',
+    group: 'activity'
+  },
+  {
+    key: 'catchEventNode',
+    label: 'Catch Event',
+    bpmnType: 'bpmn:IntermediateCatchEvent',
+    paletteClass: 'bpmn-icon-intermediate-event-none',
+    group: 'event'
+  },
+  {
     key: 'exclusiveGatewayNode',
     label: 'Exclusive Gateway',
     bpmnType: 'bpmn:ExclusiveGateway',
@@ -159,7 +173,23 @@ const restrictedPaletteModule = {
   paletteProvider: [ 'type', RestrictedPaletteProvider ]
 };
 
-function RestrictedContextPadProvider(this: any, contextPad: any, connect: any, modeling: any, translate: any) {
+// Elements offered as "append" shortcuts on the context pad - anything creatable from the
+// palette except Start Event, which never makes sense as the target of an append (it must
+// have zero incoming flows).
+const APPENDABLE_BPMN_ELEMENTS = ALLOWED_BPMN_ELEMENTS.filter(
+  (element) => element.bpmnType !== 'bpmn:StartEvent'
+);
+
+function RestrictedContextPadProvider(
+  this: any,
+  contextPad: any,
+  connect: any,
+  modeling: any,
+  translate: any,
+  elementFactory: any,
+  create: any,
+  autoPlace: any
+) {
   contextPad.registerProvider(this);
 
   this.getContextPadEntries = (element: any) => {
@@ -180,7 +210,9 @@ function RestrictedContextPadProvider(this: any, contextPad: any, connect: any, 
       }
     };
 
-    if (element.type !== 'label' && element.businessObject.$type !== 'bpmn:EndEvent') {
+    const canConnectOnward = element.type !== 'label' && element.businessObject.$type !== 'bpmn:EndEvent';
+
+    if (canConnectOnward) {
       entries.connect = {
         group: 'connect',
         className: 'bpmn-icon-connection-multi',
@@ -190,6 +222,24 @@ function RestrictedContextPadProvider(this: any, contextPad: any, connect: any, 
           dragstart: (event: Event, selectedElement: any) => connect.start(event, selectedElement)
         }
       };
+
+      APPENDABLE_BPMN_ELEMENTS.forEach((appendable) => {
+        entries[`append.${appendable.key}`] = {
+          group: 'model',
+          className: appendable.paletteClass,
+          title: translate(`Append ${appendable.label}`),
+          action: {
+            click: (_event: Event, selectedElement: any) => {
+              const shape = elementFactory.createShape({ type: appendable.bpmnType });
+              autoPlace.append(selectedElement, shape);
+            },
+            dragstart: (event: Event, selectedElement: any) => {
+              const shape = elementFactory.createShape({ type: appendable.bpmnType });
+              create.start(event, shape, { source: selectedElement });
+            }
+          }
+        };
+      });
     }
 
     return entries;
@@ -200,7 +250,10 @@ RestrictedContextPadProvider.$inject = [
   'contextPad',
   'connect',
   'modeling',
-  'translate'
+  'translate',
+  'elementFactory',
+  'create',
+  'autoPlace'
 ];
 
 const restrictedContextPadModule = {
@@ -786,6 +839,10 @@ export class BPMNDesigner {
       serviceTask: 'bpmn:ServiceTask',
       scriptTaskNode: 'bpmn:ScriptTask',
       scriptTask: 'bpmn:ScriptTask',
+      humanTaskNode: 'bpmn:UserTask',
+      humanTask: 'bpmn:UserTask',
+      catchEventNode: 'bpmn:IntermediateCatchEvent',
+      catchEvent: 'bpmn:IntermediateCatchEvent',
       exclusiveGateway: 'bpmn:ExclusiveGateway',
       parallelGateway: 'bpmn:ParallelGateway'
     };
