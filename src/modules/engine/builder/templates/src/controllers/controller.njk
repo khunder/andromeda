@@ -68,6 +68,8 @@ class {{ ControllerClassName }} {
                 throw err;
             }
 
+            // the incoming flow into this node - WorkflowModel is also how we
+            // know nodeId genuinely names a node in this workflow at all.
             const pendingFlow = Object.values(WorkflowModel).find(
                 (flow) => flow.target && flow.target.id === nodeId
             );
@@ -77,6 +79,10 @@ class {{ ControllerClassName }} {
                 throw err;
             }
 
+            // FlowEvent is the container's own authoritative gate (as
+            // before) - the Task record below is a parallel, read-side
+            // record for external consumers (Galaxy, other APIs) and isn't
+            // what resume behavior is actually gated on.
             const activeFlowEvent = await PersistenceGateway.findActiveFlowEvent({
                 processInstanceId,
                 flowId: pendingFlow.id,
@@ -97,6 +103,10 @@ class {{ ControllerClassName }} {
             }
 
             await PersistenceGateway.closeFlowEvent({processInstanceId, flowId: pendingFlow.id});
+            // keep the external-facing Task record's lifecycle in sync too -
+            // best-effort: it's a secondary record, so its absence shouldn't
+            // block a resume that FlowEvent already confirmed is legitimate
+            await PersistenceGateway.closeTask({processInstanceId, nodeId}).catch((error) => { Logger.error(error); });
             // fire-and-forget, matching bootstrap()'s start call: the /signal
             // response returns immediately while execution continues in the
             // background; a failure is logged rather than surfaced here.
@@ -118,24 +128,17 @@ class {{ ControllerClassName }} {
     // Lists every human task currently waiting to be completed, across every
     // process instance in this container — without this, an external caller
     // has no way to discover what nodeId/processInstanceId to pass to
-    // /signal. Cross-references every still-Active flow event against
-    // WorkflowModel and keeps only the ones targeting a UserTask node
-    // (an Active catch event is deliberately excluded here - it's not
-    // something a human "completes", see GET /tasks vs POST /signal).
+    // /signal. Only HumanTask-typed Task records - a pending catch event is
+    // deliberately excluded, it's not something a human "completes" (see
+    // GET /tasks vs POST /signal).
     static tasks = async (req, res) => {
         try {
-            const activeFlowEvents = await PersistenceGateway.findAllActiveFlowEvents();
-            return activeFlowEvents.reduce((tasks, flowEvent) => {
-                const flow = WorkflowModel[flowEvent.flowId];
-                if (flow && flow.target && flow.target.$type === 'UserTask') {
-                    tasks.push({
-                        processInstanceId: flowEvent.processInstance,
-                        nodeId: flow.target.id,
-                        nodeName: flow.target.name || flow.target.id,
-                    });
-                }
-                return tasks;
-            }, []);
+            const activeTasks = await PersistenceGateway.findAllActiveTasks('HumanTask');
+            return activeTasks.map((task) => ({
+                processInstanceId: task.processInstance,
+                nodeId: task.nodeId,
+                nodeName: task.nodeName || task.nodeId,
+            }));
         } catch (err) {
             Logger.error(err);
             const returnError = new Error();

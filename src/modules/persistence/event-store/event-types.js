@@ -6,4 +6,6 @@ export class EventTypes {
     static FAIL_FLOW_EVENT = "FAIL_FLOW_EVENT"
     static ABORT_FLOW_EVENT = "ABORT_FLOW_EVENT"
     static BULK_UPSERT_VARIABLES = "BULK_UPSERT_VARIABLES"
+    static CREATE_TASK = "CREATE_TASK"
+    static CLOSE_TASK = "CLOSE_TASK"
 }

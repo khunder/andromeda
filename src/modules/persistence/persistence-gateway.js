@@ -12,6 +12,9 @@ import {ReplayService} from "./event-store/lib/replay.service.js";
 import {FlowEventRepository} from "./event-store/repositories/flow-event.repository.js";
 import {ProcessInstanceRepository} from "./event-store/repositories/process-instance.repository.js";
 import {VariableRepository} from "./event-store/repositories/variable.repository.js";
+import {TaskStreamBuilder} from "./event-store/streams/task/task.stream-builder.js";
+import {TaskProjection} from "./event-store/projections/task-projection.js";
+import {TaskRepository} from "./event-store/repositories/task.repository.js";
 
 export class PersistenceGateway {
 
@@ -137,10 +140,88 @@ export class PersistenceGateway {
     };
 
     /**
+     * Records a two-phase node (intermediate catch event or human task) as
+     * paused/waiting. This is a read-side record for external consumers
+     * (Galaxy, other APIs) that want to list/inspect pending tasks without
+     * reaching into FlowEvent directly — it does NOT gate resume behavior;
+     * the container's own POST /signal still checks/closes the FlowEvent
+     * (status 0/Active on the node's incoming flow, set by
+     * isTwoPhaseComponent()/createFlowEvent() in service.njk) as before.
+     * @param {string} deploymentId
+     * @param {string} processDef
+     * @param {string} processInstanceId
+     * @param {string} nodeId
+     * @param {string} nodeName
+     * @param {string} type - TaskType.CatchEvent | TaskType.HumanTask
+     * @param {object} [correlation]
+     */
+    static async createTask({deploymentId, processDef, processInstanceId, nodeId, nodeName, type, correlation}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.TASK,
+                type: EventTypes.CREATE_TASK,
+                data: {
+                    deploymentId: deploymentId,
+                    processDef: processDef,
+                    processInstance: processInstanceId,
+                    nodeId: nodeId,
+                    nodeName: nodeName,
+                    type: type,
+                    correlation: correlation || {},
+                },
+                timestamp: new Date().toISOString()
+            }
+        )
+    };
+
+    /**
+     * Marks a two-phase node's task Completed once it's been resumed.
+     * @param {string} processInstanceId
+     * @param {string} nodeId
+     */
+    static async closeTask({processInstanceId, nodeId}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.TASK,
+                type: EventTypes.CLOSE_TASK,
+                data: {
+                    processInstance: processInstanceId,
+                    nodeId: nodeId,
+                },
+                timestamp: new Date().toISOString()
+            }
+        )
+    };
+
+    /**
      * Checks whether a process instance is genuinely still waiting at a
-     * specific flow (i.e. an intermediate catch event's incoming flow whose
-     * event is Active/unclosed) — read-only, bypasses the event-sourced write
+     * specific two-phase node — read-only, bypasses the event-sourced write
      * path since there's nothing to append to the log here.
+     * @param {string} processInstanceId
+     * @param {string} nodeId
+     * @returns {Promise<object|null>}
+     */
+    static async findActiveTask({processInstanceId, nodeId}) {
+        return new TaskRepository().findActiveTask(processInstanceId, nodeId);
+    }
+
+    /**
+     * Every still-pending task across every process instance in this
+     * container, optionally narrowed to one type — backs GET /tasks.
+     * @param {string} [type]
+     * @returns {Promise<object[]>}
+     */
+    static async findAllActiveTasks(type) {
+        return new TaskRepository().findAllActiveTasks(type);
+    }
+
+    /**
+     * Checks whether a process instance is genuinely still waiting at a
+     * specific flow (i.e. a two-phase node's incoming flow whose event is
+     * Active/unclosed) — the container's own authoritative gate for POST
+     * /signal, restored alongside the Task-based external record above.
      * @param {string} processInstanceId
      * @param {string} flowId
      * @returns {Promise<object|null>}
@@ -151,7 +232,7 @@ export class PersistenceGateway {
 
     /**
      * Every still-pending flow event across every process instance in this
-     * container — backs GET /tasks (list waiting human tasks).
+     * container.
      * @returns {Promise<object[]>}
      */
     static async findAllActiveFlowEvents() {
@@ -210,6 +291,13 @@ export class PersistenceGateway {
         this.registerProjections(variableStream, variableStream.eventsRegistry.BULK_UPSERT_VARIABLES, variableProjection);
         variableStream.snapshotHandler = variableProjection;
         variableStream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
+
+        const taskStream = TaskStreamBuilder.build()
+        const taskProjection = new TaskProjection();
+        this.registerProjections(taskStream, taskStream.eventsRegistry.CREATE_TASK, taskProjection);
+        this.registerProjections(taskStream, taskStream.eventsRegistry.CLOSE_TASK, taskProjection);
+        taskStream.snapshotHandler = taskProjection;
+        taskStream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
 
     }
 

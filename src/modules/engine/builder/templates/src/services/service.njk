@@ -42,6 +42,10 @@ run().catch((error) => {
 class {{ServiceClassName}} {
 
     processInstanceId
+    // exposed so generated node bodies (e.g. a two-phase node's Task record)
+    // can reference it at runtime without needing their own copy of this
+    // literal — see catch-event.processor.js / human-task.node.processor.js
+    processDef = '{{ ProcessDef }}';
     // exposed as `this.variables` so script tasks can read/write process
     // variables directly, e.g. `this.variables.age = 23;`
     variables = new {{ ProcessDef }}ProcessInstanceContext(this);
@@ -89,13 +93,11 @@ class {{ServiceClassName}} {
 
     // Reconstructs a process instance that's no longer live in this
     // container's memory (e.g. after a restart) from persisted state, so a
-    // /signal call can resume it from a paused catch event. Returns null if
-    // the instance doesn't exist or isn't Active (0) — a completed/aborted
-    // instance is never restored. Inspired by jsflow's createInstance(id)
-    // restore path (restoreProcessInstanceFormPersistentStore /
-    // getProcessInstanceStatus / variables.restoreVariableValues), adapted
-    // since Andromeda tracks two-phase "waiting" state via FlowEvent rather
-    // than a dedicated per-node status map.
+    // /signal call can resume it from a paused two-phase node. Returns null
+    // if the instance doesn't exist or isn't Active (0) — a
+    // completed/aborted instance is never restored. Inspired by jsflow's
+    // createInstance(id) restore path (restoreProcessInstanceFormPersistentStore
+    // / getProcessInstanceStatus / variables.restoreVariableValues).
     static async restoreInstance(processInstanceId)
     {
         try{
@@ -178,6 +180,13 @@ class {{ServiceClassName}} {
     }
 
     createFlowEvent(flowEventId){
+        // the flow into a two-phase node (intermediate catch event / human
+        // task) is the container's own authoritative "is this instance still
+        // paused here" gate (checked/closed by POST /signal) - status 0
+        // (Active) until /signal closes it. A parallel Task record (see
+        // catch-event.processor.js / human-task.node.processor.js) is also
+        // kept for external consumers (Galaxy, other APIs) that want to list
+        // or inspect pending tasks without reaching into FlowEvent directly.
         let flowEvent = { processInstanceId: this.processInstanceId, flowId: flowEventId, status: 1 };
         if(WorkflowModel[flowEventId] && this.isTwoPhaseComponent(WorkflowModel[flowEventId].target.$type) ){
             flowEvent.status = 0;

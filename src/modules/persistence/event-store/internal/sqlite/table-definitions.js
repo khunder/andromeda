@@ -57,6 +57,23 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: [],
     },
+    Task: {
+        name: 'Task',
+        ddl: `CREATE TABLE IF NOT EXISTS Task (
+            _id TEXT PRIMARY KEY,
+            deploymentId TEXT NOT NULL,
+            processDef TEXT NOT NULL,
+            processInstance TEXT NOT NULL,
+            nodeId TEXT NOT NULL,
+            nodeName TEXT,
+            type TEXT NOT NULL,
+            status INTEGER NOT NULL DEFAULT 0,
+            correlation TEXT,
+            createdAt TEXT,
+            updatedAt TEXT
+        )`,
+        jsonFields: ['correlation'],
+    },
     Snapshot: {
         name: 'Snapshot',
         ddl: `CREATE TABLE IF NOT EXISTS Snapshot (

@@ -54,7 +54,7 @@ export class FlowEventRepository {
     /**
      * Looks up a still-pending (Active) flow event for a specific process
      * instance and flow — used to check whether an instance is genuinely
-     * waiting at a given intermediate catch event before resuming it.
+     * waiting at a given two-phase node before resuming it.
      * @param {string}  processInstanceId
      * @param {string}  flowId
      * @returns {Promise<object|null>}
@@ -69,8 +69,7 @@ export class FlowEventRepository {
 
     /**
      * Every still-pending (Active) flow event across every process instance
-     * in this container — used to list waiting human tasks (GET /tasks)
-     * without knowing which instance/flow to look for ahead of time.
+     * in this container.
      * @returns {Promise<object[]>}
      */
     async findAllActiveFlowEvents() {
