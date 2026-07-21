@@ -85,6 +85,10 @@ class WorkflowBuilder {
 
         await this.generateWorkflowModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
 
+        await this.generateTimerModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
+        await this.generateTimerService(normalizedProcessDef, containerParsingContext)
+        await this.generateTimerCatchResumeJob(normalizedProcessDef, containerParsingContext)
+
         processesInBpmnFile.forEach(process => {
             this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
@@ -191,29 +195,15 @@ class WorkflowBuilder {
         parsedModel,
         containerParsingContext) {
 
-
-        let template = fs.readFileSync(
-            path
-                .join(
-                    __dirname,
-                    './builder/templates/src/services/process-instance-context.js.njk',
-                )
-                .toString(),
-        ).toString()
-
-        const renderedTemplate = nunjucks.renderString(
-            template,
+        this.renderTemplateToDeployment(
+            './builder/templates/src/services/process-instance-context.js.njk',
+            ["src", "services", `${normalizedProcessDef.toLowerCase()}.process-instance-context.js`],
             {
                 ProcessDef: normalizedProcessDef,
                 processVariables: this.getProcessVariables(parsedModel.model),
             },
+            containerParsingContext,
         );
-        let destFile = path.join(Utils.getDeploymentPath(containerParsingContext), "src", "services", `${normalizedProcessDef.toLowerCase()}.process-instance-context.js`);
-        fs.writeFileSync(
-            destFile,
-            renderedTemplate,
-        );
-
     }
 
     /**
@@ -537,6 +527,98 @@ class WorkflowBuilder {
 
         workflowCodegenContext.workflowModelClass = workflowCodegenContext.workflowModelFile.getClassOrThrow("WorkflowModel");
 
+    }
+
+    /**
+     * Same pattern as generateWorkflowModelClass, but for timer-bearing nodes
+     * (Timer Start Event / Timer Intermediate Catch Event): an initially-empty
+     * class that start.node.processor.js / catch-event.processor.js populate
+     * one static property per timer node while walking the diagram, read at
+     * container boot by timer.service.js to know what to schedule.
+     * @param {string} normalizedProcessDef
+     * @param bpmnModel
+     * @param {ContainerParsingContext} containerParsingContext
+     * @param {WorkflowCodegenContext} workflowCodegenContext
+     */
+    async generateTimerModelClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
+        let timerModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/timer/timer-model.js`
+        let template = fs.readFileSync(
+            path
+                .join(
+                    __dirname,
+                    './builder/templates/src/modules/timer/timer-model.js',
+                )
+                .toString(),
+        ).toString()
+
+        workflowCodegenContext.timerModelFile = workflowCodegenContext.project.createSourceFile(
+            timerModelPath,
+            template,
+            {overwrite: true},
+        );
+
+        workflowCodegenContext.timerModelClass = workflowCodegenContext.timerModelFile.getClassOrThrow("TimerModel");
+    }
+
+    /**
+     * Renders a single nunjucks template straight to a file under the
+     * deployment (as opposed to the ts-morph-backed generators like
+     * generateServiceClass/generateWorkflowModelClass, which build up a
+     * source file incrementally across multiple codegen steps) - shared by
+     * every "read one template, fill in {{ ProcessDef }} and friends, write
+     * it out" step: generateWorkflowContext, generateTimerService,
+     * generateTimerCatchResumeJob.
+     * @param {string} templateRelativePath - relative to this file's own directory
+     * @param {string[]} destPathSegments - path segments under the deployment root
+     * @param {object} context - nunjucks render context
+     * @param {ContainerParsingContext} containerParsingContext
+     */
+    renderTemplateToDeployment(templateRelativePath, destPathSegments, context, containerParsingContext) {
+        const template = fs.readFileSync(
+            path.join(__dirname, templateRelativePath),
+        ).toString();
+
+        const renderedTemplate = nunjucks.renderString(template, context);
+
+        const destFile = path.join(Utils.getDeploymentPath(containerParsingContext), ...destPathSegments);
+        fs.writeFileSync(destFile, renderedTemplate);
+    }
+
+    /**
+     * Renders the container's timer scheduler (node-cron based) for this
+     * processDef - unlike timer-model.js (pure data, populated via ts-morph
+     * later), this needs the processDef baked in directly (to import
+     * `{ProcessDef}ProcessInstanceService` and tag its own timer-tick claims),
+     * so it's rendered through nunjucks up front like controller.njk, rather
+     * than assembled incrementally by the node processors.
+     * @param {string} normalizedProcessDef
+     * @param {ContainerParsingContext} containerParsingContext
+     */
+    async generateTimerService(normalizedProcessDef, containerParsingContext) {
+        this.renderTemplateToDeployment(
+            './builder/templates/src/modules/timer/timer.service.js.njk',
+            ["src", "modules", "timer", "timer.service.js"],
+            {ProcessDef: normalizedProcessDef},
+            containerParsingContext,
+        );
+    }
+
+    /**
+     * Renders the Sidequest Job class that resumes a timer intermediate
+     * catch event once due (see timer.service.js's startCatchResumeEngine /
+     * enqueueCatchResume) - needs the processDef baked in the same way
+     * timer.service.js does, to import `{ProcessDef}ProcessInstanceService`
+     * for the restoreInstance() fallback.
+     * @param {string} normalizedProcessDef
+     * @param {ContainerParsingContext} containerParsingContext
+     */
+    async generateTimerCatchResumeJob(normalizedProcessDef, containerParsingContext) {
+        this.renderTemplateToDeployment(
+            './builder/templates/src/modules/timer/timer-catch-resume.job.js.njk',
+            ["src", "modules", "timer", "timer-catch-resume.job.js"],
+            {ProcessDef: normalizedProcessDef},
+            containerParsingContext,
+        );
     }
 }
 

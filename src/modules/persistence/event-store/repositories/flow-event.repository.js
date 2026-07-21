@@ -77,6 +77,32 @@ export class FlowEventRepository {
     }
 
     /**
+     * Atomically closes a flow event only if it's still Active, in one
+     * conditional operation - the real claim primitive behind resuming a
+     * two-phase node exactly once. Both POST /signal and a timer catch
+     * event's TimerCatchResumeJob (timer-catch-resume.job.js.njk) can race to
+     * resume the same node (a manual signal arriving at the same moment a
+     * timer's job runs, or two container replicas' jobs both picking up the
+     * same due timer); passing `status:
+     * Active` inside the update's own filter - rather than a separate
+     * check-then-close - means at most one caller's findOneAndUpdate can ever
+     * match the still-Active document, so only one of them gets a non-null
+     * result back.
+     * @param {string} processInstanceId
+     * @param {string} flowId
+     * @returns {Promise<object|null>} the closed document if this call won
+     *   the race, null if another caller already closed it (or it was never
+     *   Active to begin with)
+     */
+    async closeFlowEventIfActive(processInstanceId, flowId) {
+        Logger.info(`Attempting atomic close of flow event id ${flowId} for process instance ${processInstanceId}`);
+        return this.repo.update(
+            {processInstance: processInstanceId, flowId: flowId, status: FlowEventStatus.Active},
+            {status: FlowEventStatus.Completed},
+        );
+    }
+
+    /**
      *
      * @param {string}  processInstanceId
      * @param {string}  flowId

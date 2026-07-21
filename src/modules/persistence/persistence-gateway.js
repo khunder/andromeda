@@ -15,6 +15,7 @@ import {VariableRepository} from "./event-store/repositories/variable.repository
 import {TaskStreamBuilder} from "./event-store/streams/task/task.stream-builder.js";
 import {TaskProjection} from "./event-store/projections/task-projection.js";
 import {TaskRepository} from "./event-store/repositories/task.repository.js";
+import {TimerTickRepository} from "./event-store/repositories/timer-tick.repository.js";
 
 export class PersistenceGateway {
 
@@ -237,6 +238,37 @@ export class PersistenceGateway {
      */
     static async findAllActiveFlowEvents() {
         return new FlowEventRepository().findAllActiveFlowEvents();
+    }
+
+    /**
+     * Atomically closes a flow event only if it's still Active - the claim
+     * primitive used to resume a two-phase node exactly once even when two
+     * things could plausibly race to resume it at once (POST /signal and a
+     * timer catch event's resume job, or two container replicas' jobs both
+     * catching the same due timer). See FlowEventRepository.closeFlowEventIfActive().
+     * @param {string} processInstanceId
+     * @param {string} flowId
+     * @returns {Promise<object|null>} the closed flow event if this call won
+     *   the race, null otherwise
+     */
+    static async closeFlowEventIfActive({processInstanceId, flowId}) {
+        return new FlowEventRepository().closeFlowEventIfActive(processInstanceId, flowId);
+    }
+
+    /**
+     * Claims a single cron tick for a Timer Start Event node, for the HA
+     * dedupe mechanism described in TimerTickRepository: every container
+     * replica running this deployment races to claim the same
+     * (deploymentId, processDef, nodeId, tickKey), and the backing unique
+     * index guarantees only one of them gets `true` back.
+     * @param {string} deploymentId
+     * @param {string} processDef
+     * @param {string} nodeId
+     * @param {string} tickKey
+     * @returns {Promise<boolean>}
+     */
+    static async claimTimerTick({deploymentId, processDef, nodeId, tickKey}) {
+        return new TimerTickRepository().claimTick(deploymentId, processDef, nodeId, tickKey);
     }
 
     /**

@@ -172,13 +172,29 @@ export class SqliteRepositoryBase {
         return this.create(toInsert);
     }
 
-    // updates an existing row only: no row is created when cond matches nothing
+    // updates an existing row only: no row is created when cond matches
+    // nothing, and null is returned in that case rather than re-querying by
+    // the original cond - which would silently miss the row whenever `item`
+    // overwrites a field `cond` also filters on (e.g. a conditional status
+    // transition), since after the write the row no longer matches its own
+    // pre-write cond. The select-then-write below is deliberately kept
+    // synchronous (no `await` between them, only sql.js's own synchronous
+    // calls) after the single `ready()` at the top - callers relying on this
+    // as a conditional claim (e.g. FlowEventRepository.closeFlowEventIfActive)
+    // need the check-and-write to be a single atomic step within this
+    // process; an `await` in between would let another concurrent call in
+    // the same process interleave and see the same still-unclaimed row.
     async update(cond, item) {
         await this.ready();
         Logger.trace(`Sqlite repository (${this.table.name}): update: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
-        this.runWrite(item, cond);
+        const {clause, params} = this.buildWhere(cond);
+        const match = this.runSelect(`SELECT * FROM ${this.table.name} ${clause} LIMIT 1`, params)[0];
+        if (!match) {
+            return null;
+        }
+        this.runWrite(item, {_id: match._id});
         SqliteConnection.persist();
-        return this.findOne(cond);
+        return this.runSelect(`SELECT * FROM ${this.table.name} WHERE _id = ?`, [match._id])[0] || null;
     }
 
     async createMany(items) {

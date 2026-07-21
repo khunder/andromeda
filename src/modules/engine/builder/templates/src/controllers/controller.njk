@@ -102,7 +102,18 @@ class {{ ControllerClassName }} {
                 });
             }
 
-            await PersistenceGateway.closeFlowEvent({processInstanceId, flowId: pendingFlow.id});
+            // atomic (status-conditional) close, not the plain check-then-close
+            // above would suggest: a timer intermediate catch event's own
+            // resume job (timer.service.js / timer-catch-resume.job.js.njk)
+            // can race to resume this exact node at the same moment a caller
+            // hits /signal, so the findActiveFlowEvent check above is only a
+            // cheap up-front rejection - this is the real claim
+            const closedFlowEvent = await PersistenceGateway.closeFlowEventIfActive({processInstanceId, flowId: pendingFlow.id});
+            if (!closedFlowEvent) {
+                const err = new Error(`process instance ${processInstanceId} is not currently waiting at node ${nodeId}`);
+                err.statusCode = 409;
+                throw err;
+            }
             // keep the external-facing Task record's lifecycle in sync too -
             // best-effort: it's a secondary record, so its absence shouldn't
             // block a resume that FlowEvent already confirmed is legitimate

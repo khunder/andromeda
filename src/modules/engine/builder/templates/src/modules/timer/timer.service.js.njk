@@ -1,0 +1,149 @@
+import cron from 'node-cron';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {Engine} from '@sidequest/engine';
+import {AndromedaLogger} from "../../config/andromeda-logger.js";
+import {PersistenceGateway} from "../persistence/persistence-gateway.js";
+import {TimerModel} from "./timer-model.js";
+import {Config} from "../../config/config.js";
+import {TimerCatchResumeJob} from "./timer-catch-resume.job.js";
+import {{ ProcessDef }}ProcessInstanceService from "../../services/{{ ProcessDef.toLowerCase() }}.process-instance.service.js";
+
+const Logger = new AndromedaLogger();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// deployment root - two levels up from src/modules/timer/ - where
+// sidequest.jobs.js (the manual job resolution registry) and bootstrap.js
+// both live
+const DEPLOYMENT_ROOT = path.resolve(__dirname, '../../..');
+
+// how often a container replica polls the shared job backend for due timer
+// catch resumes - see Engine's own jobPollingInterval doc: lower means lower
+// resume latency at the cost of more backend queries per replica.
+const CATCH_JOB_POLLING_INTERVAL_MS = 1000;
+
+export class TimerService {
+
+    static jobs = [];
+    // the Sidequest engine instance, once started - null until a timer catch
+    // event actually needs it (see init()), and null forever for workflows
+    // that don't have one
+    static engine = null;
+
+    static async init() {
+        const timers = Object.values(TimerModel);
+        const startTimers = timers.filter((timer) => timer.kind === 'start');
+        const catchTimers = timers.filter((timer) => timer.kind === 'catch');
+
+        startTimers.forEach((timer) => {
+            Logger.info(`scheduling timer start event ${timer.id} with cron "${timer.cron}"`);
+            TimerService.jobs.push(cron.schedule(timer.cron, () => {
+                TimerService.fireStartTimer(timer).catch((error) => { Logger.error(error); });
+            }));
+        });
+
+        if (catchTimers.length > 0) {
+            await TimerService.startCatchResumeEngine(catchTimers.length);
+        }
+    }
+
+    /**
+     * Starts a Sidequest engine dedicated to resuming timer intermediate
+     * catch events - one job per paused node, scheduled (via `availableAt`)
+     * for exactly when it becomes due, rather than polled for on a fixed
+     * sweep interval. Runs in-process (`fork: false`, `runner: "inline"`):
+     * TimerCatchResumeJob needs live access to this same process's
+     * ContainerService registry and generated service instances, which a
+     * forked child process or worker thread wouldn't have.
+     *
+     * Backend is selected off the same PERSISTENCE_DRIVER this container
+     * already uses (see Config), each with its own dedicated database
+     * (Sidequest manages its own schema/migrations - it does not share
+     * Andromeda's own EventStore/Task/FlowEvent tables). Multiple container
+     * replicas of this same deployment pointed at the same backend get
+     * Sidequest's own exactly-once distributed dispatch for free; the
+     * `closeFlowEventIfActive` claim inside TimerCatchResumeJob is kept as
+     * an additional guard regardless (see that file's doc comment).
+     */
+    static async startCatchResumeEngine(catchTimerCount) {
+        Logger.info(`starting timer catch resume engine for ${catchTimerCount} node(s)`);
+        TimerService.engine = new Engine();
+        await TimerService.engine.start({
+            backend: TimerService.resolveBackendConfig(),
+            fork: false,
+            runner: 'inline',
+            manualJobResolution: true,
+            jobsFilePath: path.join(DEPLOYMENT_ROOT, 'sidequest.jobs.js'),
+            jobPollingInterval: CATCH_JOB_POLLING_INTERVAL_MS,
+            // declared explicitly rather than left to lazy auto-creation on
+            // first poll: two replicas both polling a backend that has never
+            // seen this queue before can otherwise both try to create it at
+            // once and crash on the resulting duplicate-key error
+            queues: [{name: 'default', concurrency: catchTimerCount}],
+            logger: {level: 'warn'},
+        });
+    }
+
+    static resolveBackendConfig() {
+        if (Config.getInstance().persistenceDriver === 'sqlite') {
+            const sqliteFilePath = Config.getInstance().sqliteFilePath;
+            const dir = path.dirname(sqliteFilePath);
+            const base = path.basename(sqliteFilePath, path.extname(sqliteFilePath));
+            return {
+                driver: '@sidequest/sqlite-backend',
+                config: path.join(dir, `${base}.sidequest.sqlite`),
+            };
+        }
+        return {
+            driver: '@sidequest/mongo-backend',
+            config: Config.getInstance().mongoDbUri,
+        };
+    }
+
+    /**
+     * Enqueues the job that will resume this specific node's process
+     * instance once due - called from the generated node method's
+     * alternateBody the moment a process instance first arrives at a timer
+     * catch event (see catch-event.processor.js), not from a periodic sweep.
+     * @param {string} nodeId
+     * @param {string} processInstanceId
+     * @param {Date} dueAt
+     */
+    static async enqueueCatchResume(nodeId, processInstanceId, dueAt) {
+        await TimerService.engine.build(TimerCatchResumeJob).availableAt(dueAt).enqueue(processInstanceId, nodeId);
+    }
+
+    /**
+     * Fires on every container replica running this deployment at (roughly)
+     * the same wall-clock moment - PersistenceGateway.claimTimerTick() is the
+     * HA mechanism that guarantees only one replica actually creates a
+     * process instance for a given tick: every other replica's claim attempt
+     * loses (a duplicate-key write against the shared TimerTick unique index)
+     * and returns early here.
+     * @param {Object} timer - {id, kind, cron}
+     */
+    static async fireStartTimer(timer) {
+        // truncated to the whole second - node-cron supports second-resolution
+        // schedules (a 6-field expression), so truncating any coarser (e.g. to
+        // the minute) would collapse every fire within the same minute onto
+        // one claim key, rejecting all but the first as "duplicates". Second
+        // resolution is always at least as fine as the schedule itself, while
+        // still absorbing the sub-second jitter between replicas that are
+        // meant to agree on the same fire.
+        const tickKey = new Date().toISOString().slice(0, 19);
+        const claimed = await PersistenceGateway.claimTimerTick({
+            deploymentId: Config.getInstance().deploymentId,
+            processDef: '{{ ProcessDef }}',
+            nodeId: timer.id,
+            tickKey,
+        });
+        if (!claimed) {
+            Logger.trace(`timer start event ${timer.id} tick ${tickKey} already claimed by another container instance`);
+            return;
+        }
+        Logger.info(`timer start event ${timer.id} fired (tick ${tickKey}), creating a new process instance`);
+        const instance = await {{ ProcessDef }}ProcessInstanceService.createInstance();
+        instance.bootstrap({});
+    }
+}
+
+export default TimerService;

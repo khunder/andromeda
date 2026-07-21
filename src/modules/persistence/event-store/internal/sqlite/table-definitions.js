@@ -74,6 +74,20 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: ['correlation'],
     },
+    TimerTick: {
+        name: 'TimerTick',
+        ddl: `CREATE TABLE IF NOT EXISTS TimerTick (
+            _id TEXT PRIMARY KEY,
+            deploymentId TEXT NOT NULL,
+            processDef TEXT NOT NULL,
+            nodeId TEXT NOT NULL,
+            tickKey TEXT NOT NULL,
+            createdAt TEXT,
+            updatedAt TEXT,
+            UNIQUE(deploymentId, processDef, nodeId, tickKey)
+        )`,
+        jsonFields: [],
+    },
     Snapshot: {
         name: 'Snapshot',
         ddl: `CREATE TABLE IF NOT EXISTS Snapshot (

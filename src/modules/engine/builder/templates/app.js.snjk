@@ -43,6 +43,16 @@ export class App {
         }
     }
 
+    async  initTimerModule() {
+        try {
+            const TimerModulePromise = await import ('./src/modules/timer/timer.module.js')
+            let timerModule = new TimerModulePromise.TimerModule();
+            this.modules.push(timerModule.start.bind(timerModule));
+        } catch (e) {
+            Logger.error(e)
+        }
+    }
+
     async  initWebModule() {
         try {
             let web = await import ('./src/modules/web/web.module.js')
@@ -56,6 +66,7 @@ export class App {
     async init(){
         await this.initPersistenceModule();
         await this.initContainerModule();
+        await this.initTimerModule();
         await this.initWebModule();
         await this.executePromisesSequentially(this.modules);
     }
