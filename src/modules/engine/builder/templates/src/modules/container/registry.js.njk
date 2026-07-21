@@ -1,0 +1,17 @@
+// Generated once per container, after every workflow has been built - maps
+// each processDef compiled into this container to its ProcessInstanceService
+// class and WorkflowModel, so container-wide code (the timer service, the
+// generic timer catch resume job) can resolve "the right service/model for
+// this processDef" at runtime instead of importing one hardcoded workflow.
+{% for entry in entries %}
+import {{ entry.serviceClassName }} from "{{ entry.serviceImportPath }}";
+import { WorkflowModel as {{ entry.processDef }}WorkflowModel } from "{{ entry.workflowModelImportPath }}";
+{% endfor %}
+
+export const ServiceRegistry = {
+{% for entry in entries %}
+    {{ entry.processDef }}: { service: {{ entry.serviceClassName }}, workflowModel: {{ entry.processDef }}WorkflowModel },
+{% endfor %}
+};
+
+export default ServiceRegistry;

@@ -88,10 +88,10 @@ function setupToolbar(designer: BPMNDesigner) {
     });
   }
   
-  // Deploy button (label shows "Compile")
-  const btnDeploy = document.getElementById('btn-deploy');
-  if (btnDeploy) {
-    btnDeploy.addEventListener('click', async () => {
+  // Compile button - compiles the BPMN diagram into a generated container
+  const btnCompile = document.getElementById('btn-compile');
+  if (btnCompile) {
+    btnCompile.addEventListener('click', async () => {
       await (designer as any).handleDeploy();
     });
   }

@@ -1,4 +1,5 @@
 import { ElementRegistry, ElementDefinition } from './ElementDefinition';
+import { showToast } from './Toast';
 
 export class ElementRegistryUI {
   private isOpen = false;
@@ -275,13 +276,13 @@ export class ElementRegistryUI {
     const allowOutgoing = (document.getElementById('elem-allow-outgoing') as HTMLInputElement)?.checked;
     
     if (!type || !label) {
-      alert('Please fill in required fields');
+      showToast('Please fill in required fields', 'error');
       return;
     }
-    
+
     // Check if type already exists
     if (this.elementRegistry.get(type)) {
-      alert(`Element type "${type}" already exists`);
+      showToast(`Element type "${type}" already exists`, 'error');
       return;
     }
     
@@ -326,7 +327,7 @@ export class ElementRegistryUI {
     this.close();
     
     // Notify
-    alert(`Element "${label}" registered successfully!`);
+    showToast(`Element "${label}" registered successfully!`, 'success');
   }
   
   private updatePalette(): void {

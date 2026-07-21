@@ -4,10 +4,12 @@ import {fileURLToPath} from 'node:url';
 import {Engine} from '@sidequest/engine';
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {PersistenceGateway} from "../persistence/persistence-gateway.js";
-import {TimerModel} from "./timer-model.js";
 import {Config} from "../../config/config.js";
 import {TimerCatchResumeJob} from "./timer-catch-resume.job.js";
-import {{ ProcessDef }}ProcessInstanceService from "../../services/{{ ProcessDef.toLowerCase() }}.process-instance.service.js";
+import {ServiceRegistry} from "../container/registry.js";
+{% for entry in entries %}
+import { TimerModel as {{ entry.processDef }}TimerModel } from "{{ entry.timerModelImportPath }}";
+{% endfor %}
 
 const Logger = new AndromedaLogger();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,21 +23,30 @@ const DEPLOYMENT_ROOT = path.resolve(__dirname, '../../..');
 // resume latency at the cost of more backend queries per replica.
 const CATCH_JOB_POLLING_INTERVAL_MS = 1000;
 
+// One TimerService instance serves every workflow compiled into this
+// container - each workflow's own {processDef}.timer-model.js only records
+// which nodes are timers, tagged here with the processDef they came from so
+// this shared scheduler/engine knows which ServiceRegistry entry to dispatch
+// through.
 export class TimerService {
 
     static jobs = [];
     // the Sidequest engine instance, once started - null until a timer catch
-    // event actually needs it (see init()), and null forever for workflows
-    // that don't have one
+    // event actually needs it (see init()), and null forever for containers
+    // whose workflows don't have one
     static engine = null;
 
     static async init() {
-        const timers = Object.values(TimerModel);
+        const timers = [
+        {% for entry in entries %}
+            ...Object.values({{ entry.processDef }}TimerModel).map((timer) => ({...timer, processDef: {{ entry.processDef | dump }}})),
+        {% endfor %}
+        ];
         const startTimers = timers.filter((timer) => timer.kind === 'start');
         const catchTimers = timers.filter((timer) => timer.kind === 'catch');
 
         startTimers.forEach((timer) => {
-            Logger.info(`scheduling timer start event ${timer.id} with cron "${timer.cron}"`);
+            Logger.info(`scheduling timer start event ${timer.id} (${timer.processDef}) with cron "${timer.cron}"`);
             TimerService.jobs.push(cron.schedule(timer.cron, () => {
                 TimerService.fireStartTimer(timer).catch((error) => { Logger.error(error); });
             }));
@@ -62,7 +73,8 @@ export class TimerService {
      * replicas of this same deployment pointed at the same backend get
      * Sidequest's own exactly-once distributed dispatch for free; the
      * `closeFlowEventIfActive` claim inside TimerCatchResumeJob is kept as
-     * an additional guard regardless (see that file's doc comment).
+     * an additional guard regardless (see that file's doc comment). One
+     * shared queue serves every workflow's catch timers in this container.
      */
     static async startCatchResumeEngine(catchTimerCount) {
         Logger.info(`starting timer catch resume engine for ${catchTimerCount} node(s)`);
@@ -107,9 +119,12 @@ export class TimerService {
      * @param {string} nodeId
      * @param {string} processInstanceId
      * @param {Date} dueAt
+     * @param {string} processDef - which workflow this node belongs to, so
+     *   the generic TimerCatchResumeJob can resolve the right
+     *   ServiceRegistry entry when it runs
      */
-    static async enqueueCatchResume(nodeId, processInstanceId, dueAt) {
-        await TimerService.engine.build(TimerCatchResumeJob).availableAt(dueAt).enqueue(processInstanceId, nodeId);
+    static async enqueueCatchResume(nodeId, processInstanceId, dueAt, processDef) {
+        await TimerService.engine.build(TimerCatchResumeJob).availableAt(dueAt).enqueue(processInstanceId, nodeId, processDef);
     }
 
     /**
@@ -119,7 +134,7 @@ export class TimerService {
      * process instance for a given tick: every other replica's claim attempt
      * loses (a duplicate-key write against the shared TimerTick unique index)
      * and returns early here.
-     * @param {Object} timer - {id, kind, cron}
+     * @param {Object} timer - {id, kind, cron, processDef}
      */
     static async fireStartTimer(timer) {
         // truncated to the whole second - node-cron supports second-resolution
@@ -132,16 +147,16 @@ export class TimerService {
         const tickKey = new Date().toISOString().slice(0, 19);
         const claimed = await PersistenceGateway.claimTimerTick({
             deploymentId: Config.getInstance().deploymentId,
-            processDef: '{{ ProcessDef }}',
+            processDef: timer.processDef,
             nodeId: timer.id,
             tickKey,
         });
         if (!claimed) {
-            Logger.trace(`timer start event ${timer.id} tick ${tickKey} already claimed by another container instance`);
+            Logger.trace(`timer start event ${timer.id} (${timer.processDef}) tick ${tickKey} already claimed by another container instance`);
             return;
         }
-        Logger.info(`timer start event ${timer.id} fired (tick ${tickKey}), creating a new process instance`);
-        const instance = await {{ ProcessDef }}ProcessInstanceService.createInstance();
+        Logger.info(`timer start event ${timer.id} (${timer.processDef}) fired (tick ${tickKey}), creating a new process instance`);
+        const instance = await ServiceRegistry[timer.processDef].service.createInstance();
         instance.bootstrap({});
     }
 }

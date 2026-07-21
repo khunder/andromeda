@@ -86,15 +86,21 @@ class WorkflowBuilder {
         await this.generateWorkflowModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
 
         await this.generateTimerModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
-        await this.generateTimerService(normalizedProcessDef, containerParsingContext)
-        await this.generateTimerCatchResumeJob(normalizedProcessDef, containerParsingContext)
 
         processesInBpmnFile.forEach(process => {
             this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
         });
 
-        containerCodegenContext.renderRoutes(normalizedProcessDef, containerParsingContext);
+        containerCodegenContext.registryEntries.push({
+            processDef: normalizedProcessDef,
+            serviceClassName: this.getServiceClassName(normalizedProcessDef),
+            serviceImportPath: `../../services/${normalizedProcessDef.toLowerCase()}.process-instance.service.js`,
+            workflowModelImportPath: `./${normalizedProcessDef.toLowerCase()}.workflow-model.js`,
+            timerModelImportPath: `./${normalizedProcessDef.toLowerCase()}.timer-model.js`,
+        });
+
+        containerCodegenContext.renderRoutes(normalizedProcessDef, containerParsingContext, workflowCodegenContext.routes);
         workflowCodegenContext.renderImports()
         workflowCodegenContext.serviceClassFile.formatText({
             placeOpenBraceOnNewLineForFunctions: true,
@@ -364,12 +370,15 @@ class WorkflowBuilder {
         const variablesSchema = this.buildVariablesSchema(this.getProcessVariables(bpmnModel.model));
 
         const openApiCodegen = workflowCodegenContext.containerCodegenContext.openApiCodegen;
-        openApiCodegen.addPath("/start" , "post")
-        openApiCodegen.addPathDescription("/start", "post", "Start a new process instance, optionally with variables")
-        openApiCodegen.addPathTags("/start", "post", ["Process Instance"])
+        const startPath = `/${normalizedProcessDef}/start`;
+        const signalPath = `/${normalizedProcessDef}/signal`;
+        const tasksPath = `/${normalizedProcessDef}/tasks`;
+        openApiCodegen.addPath(startPath , "post")
+        openApiCodegen.addPathDescription(startPath, "post", "Start a new process instance, optionally with variables")
+        openApiCodegen.addPathTags(startPath, "post", ["Process Instance"])
         // status code -> response, not nested under a "responses" key (addResponse merges its
         // argument directly into .responses)
-        openApiCodegen.addResponse("/start" , "post" , {
+        openApiCodegen.addResponse(startPath , "post" , {
             "200": {
                 "description": "Process instance created",
                 "content": {
@@ -386,7 +395,7 @@ class WorkflowBuilder {
         })
         // requestBody is a sibling of responses in OpenAPI, not nested inside it ,
         // it needs its own call, not folding into addResponse's argument
-        openApiCodegen.setRequestBody("/start", "post", {
+        openApiCodegen.setRequestBody(startPath, "post", {
             "required": false,
             "content": {
                 "multipart/form-data": {
@@ -411,12 +420,12 @@ class WorkflowBuilder {
                 }
             }
         })
-        workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/start" , method: "start"})
+        workflowCodegenContext.routes.push({verb: "POST", path: startPath , method: "start"})
 
-        openApiCodegen.addPath("/signal", "post")
-        openApiCodegen.addPathDescription("/signal", "post", "Resume a process instance paused at an intermediate catch event (deliver a signal) or a human task (complete it), optionally with variables")
-        openApiCodegen.addPathTags("/signal", "post", ["Process Instance"])
-        openApiCodegen.addResponse("/signal", "post", {
+        openApiCodegen.addPath(signalPath, "post")
+        openApiCodegen.addPathDescription(signalPath, "post", "Resume a process instance paused at an intermediate catch event (deliver a signal) or a human task (complete it), optionally with variables")
+        openApiCodegen.addPathTags(signalPath, "post", ["Process Instance"])
+        openApiCodegen.addResponse(signalPath, "post", {
             "200": {
                 "description": "Process instance resumed",
                 "content": {
@@ -435,7 +444,7 @@ class WorkflowBuilder {
             "404": {"description": "Process instance not found/active, or nodeId is not a known node in this workflow"},
             "409": {"description": "Process instance is not currently waiting at that node"}
         })
-        openApiCodegen.setRequestBody("/signal", "post", {
+        openApiCodegen.setRequestBody(signalPath, "post", {
             "required": true,
             "content": {
                 "application/json": {
@@ -451,12 +460,12 @@ class WorkflowBuilder {
                 }
             }
         })
-        workflowCodegenContext.containerCodegenContext.routes.push({verb: "POST", path: "/signal", method: "signal"})
+        workflowCodegenContext.routes.push({verb: "POST", path: signalPath, method: "signal"})
 
-        openApiCodegen.addPath("/tasks", "get")
-        openApiCodegen.addPathDescription("/tasks", "get", "List every human task currently waiting to be completed, across every process instance in this container")
-        openApiCodegen.addPathTags("/tasks", "get", ["Process Instance"])
-        openApiCodegen.addResponse("/tasks", "get", {
+        openApiCodegen.addPath(tasksPath, "get")
+        openApiCodegen.addPathDescription(tasksPath, "get", "List every human task currently waiting to be completed, across every process instance of this workflow in this container")
+        openApiCodegen.addPathTags(tasksPath, "get", ["Process Instance"])
+        openApiCodegen.addResponse(tasksPath, "get", {
             "200": {
                 "description": "Pending human tasks",
                 "content": {
@@ -476,7 +485,7 @@ class WorkflowBuilder {
                 }
             }
         })
-        workflowCodegenContext.containerCodegenContext.routes.push({verb: "GET", path: "/tasks", method: "tasks"})
+        workflowCodegenContext.routes.push({verb: "GET", path: tasksPath, method: "tasks"})
 
 
         let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`
@@ -509,7 +518,7 @@ class WorkflowBuilder {
 
 
     async generateWorkflowModelClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
-        let workflowModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/container/workflow-model.js`
+        let workflowModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/container/${normalizedProcessDef.toLowerCase()}.workflow-model.js`
         let template = fs.readFileSync(
             path
                 .join(
@@ -541,7 +550,7 @@ class WorkflowBuilder {
      * @param {WorkflowCodegenContext} workflowCodegenContext
      */
     async generateTimerModelClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
-        let timerModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/timer/timer-model.js`
+        let timerModelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/timer/${normalizedProcessDef.toLowerCase()}.timer-model.js`
         let template = fs.readFileSync(
             path
                 .join(
@@ -566,8 +575,7 @@ class WorkflowBuilder {
      * generateServiceClass/generateWorkflowModelClass, which build up a
      * source file incrementally across multiple codegen steps) - shared by
      * every "read one template, fill in {{ ProcessDef }} and friends, write
-     * it out" step: generateWorkflowContext, generateTimerService,
-     * generateTimerCatchResumeJob.
+     * it out" step, e.g. generateWorkflowContext.
      * @param {string} templateRelativePath - relative to this file's own directory
      * @param {string[]} destPathSegments - path segments under the deployment root
      * @param {object} context - nunjucks render context
@@ -584,42 +592,6 @@ class WorkflowBuilder {
         fs.writeFileSync(destFile, renderedTemplate);
     }
 
-    /**
-     * Renders the container's timer scheduler (node-cron based) for this
-     * processDef - unlike timer-model.js (pure data, populated via ts-morph
-     * later), this needs the processDef baked in directly (to import
-     * `{ProcessDef}ProcessInstanceService` and tag its own timer-tick claims),
-     * so it's rendered through nunjucks up front like controller.njk, rather
-     * than assembled incrementally by the node processors.
-     * @param {string} normalizedProcessDef
-     * @param {ContainerParsingContext} containerParsingContext
-     */
-    async generateTimerService(normalizedProcessDef, containerParsingContext) {
-        this.renderTemplateToDeployment(
-            './builder/templates/src/modules/timer/timer.service.js.njk',
-            ["src", "modules", "timer", "timer.service.js"],
-            {ProcessDef: normalizedProcessDef},
-            containerParsingContext,
-        );
-    }
-
-    /**
-     * Renders the Sidequest Job class that resumes a timer intermediate
-     * catch event once due (see timer.service.js's startCatchResumeEngine /
-     * enqueueCatchResume) - needs the processDef baked in the same way
-     * timer.service.js does, to import `{ProcessDef}ProcessInstanceService`
-     * for the restoreInstance() fallback.
-     * @param {string} normalizedProcessDef
-     * @param {ContainerParsingContext} containerParsingContext
-     */
-    async generateTimerCatchResumeJob(normalizedProcessDef, containerParsingContext) {
-        this.renderTemplateToDeployment(
-            './builder/templates/src/modules/timer/timer-catch-resume.job.js.njk',
-            ["src", "modules", "timer", "timer-catch-resume.job.js"],
-            {ProcessDef: normalizedProcessDef},
-            containerParsingContext,
-        );
-    }
 }
 
 export default WorkflowBuilder;

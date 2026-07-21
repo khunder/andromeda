@@ -55,6 +55,14 @@ class WorkflowCodegenContext {
     controllerClassImports =[];
     serviceClassImports =[];
 
+    /**
+     * This workflow's own HTTP routes ({verb, path, method}) - kept per
+     * workflow (rather than accumulated on the shared ContainerCodegenContext)
+     * so each workflow renders its own route file and doesn't see other
+     * workflows' entries.
+     */
+    routes = [];
+
 
     constructor(containerCodegenContext) {
         this.containerCodegenContext = containerCodegenContext;

@@ -61,7 +61,7 @@ describe('Embedded Container', function () {
 
             const config = { headers: form.getHeaders()};
             // when
-            let proc = await axios.post(`http://127.0.0.1:${containerPort}/start`, form, config);
+            let proc = await axios.post(`http://127.0.0.1:${containerPort}/BasicScenario/start`, form, config);
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
             assert.equal(count, 1)
             await Utils.sleep(2000);

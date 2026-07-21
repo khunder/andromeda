@@ -19,8 +19,8 @@ export class ProcessStartModal {
 
   constructor(private deploymentService: DeploymentService) {}
 
-  async show(host: string, port: string | number, deploymentId: string): Promise<void> {
-    this.createModal(host, port, deploymentId);
+  async show(host: string, port: string | number, deploymentId: string, processDefs: string[] = []): Promise<void> {
+    this.createModal(host, port, deploymentId, processDefs);
     await loadMonaco();
     this.createEditor();
   }
@@ -32,10 +32,23 @@ export class ProcessStartModal {
     this.modal = null;
   }
 
-  private createModal(host: string, port: string | number, deploymentId: string): void {
+  private createModal(host: string, port: string | number, deploymentId: string, processDefs: string[]): void {
     if (this.modal) {
       this.modal.remove();
     }
+
+    // A container generated before per-workflow route namespacing existed
+    // reports no processDefs at all - fall back to the legacy bare /start
+    // (DeploymentService.startProcessInstance handles '' that way). One
+    // processDef: just use it, no need to ask. More than one: let the user pick.
+    const processDefPicker = processDefs.length > 1
+      ? `
+        <label class="start-params-label" for="start-params-process-def">Process</label>
+        <select id="start-params-process-def" class="start-params-select">
+          ${processDefs.map((def) => `<option value="${this.escapeHtml(def)}">${this.escapeHtml(def)}</option>`).join('')}
+        </select>
+      `
+      : '';
 
     this.modal = document.createElement('div');
     this.modal.className = 'start-params-modal';
@@ -48,6 +61,7 @@ export class ProcessStartModal {
         </div>
         <div class="start-params-body">
           <p class="start-params-hint">Variables (JSON) for <strong>${this.escapeHtml(deploymentId)}</strong> , this object <em>is</em> your variables, e.g. <code>{"age": 20}</code>. Do not wrap it in a <code>variables</code> key, that's added automatically.</p>
+          ${processDefPicker}
           <div id="start-params-editor" class="start-params-editor"></div>
         </div>
         <div class="start-params-footer">
@@ -63,14 +77,18 @@ export class ProcessStartModal {
     this.addStyles();
     document.body.appendChild(this.modal);
 
+    const singleProcessDef = processDefs.length === 1 ? processDefs[0] : '';
+
     this.modal.querySelector('.start-params-close')?.addEventListener('click', () => this.hide());
     this.modal.querySelector('.start-params-overlay')?.addEventListener('click', () => this.hide());
     this.modal.querySelector('#btn-cancel-start')?.addEventListener('click', () => this.hide());
-    this.modal.querySelector('#btn-confirm-start')?.addEventListener('click', () => void this.confirmStart(host, port, deploymentId));
+    this.modal.querySelector('#btn-confirm-start')?.addEventListener('click', () => void this.confirmStart(host, port, deploymentId, singleProcessDef));
   }
 
-  private async confirmStart(host: string, port: string | number, deploymentId: string): Promise<void> {
+  private async confirmStart(host: string, port: string | number, deploymentId: string, singleProcessDef: string): Promise<void> {
     const resultDiv = this.modal?.querySelector('#start-params-result') as HTMLDivElement | null;
+    const processDefSelect = this.modal?.querySelector('#start-params-process-def') as HTMLSelectElement | null;
+    const processDef = processDefSelect?.value ?? singleProcessDef;
 
     let variables: Record<string, unknown>;
     try {
@@ -88,7 +106,7 @@ export class ProcessStartModal {
       resultDiv.textContent = 'Starting...';
     }
 
-    const result = await this.deploymentService.startProcessInstance(host, port, deploymentId, variables);
+    const result = await this.deploymentService.startProcessInstance(host, port, deploymentId, processDef, variables);
     if (resultDiv) {
       resultDiv.className = `start-params-result ${result.success ? 'success' : 'error'}`;
       resultDiv.textContent = result.message;
@@ -210,6 +228,24 @@ export class ProcessStartModal {
         border: 1px solid #ddd;
         border-radius: 4px;
         overflow: hidden;
+      }
+
+      .start-params-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        margin-bottom: 4px;
+      }
+
+      .start-params-select {
+        width: 100%;
+        padding: 8px 10px;
+        margin-bottom: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        background: white;
       }
 
       .start-params-footer {

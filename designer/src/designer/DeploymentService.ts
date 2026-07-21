@@ -162,13 +162,19 @@ export class DeploymentService {
   /**
    * Start a new process instance on a running container, optionally with variables.
    * Caller supplies host/port directly (e.g. from a Galaxy registry list entry).
+   *
+   * `processDef` names which workflow to start (routes are namespaced
+   * /{processDef}/start since a container can now hold more than one BPMN
+   * workflow) - pass '' for containers generated before that namespacing
+   * existed, which still only serve a bare /start.
    */
-  async startProcessInstance(host: string, port: string | number, deploymentId: string, variables?: Record<string, unknown>): Promise<DeploymentResult> {
+  async startProcessInstance(host: string, port: string | number, deploymentId: string, processDef: string, variables?: Record<string, unknown>): Promise<DeploymentResult> {
     try {
       const formData = new FormData();
       formData.append('variables', JSON.stringify(variables || {}));
 
-      const response = await fetch(`http://${host}:${port}/start`, {
+      const startPath = processDef ? `/${processDef}/start` : '/start';
+      const response = await fetch(`http://${host}:${port}${startPath}`, {
         method: 'POST',
         body: formData,
         mode: 'cors'

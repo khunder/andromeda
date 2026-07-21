@@ -1,3 +1,4 @@
+import {ServiceRegistry} from "../modules/container/registry.js";
 
 function route (fastify, opts, next) {
     fastify.route(
@@ -14,6 +15,20 @@ function route (fastify, opts, next) {
             method: 'GET',
             url: '/ready',
             handler: () => {}
+        }
+    )
+
+    // Lets external callers (the designer, Galaxy) discover which workflow(s)
+    // this container serves, since routes are namespaced per processDef
+    // (/{processDef}/start etc.) rather than one bare /start. Not folded into
+    // /ready itself: @gquittet/graceful-server (see web.module.js) intercepts
+    // /live and /ready at the raw HTTP layer before they ever reach fastify's
+    // router, so a fastify-level handler on those exact paths is unreachable.
+    fastify.route(
+        {
+            method: 'GET',
+            url: '/api/process-defs',
+            handler: () => ({processDefs: Object.keys(ServiceRegistry)})
         }
     )
     next();

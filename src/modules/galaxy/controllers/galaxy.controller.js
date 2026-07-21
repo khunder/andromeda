@@ -20,9 +20,22 @@ class GalaxyController {
         const withStatus = await Promise.all(all.map(async (c)=>{
             try{
                 const res = await fetch(`http://127.0.0.1:${c.port}/ready`, { method: 'GET' });
-                return { ...c, status: res.ok ? 'ready' : `http_${res.status}` };
+                // /api/process-defs is absent on containers generated before it
+                // existed - defaults to [] so callers (the designer) can fall back
+                // to the legacy unnamespaced /start route for those
+                let processDefs = [];
+                if (res.ok) {
+                    try {
+                        const processDefsRes = await fetch(`http://127.0.0.1:${c.port}/api/process-defs`, { method: 'GET' });
+                        if (processDefsRes.ok) {
+                            const body = await processDefsRes.json().catch(() => ({}));
+                            processDefs = body.processDefs || [];
+                        }
+                    } catch (e) { /* older container without this route - degrade to [] */ }
+                }
+                return { ...c, status: res.ok ? 'ready' : `http_${res.status}`, processDefs };
             }catch(e){
-                return { ...c, status: 'unreachable' };
+                return { ...c, status: 'unreachable', processDefs: [] };
             }
         }));
         reply.send(withStatus);

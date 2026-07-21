@@ -4,6 +4,7 @@ import { ConfigurationManager } from './ConfigurationManager';
 import { ConfigurationPanel } from './ConfigurationPanel';
 import { DeploymentService } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
+import { showToast } from './Toast';
 import './GalaxyModal';
 import type { GalaxyModal } from './GalaxyModal';
 
@@ -81,6 +82,11 @@ type AllowedBpmnElement = {
   bpmnType: string;
   paletteClass: string;
   group: string;
+  // Passed straight through to bpmn-js's own ElementFactory.createBpmnElement,
+  // which already knows how to attach a fresh event definition of this type to
+  // the created shape's businessObject.eventDefinitions - see
+  // node_modules/bpmn-js/lib/features/modeling/ElementFactory.js.
+  eventDefinitionType?: string;
 };
 
 export const ALLOWED_BPMN_ELEMENTS: AllowedBpmnElement[] = [
@@ -90,6 +96,14 @@ export const ALLOWED_BPMN_ELEMENTS: AllowedBpmnElement[] = [
     bpmnType: 'bpmn:StartEvent',
     paletteClass: 'bpmn-icon-start-event-none',
     group: 'event'
+  },
+  {
+    key: 'timerStartNode',
+    label: 'Timer Start Event',
+    bpmnType: 'bpmn:StartEvent',
+    paletteClass: 'bpmn-icon-start-event-timer',
+    group: 'event',
+    eventDefinitionType: 'bpmn:TimerEventDefinition'
   },
   {
     key: 'endNode',
@@ -120,6 +134,22 @@ export const ALLOWED_BPMN_ELEMENTS: AllowedBpmnElement[] = [
     group: 'event'
   },
   {
+    key: 'catchSignalEventNode',
+    label: 'Catch Signal Event',
+    bpmnType: 'bpmn:IntermediateCatchEvent',
+    paletteClass: 'bpmn-icon-intermediate-event-catch-signal',
+    group: 'event',
+    eventDefinitionType: 'bpmn:SignalEventDefinition'
+  },
+  {
+    key: 'timerCatchEventNode',
+    label: 'Timer Catch Event',
+    bpmnType: 'bpmn:IntermediateCatchEvent',
+    paletteClass: 'bpmn-icon-intermediate-event-catch-timer',
+    group: 'event',
+    eventDefinitionType: 'bpmn:TimerEventDefinition'
+  },
+  {
     key: 'exclusiveGatewayNode',
     label: 'Exclusive Gateway',
     bpmnType: 'bpmn:ExclusiveGateway',
@@ -143,7 +173,10 @@ function RestrictedPaletteProvider(this: any, palette: any, create: any, element
 
     ALLOWED_BPMN_ELEMENTS.forEach((element) => {
       const createElement = (event: Event) => {
-        const shape = elementFactory.createShape({ type: element.bpmnType });
+        const shape = elementFactory.createShape({
+          type: element.bpmnType,
+          eventDefinitionType: element.eventDefinitionType
+        });
         create.start(event, shape);
       };
 
@@ -230,11 +263,17 @@ function RestrictedContextPadProvider(
           title: translate(`Append ${appendable.label}`),
           action: {
             click: (_event: Event, selectedElement: any) => {
-              const shape = elementFactory.createShape({ type: appendable.bpmnType });
+              const shape = elementFactory.createShape({
+                type: appendable.bpmnType,
+                eventDefinitionType: appendable.eventDefinitionType
+              });
               autoPlace.append(selectedElement, shape);
             },
             dragstart: (event: Event, selectedElement: any) => {
-              const shape = elementFactory.createShape({ type: appendable.bpmnType });
+              const shape = elementFactory.createShape({
+                type: appendable.bpmnType,
+                eventDefinitionType: appendable.eventDefinitionType
+              });
               create.start(event, shape, { source: selectedElement });
             }
           }
@@ -405,7 +444,7 @@ export class BPMNDesigner {
       await this.importFromXML(await file.text());
     } catch (error) {
       console.error('Error importing BPMN file:', error);
-      alert('Error importing BPMN file. Please check the file format.');
+      showToast('Error importing BPMN file. Please check the file format.', 'error');
     }
   }
 
@@ -463,14 +502,10 @@ export class BPMNDesigner {
       const xml = await this.getXML();
       const result = await this.deploymentService.deploy(xml);
 
-      if (result.success) {
-        alert(result.message);
-      } else {
-        alert(result.message);
-      }
+      showToast(result.message, result.success ? 'success' : 'error');
     } catch (error) {
       console.error('Deployment failed:', error);
-      alert('Deployment failed. Check the console for details.');
+      showToast('Deployment failed. Check the console for details.', 'error');
     }
   }
 
@@ -480,13 +515,13 @@ export class BPMNDesigner {
       const result = await this.deploymentService.runEmbedded(deploymentId);
 
       if (result.success) {
-        alert(`Run embedded started for ${deploymentId}`);
+        showToast(`Run embedded started for ${deploymentId}`, 'success');
       } else {
-        alert(result.message);
+        showToast(result.message, 'error');
       }
     } catch (error) {
       console.error('Run embedded failed:', error);
-      alert('Run embedded failed. Check the console for details.');
+      showToast('Run embedded failed. Check the console for details.', 'error');
     }
   }
 
@@ -544,6 +579,14 @@ export class BPMNDesigner {
     const businessObject = element.businessObject;
     const isScriptTask = businessObject.$type === 'bpmn:ScriptTask';
     const isSequenceFlow = businessObject.$type === 'bpmn:SequenceFlow';
+    const eventDefinition = (businessObject.eventDefinitions || [])[0];
+    const isTimerStartEvent = businessObject.$type === 'bpmn:StartEvent'
+      && eventDefinition?.$type === 'bpmn:TimerEventDefinition';
+    const isSignalCatchEvent = businessObject.$type === 'bpmn:IntermediateCatchEvent'
+      && eventDefinition?.$type === 'bpmn:SignalEventDefinition';
+    const isTimerCatchEvent = businessObject.$type === 'bpmn:IntermediateCatchEvent'
+      && eventDefinition?.$type === 'bpmn:TimerEventDefinition';
+    const isTimerCatchDateMode = isTimerCatchEvent && Boolean(eventDefinition?.timeDate?.body);
 
     content.innerHTML = `
       <div class="property-group">
@@ -575,6 +618,33 @@ export class BPMNDesigner {
           <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Evaluated as a JS expression at runtime; leave empty for an unconditional flow.</small>
         </div>
       ` : ''}
+      ${isTimerStartEvent ? `
+        <div class="property-group">
+          <label>Cron Expression</label>
+          <input id="bpmn-prop-time-cycle" type="text" value="${this.escapeHtml(eventDefinition.timeCycle?.body || '')}" placeholder="0 9 * * *">
+          <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Standard cron expression; a process instance is created automatically on each fire.</small>
+        </div>
+      ` : ''}
+      ${isSignalCatchEvent ? `
+        <div class="property-group">
+          <label>Signal Name</label>
+          <input id="bpmn-prop-signal-name" type="text" value="${this.escapeHtml(eventDefinition.signalRef?.name || '')}" placeholder="approval">
+          <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Resumed via POST /signal naming this node once reached; leave empty to wait for a generic signal.</small>
+        </div>
+      ` : ''}
+      ${isTimerCatchEvent ? `
+        <div class="property-group">
+          <label>Timer Mode</label>
+          <select id="bpmn-prop-timer-mode">
+            <option value="duration" ${!isTimerCatchDateMode ? 'selected' : ''}>Duration (relative to arrival)</option>
+            <option value="date" ${isTimerCatchDateMode ? 'selected' : ''}>Date (absolute instant)</option>
+          </select>
+        </div>
+        <div class="property-group">
+          <label>${isTimerCatchDateMode ? 'Date/Time (ISO 8601)' : 'Duration (ISO 8601)'}</label>
+          <input id="bpmn-prop-timer-value" type="text" value="${this.escapeHtml((isTimerCatchDateMode ? eventDefinition.timeDate?.body : eventDefinition.timeDuration?.body) || '')}" placeholder="${isTimerCatchDateMode ? '2026-08-01T09:00:00Z' : 'PT5M'}">
+        </div>
+      ` : ''}
     `;
 
     this.bindPropertyInput('bpmn-prop-name', element, 'name');
@@ -586,6 +656,18 @@ export class BPMNDesigner {
 
     if (isSequenceFlow) {
       this.bindConditionInput('bpmn-prop-condition', element);
+    }
+
+    if (isTimerStartEvent) {
+      this.bindEventDefinitionExpressionInput('bpmn-prop-time-cycle', element, eventDefinition, 'timeCycle');
+    }
+
+    if (isSignalCatchEvent) {
+      this.bindSignalNameInput('bpmn-prop-signal-name', element, eventDefinition);
+    }
+
+    if (isTimerCatchEvent) {
+      this.bindTimerCatchInputs(element, eventDefinition, isTimerCatchDateMode);
     }
   }
 
@@ -601,6 +683,93 @@ export class BPMNDesigner {
         : undefined;
 
       modeling.updateProperties(element, { conditionExpression });
+    });
+  }
+
+  // Shared by the timer start event's timeCycle and, indirectly via
+  // bindTimerCatchInputs, the timer catch event's timeDuration/timeDate -
+  // all three are bpmn:Expression-typed children of an eventDefinition, not
+  // of the shape's own businessObject, so they go through
+  // modeling.updateModdleProperties rather than updateProperties.
+  private bindEventDefinitionExpressionInput(
+    inputId: string,
+    element: any,
+    eventDefinition: any,
+    propertyName: string
+  ): void {
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    const modeling = this.modeler.get('modeling' as never) as any;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+
+    input?.addEventListener('change', () => {
+      const value = input.value.trim();
+      const expression = value ? bpmnFactory.create('bpmn:FormalExpression', { body: value }) : undefined;
+
+      modeling.updateModdleProperties(element, eventDefinition, { [propertyName]: expression });
+    });
+  }
+
+  private bindSignalNameInput(inputId: string, element: any, eventDefinition: any): void {
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    const modeling = this.modeler.get('modeling' as never) as any;
+
+    input?.addEventListener('change', () => {
+      const name = input.value.trim();
+      const signalRef = name ? this.findOrCreateSignal(name) : undefined;
+
+      modeling.updateModdleProperties(element, eventDefinition, { signalRef });
+    });
+  }
+
+  // Signals are top-level bpmn:Signal root elements referenced by name (not
+  // embedded in the catch event itself), matching how catch-event.processor.js
+  // reads eventDefinitions[0].signalRef.name - reusing an existing bpmn:Signal
+  // of the same name lets multiple catch events wait on the same broadcast
+  // signal rather than each minting their own.
+  private findOrCreateSignal(name: string): any {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+
+    const existing = (definitions?.rootElements || []).find(
+      (rootElement: any) => rootElement.$type === 'bpmn:Signal' && rootElement.name === name
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const signal = bpmnFactory.create('bpmn:Signal', { name });
+    if (definitions) {
+      signal.$parent = definitions;
+      definitions.rootElements = [...(definitions.rootElements || []), signal];
+    }
+
+    return signal;
+  }
+
+  // timeDuration and timeDate are mutually exclusive on a timer catch event
+  // (see catch-event.processor.js), so switching mode clears both before the
+  // user enters a fresh value, and the value input always writes to whichever
+  // one the mode select currently points at.
+  private bindTimerCatchInputs(element: any, eventDefinition: any, isDateMode: boolean): void {
+    const modeSelect = document.getElementById('bpmn-prop-timer-mode') as HTMLSelectElement | null;
+    const valueInput = document.getElementById('bpmn-prop-timer-value') as HTMLInputElement | null;
+    const modeling = this.modeler.get('modeling' as never) as any;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+
+    modeSelect?.addEventListener('change', () => {
+      modeling.updateModdleProperties(element, eventDefinition, {
+        timeDuration: undefined,
+        timeDate: undefined
+      });
+      this.renderPropertiesPanel(element);
+    });
+
+    valueInput?.addEventListener('change', () => {
+      const value = valueInput.value.trim();
+      const expression = value ? bpmnFactory.create('bpmn:FormalExpression', { body: value }) : undefined;
+      const propertyName = isDateMode ? 'timeDate' : 'timeDuration';
+
+      modeling.updateModdleProperties(element, eventDefinition, { [propertyName]: expression });
     });
   }
 
@@ -717,7 +886,7 @@ export class BPMNDesigner {
       return;
     }
     if ((process.properties || []).some((variable: any) => variable.name === name)) {
-      alert(`A variable named "${name}" already exists`);
+      showToast(`A variable named "${name}" already exists`, 'error');
       return;
     }
 

@@ -4,7 +4,7 @@ import {v4} from "uuid";
 import { {{ ProcessDef }}ProcessInstanceContext} from "./{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
 import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
 import {ContainerService} from "../modules/container/container.service.js";
-import {WorkflowModel} from "../modules/container/workflow-model.js";
+import {WorkflowModel} from "../modules/container/{{ ProcessDef.toLowerCase() }}.workflow-model.js";
 import {Iso8601Duration} from "../utils/iso8601-duration.js";
 import {TimerService} from "../modules/timer/timer.service.js";
 import {Config} from "../config/config.js";

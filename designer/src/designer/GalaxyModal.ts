@@ -1,5 +1,6 @@
 import { DeploymentService } from './DeploymentService';
 import { ProcessStartModal } from './ProcessStartModal';
+import { showToast } from './Toast';
 
 export class GalaxyModal extends HTMLElement {
     private shadow: ShadowRoot;
@@ -87,12 +88,12 @@ export class GalaxyModal extends HTMLElement {
 
     async stopContainer(deploymentId: string, port: string) {
         if (!this.deploymentService) {
-            alert('Engine connection is not configured, cannot stop container.');
+            showToast('Engine connection is not configured, cannot stop container.', 'error');
             return;
         }
         const result = await this.deploymentService.stopEmbedded(deploymentId, port);
         if (!result.success) {
-            alert(result.message);
+            showToast(result.message, 'error');
             return;
         }
         if (this.galaxyUrl) {
@@ -140,18 +141,39 @@ export class GalaxyModal extends HTMLElement {
             } else if (target.classList.contains('btn-play-params')) {
                 const deploymentId = target.getAttribute('data-deployment-id') || '';
                 const port = target.getAttribute('data-port') || '';
-                void this.processStartModal?.show(this.getContainerHost(), port, deploymentId);
+                const processDefs = this.getProcessDefs(deploymentId, port);
+                void this.processStartModal?.show(this.getContainerHost(), port, deploymentId, processDefs);
             }
         });
     }
 
     private async startProcessInstance(deploymentId: string, port: string): Promise<void> {
         if (!this.deploymentService) {
-            alert('Engine connection is not configured, cannot start process instance.');
+            showToast('Engine connection is not configured, cannot start process instance.', 'error');
             return;
         }
-        const result = await this.deploymentService.startProcessInstance(this.getContainerHost(), port, deploymentId, {});
-        alert(result.message);
+
+        const processDefs = this.getProcessDefs(deploymentId, port);
+        // more than one workflow in this container - don't guess which one to
+        // start, send the user to "Start with Parameters" so they can pick
+        if (processDefs.length > 1) {
+            showToast('This container has multiple workflows - use "▶⚙ Start with Parameters" to pick one.', 'info');
+            void this.processStartModal?.show(this.getContainerHost(), port, deploymentId, processDefs);
+            return;
+        }
+
+        const result = await this.deploymentService.startProcessInstance(this.getContainerHost(), port, deploymentId, processDefs[0] || '', {});
+        showToast(result.message, result.success ? 'success' : 'error');
+    }
+
+    /**
+     * processDefs reported by the container itself via GET /ready (see
+     * galaxy.controller.js's listContainers) - [] for containers generated
+     * before that field existed, which still only serve a bare /start.
+     */
+    private getProcessDefs(deploymentId: string, port: string): string[] {
+        const item = this.items.find((i) => i.deploymentId === deploymentId && String(i.port) === String(port));
+        return item?.processDefs || [];
     }
 
     /**

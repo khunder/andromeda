@@ -2,8 +2,7 @@ import {Job} from "@sidequest/core";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {PersistenceGateway} from "../persistence/persistence-gateway.js";
 import {ContainerService} from "../container/container.service.js";
-import {WorkflowModel} from "../container/workflow-model.js";
-import {{ ProcessDef }}ProcessInstanceService from "../../services/{{ ProcessDef.toLowerCase() }}.process-instance.service.js";
+import {ServiceRegistry} from "../container/registry.js";
 
 const Logger = new AndromedaLogger();
 
@@ -14,6 +13,12 @@ const Logger = new AndromedaLogger();
  * `__timerDueAt` (see catch-event.processor.js's alternateBody codegen),
  * by TimerService.enqueueCatchResume() at the moment the process instance
  * actually arrives at the node - not polled for on a fixed interval.
+ *
+ * Generic across every workflow compiled into this container - the caller
+ * (TimerService) passes along which processDef the node belongs to, and this
+ * job resolves that workflow's service/model from the generated
+ * ServiceRegistry (src/modules/container/registry.js) rather than importing
+ * one hardcoded workflow.
  *
  * Sidequest's own dispatcher already guarantees this job's `run()` is
  * claimed and executed by exactly one container replica (an atomic
@@ -26,12 +31,19 @@ const Logger = new AndromedaLogger();
  */
 export class TimerCatchResumeJob extends Job {
 
-    async run(processInstanceId, nodeId) {
-        const pendingFlow = Object.values(WorkflowModel).find(
+    async run(processInstanceId, nodeId, processDef) {
+        const registryEntry = ServiceRegistry[processDef];
+        if (!registryEntry) {
+            Logger.error(`timer catch resume job: unknown processDef ${processDef}`);
+            return this.complete({resumed: false, reason: 'unknown-process-def'});
+        }
+        const {service, workflowModel} = registryEntry;
+
+        const pendingFlow = Object.values(workflowModel).find(
             (flow) => flow.target && flow.target.id === nodeId
         );
         if (!pendingFlow) {
-            Logger.error(`timer catch resume job: node ${nodeId} is not a known node in this workflow`);
+            Logger.error(`timer catch resume job: node ${nodeId} is not a known node in workflow ${processDef}`);
             return this.complete({resumed: false, reason: 'unknown-node'});
         }
 
@@ -44,14 +56,14 @@ export class TimerCatchResumeJob extends Job {
 
         let processInstance = ContainerService.getInstance().processInstances[processInstanceId];
         if (!processInstance) {
-            processInstance = await {{ ProcessDef }}ProcessInstanceService.restoreInstance(processInstanceId);
+            processInstance = await service.restoreInstance(processInstanceId);
         }
         if (!processInstance) {
             Logger.error(`timer catch resume job: process instance ${processInstanceId} was not found or is no longer active`);
             return this.complete({resumed: false, reason: 'instance-not-found'});
         }
 
-        Logger.info(`timer catch event ${nodeId} due, resuming process instance ${processInstanceId}`);
+        Logger.info(`timer catch event ${nodeId} (${processDef}) due, resuming process instance ${processInstanceId}`);
         processInstance[`fn_${nodeId}`]({executeBody: true, id: pendingFlow.id})
             .catch((error) => { Logger.error(error); });
 
