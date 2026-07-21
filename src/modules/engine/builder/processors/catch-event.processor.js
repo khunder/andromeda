@@ -135,7 +135,7 @@ class CatchEventNodeProcessor {
         // external-facing/observable record; this is what actually wakes
         // the instance back up.
         const enqueueResumeStatement = timerEventDefinition
-            ? `\n    await TimerService.enqueueCatchResume(${JSON.stringify(currentNode.id)}, this.processInstanceId, new Date(__timerDueAt));`
+            ? `\n    await TimerService.enqueueCatchResume(${JSON.stringify(currentNode.id)}, this.processInstanceId, new Date(__timerDueAt), this.processDef);`
             : '';
 
         /**

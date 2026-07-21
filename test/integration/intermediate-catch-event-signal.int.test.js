@@ -82,7 +82,7 @@ describe('IntermediateCatchEventSignal::Integration', () => {
         let response;
         let procData;
         try {
-            response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            response = await fetch(`http://127.0.0.1:${testPort}/IntermediateCatchEventSignal/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()
@@ -127,7 +127,7 @@ describe('IntermediateCatchEventSignal::Integration', () => {
         expect(stageBeforeSignal.value).toBe('start');
 
         // Deliver the signal to resume it
-        const signalResponse = await fetch(`http://127.0.0.1:${testPort}/signal`, {
+        const signalResponse = await fetch(`http://127.0.0.1:${testPort}/IntermediateCatchEventSignal/signal`, {
             method: 'POST',
             headers: {'content-type': 'application/json'},
             body: JSON.stringify({processInstanceId: procData.id, nodeId: 'WaitForApproval'})
@@ -150,7 +150,7 @@ describe('IntermediateCatchEventSignal::Integration', () => {
 
         // A second signal to the same (now-resumed) node must be rejected:
         // the flow event it depended on is no longer Active.
-        const secondSignalResponse = await fetch(`http://127.0.0.1:${testPort}/signal`, {
+        const secondSignalResponse = await fetch(`http://127.0.0.1:${testPort}/IntermediateCatchEventSignal/signal`, {
             method: 'POST',
             headers: {'content-type': 'application/json'},
             body: JSON.stringify({processInstanceId: procData.id, nodeId: 'WaitForApproval'})

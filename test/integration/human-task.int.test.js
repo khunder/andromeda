@@ -60,7 +60,7 @@ describe('HumanTask::Integration', () => {
         });
         form.append('deploymentId', 'compileBpmn');
 
-        const startResponse = await fetch(`http://127.0.0.1:${testPort}/start`, {
+        const startResponse = await fetch(`http://127.0.0.1:${testPort}/HumanTaskTest/start`, {
             method: 'POST',
             body: form,
             headers: form.getHeaders()
@@ -79,7 +79,7 @@ describe('HumanTask::Integration', () => {
         // GET /tasks must list this exact pending task so an external caller
         // (a UI, a worklist) can discover it without prior knowledge of the
         // node id.
-        const tasksResponse = await fetch(`http://127.0.0.1:${testPort}/tasks`);
+        const tasksResponse = await fetch(`http://127.0.0.1:${testPort}/HumanTaskTest/tasks`);
         expect(tasksResponse.ok).toBe(true);
         const tasks = await tasksResponse.json();
         const thisTask = tasks.find((t) => t.processInstanceId === procData.id);
@@ -88,7 +88,7 @@ describe('HumanTask::Integration', () => {
         expect(thisTask.nodeName).toBe('Review submission');
 
         // Complete the task, submitting a variable as if it were form output.
-        const signalResponse = await fetch(`http://127.0.0.1:${testPort}/signal`, {
+        const signalResponse = await fetch(`http://127.0.0.1:${testPort}/HumanTaskTest/signal`, {
             method: 'POST',
             headers: {'content-type': 'application/json'},
             body: JSON.stringify({
@@ -112,7 +112,7 @@ describe('HumanTask::Integration', () => {
         expect(stage.value).toBe('approved');
 
         // The completed task must no longer show up as pending.
-        const tasksAfterResponse = await fetch(`http://127.0.0.1:${testPort}/tasks`);
+        const tasksAfterResponse = await fetch(`http://127.0.0.1:${testPort}/HumanTaskTest/tasks`);
         const tasksAfter = await tasksAfterResponse.json();
         expect(tasksAfter.find((t) => t.processInstanceId === procData.id)).toBeUndefined();
 

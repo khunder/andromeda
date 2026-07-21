@@ -82,7 +82,7 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
         });
         form.append('deploymentId', 'compileBpmn');
 
-        const startResponse = await fetch(`http://127.0.0.1:${portA}/start`, {
+        const startResponse = await fetch(`http://127.0.0.1:${portA}/TimerIntermediateCatchEventRestore/start`, {
             method: 'POST',
             body: form,
             headers: form.getHeaders()

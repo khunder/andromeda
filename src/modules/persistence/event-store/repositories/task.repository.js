@@ -71,14 +71,20 @@ export class TaskRepository {
 
     /**
      * Every still-pending task across every process instance — optionally
-     * narrowed to one type (e.g. only HumanTask, for GET /tasks).
+     * narrowed to one type (e.g. only HumanTask) and/or one processDef, for
+     * GET /tasks (scoped to the calling workflow's own processDef, so two
+     * workflows in the same container don't see each other's tasks).
      * @param {string} [type]
+     * @param {string} [processDef]
      * @returns {Promise<object[]>}
      */
-    async findAllActiveTasks(type) {
+    async findAllActiveTasks(type, processDef) {
         const cond = {status: TaskStatus.Active};
         if (type) {
             cond.type = type;
+        }
+        if (processDef) {
+            cond.processDef = processDef;
         }
         return this.repo.find(cond);
     }

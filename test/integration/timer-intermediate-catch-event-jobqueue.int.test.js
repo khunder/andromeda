@@ -75,7 +75,7 @@ describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
         form.append('deploymentId', 'compileBpmn');
 
         const startedAt = Date.now();
-        const response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+        const response = await fetch(`http://127.0.0.1:${testPort}/TimerIntermediateCatchEvent/start`, {
             method: 'POST',
             body: form,
             headers: form.getHeaders()

@@ -82,7 +82,7 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
         let response;
         let procData;
         try {
-            response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            response = await fetch(`http://127.0.0.1:${testPort}/ExclusiveConditionalTest/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()

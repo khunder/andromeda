@@ -44,7 +44,7 @@ it('Fail flow event ', async () => {
 
             const config = { headers: form.getHeaders()};
             // when
-            let proc = await axios.post(`http://127.0.0.1:${containerPort}/start`, form, config);
+            let proc = await axios.post(`http://127.0.0.1:${containerPort}/BasicScenario/start`, form, config);
             await Utils.sleep(1000);
             const flow = await PersistenceHelper.findRecord("FlowEvent", {processInstance: proc.data.id, flowId: "Flow_1t45tk4"})
 

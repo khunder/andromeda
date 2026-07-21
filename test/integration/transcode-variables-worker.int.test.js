@@ -93,7 +93,7 @@ describe('TranscodeVariablesWorker::Integration', () => {
         let response;
         let procData;
         try {
-            response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            response = await fetch(`http://127.0.0.1:${testPort}/UntouchedBooleanVariable/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()

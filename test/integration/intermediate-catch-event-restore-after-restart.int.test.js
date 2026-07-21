@@ -77,7 +77,7 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
         });
         form.append('deploymentId', 'compileBpmn');
 
-        const startResponse = await fetch(`http://127.0.0.1:${portA}/start`, {
+        const startResponse = await fetch(`http://127.0.0.1:${portA}/IntermediateCatchEventSignal/start`, {
             method: 'POST',
             body: form,
             headers: form.getHeaders()
@@ -102,7 +102,7 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
         // Signal the *new* container process — it has never seen this
         // process instance in memory, so this only works if it restores the
         // instance (and its variables) from persistence first.
-        const signalResponse = await fetch(`http://127.0.0.1:${portB}/signal`, {
+        const signalResponse = await fetch(`http://127.0.0.1:${portB}/IntermediateCatchEventSignal/signal`, {
             method: 'POST',
             headers: {'content-type': 'application/json'},
             body: JSON.stringify({processInstanceId: procData.id, nodeId: 'WaitForApproval'})

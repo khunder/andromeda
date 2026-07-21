@@ -53,6 +53,19 @@ export class Utils{
             workflowParsingContext.processPrefix= this.upperFirstChar(this.normalizeProcessPrefixWithoutVersion(workflowParsingContext.model.rootElement.id))
             ctx.workflowParsingContext.push(workflowParsingContext);
         }
+
+        // every workflow's generated files/routes/registry entry are
+        // namespaced by processDef (see WorkflowBuilder) - two BPMN files
+        // resolving to the same one would silently collide in the generated
+        // container, so fail fast here instead
+        const seenProcessDefs = new Set();
+        for (const workflowParsingContext of ctx.workflowParsingContext) {
+            if (seenProcessDefs.has(workflowParsingContext.processPrefix)) {
+                throw new Error(`cannot compile container: multiple BPMN files resolve to the same process definition "${workflowParsingContext.processPrefix}" - each workflow in a container must have a unique <bpmn:definitions id="...">`);
+            }
+            seenProcessDefs.add(workflowParsingContext.processPrefix);
+        }
+
         ctx.deploymentId = deploymentId;
         // by default activate web and persistence modules
         ctx.includePersistenceModule = true;

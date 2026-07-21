@@ -82,7 +82,7 @@ describe('DoubleVariableAssignment::Integration', () => {
         let response;
         let procData;
         try {
-            response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            response = await fetch(`http://127.0.0.1:${testPort}/Wee/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()

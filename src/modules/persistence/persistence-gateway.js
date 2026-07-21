@@ -210,12 +210,14 @@ export class PersistenceGateway {
 
     /**
      * Every still-pending task across every process instance in this
-     * container, optionally narrowed to one type — backs GET /tasks.
+     * container, optionally narrowed to one type and/or one processDef —
+     * backs GET /tasks.
      * @param {string} [type]
+     * @param {string} [processDef]
      * @returns {Promise<object[]>}
      */
-    static async findAllActiveTasks(type) {
-        return new TaskRepository().findAllActiveTasks(type);
+    static async findAllActiveTasks(type, processDef) {
+        return new TaskRepository().findAllActiveTasks(type, processDef);
     }
 
     /**

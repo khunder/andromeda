@@ -61,7 +61,7 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
             });
             form.append('deploymentId', 'compileBpmn');
 
-            const response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            const response = await fetch(`http://127.0.0.1:${testPort}/TimerIntermediateCatchEvent/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()
@@ -126,7 +126,7 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
             });
             form.append('deploymentId', 'compileBpmn');
 
-            const response = await fetch(`http://127.0.0.1:${testPort}/start`, {
+            const response = await fetch(`http://127.0.0.1:${testPort}/TimerIntermediateCatchEventDate/start`, {
                 method: 'POST',
                 body: form,
                 headers: form.getHeaders()

@@ -104,6 +104,8 @@ export class EngineService {
 
         }
 
+        containerCodegenContext.renderRegistry(containerParsingContext);
+        containerCodegenContext.renderTimerService(containerParsingContext);
 
         this.generateOpenApiYaml(containerParsingContext, containerCodegenContext);
         //

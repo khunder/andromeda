@@ -1,6 +1,6 @@
 import  {AndromedaLogger} from "../config/andromeda-logger.js";
 import {ContainerService} from "../modules/container/container.service.js";
-import {WorkflowModel} from "../modules/container/workflow-model.js";
+import {WorkflowModel} from "../modules/container/{{ ProcessDef.toLowerCase() }}.workflow-model.js";
 import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
 const Logger = new AndromedaLogger();
 
@@ -144,7 +144,7 @@ class {{ ControllerClassName }} {
     // GET /tasks vs POST /signal).
     static tasks = async (req, res) => {
         try {
-            const activeTasks = await PersistenceGateway.findAllActiveTasks('HumanTask');
+            const activeTasks = await PersistenceGateway.findAllActiveTasks('HumanTask', '{{ ProcessDef }}');
             return activeTasks.map((task) => ({
                 processInstanceId: task.processInstance,
                 nodeId: task.nodeId,
