@@ -1,5 +1,5 @@
 {
-  "name": "bpmn-designer",
+  "name": "@andromeda/designer",
   "version": "1.0.0",
   "description": "A lightweight BPMN designer with pure JavaScript",
   "main": "index.html",

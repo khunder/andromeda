@@ -1,0 +1,10 @@
+# dotenv environment variables file
+.env
+
+/uploads/*
+/deployments/*
+
+/.pid_[0-9]*
+
+# local sqlite database (PERSISTENCE_DRIVER=sqlite), reset on every engine start
+*.sqlite

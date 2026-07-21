@@ -30,39 +30,53 @@ I will implement:
 
 
 
-The repo has two independent npm projects:
+This is an **npm-workspaces monorepo** with two packages today:
 
-- **root** (`/`) — the engine, code generator, and REST APIs (pure ES6 JavaScript, no build step, no TypeScript).
-- **`designer/`** — a separate BPMN diagramming UI (TypeScript + Vite), currently mid-migration from a
-  hand-built SVG renderer to `bpmn-js` (see recent commits touching `designer/src/designer/*`). Its own
-  `designer/README.md` still documents the old custom-renderer API and is stale for anything bpmn-js related.
+- **`packages/engine/`** (`@andromeda/engine`) — the engine, code generator, and REST APIs (pure ES6
+  JavaScript, no build step, no TypeScript).
+- **`packages/designer/`** (`@andromeda/designer`) — a separate BPMN diagramming UI (TypeScript + Vite),
+  currently mid-migration from a hand-built SVG renderer to `bpmn-js` (see recent commits touching
+  `packages/designer/src/designer/*`). Its own `packages/designer/README.md` still documents the old
+  custom-renderer API and is stale for anything bpmn-js related.
 
-The deliberate choice of plain ES6 for the engine (no transpile step, no TS) is explained in `readme.md` and
-`docs/index.md` — don't suggest introducing TypeScript or a build step there.
+A later, separate step will split the engine's own `src/modules/{persistence,galaxy,web}` into their own
+workspace packages too (they're already reused as-is inside generated containers — see Module system below)
+— not done yet, don't assume it's already happened.
+
+The deliberate choice of plain ES6 for the engine (no transpile step, no TS) is explained in
+`packages/engine/readme.md` and `packages/engine/docs/index.md` — don't suggest introducing TypeScript or a
+build step there.
+
+**All paths below (Architecture, Module system, etc.) are relative to `packages/engine/`** unless stated
+otherwise — that's also true of every `src/`, `test/`, `deployments/<id>/` etc. reference throughout this
+file. Every engine command must be run with cwd = `packages/engine/` (`cd packages/engine && npm run
+<script>`, or `npm run <script> --workspace=@andromeda/engine` from the repo root) — never invoke
+`node packages/engine/bootstrap.js` (or similar) directly from the repo root, since the engine resolves
+several runtime paths (deployments, its own sqlite file, pid files) off `process.cwd()`.
 
 ## Commands
 
-Root (engine):
+Engine (from the repo root, or `cd packages/engine` first and drop the `--workspace` flag):
 ```bash
-npm start              # nodemon app.js, hot reload at localhost:8080
-npm test                # vitest, watch mode
-npm run test:run        # vitest run (single pass)
-npm run test:unit       # vitest run src/**/*.unit.test.js
-npm run test:int        # vitest run src/**/*.int.test.js
-npm run test:e2e        # vitest run test/e2e/**/*.test.js
-npm run test:coverage   # vitest run --coverage (c8)
-npx vitest run <path>              # run a single test file
-npx vitest run -t "<test name>"    # run tests matching a name
+npm start                                          # nodemon bootstrap.js, hot reload at localhost:8080
+npm test                                           # vitest, watch mode (packages/engine only)
+npm run test:run --workspace=@andromeda/engine      # vitest run (single pass)
+npm run test:unit --workspace=@andromeda/engine     # vitest run src/**/*.unit.test.js
+npm run test:int --workspace=@andromeda/engine      # vitest run src/**/*.int.test.js
+npm run test:e2e --workspace=@andromeda/engine      # vitest run test/e2e/**/*.test.js
+npm run test:coverage --workspace=@andromeda/engine # vitest run --coverage (c8)
+npx vitest run <path> --workspace=@andromeda/engine              # run a single test file
+npx vitest run -t "<test name>" --workspace=@andromeda/engine    # run tests matching a name
 ```
-Requires MongoDB and a `.env` with `MONGODB_URI`, `ACTIVE_MODULES` (see Module system below), `ENV`.
-`test/setup.js` spins up `mongodb-memory-server` for integration tests; if port 27018 is stuck, `npm run posttest`
-kills it.
+Requires MongoDB and a `packages/engine/.env` with `MONGODB_URI`, `ACTIVE_MODULES` (see Module system below),
+`ENV`. `test/setup.js` spins up `mongodb-memory-server` for integration tests; if port 27018 is stuck,
+`npm run posttest --workspace=@andromeda/engine` kills it.
 
 There are legacy Mocha/Ava configs (`.mocharc.int.cjs`, `test:mocha:int`, `test:integration:exec`) left over from
-a prior test runner — the project has migrated to Vitest (`VITEST_MIGRATION.md`); prefer the `vitest`-based
-scripts for new/changed tests.
+a prior test runner — the project has migrated to Vitest (`packages/engine/VITEST_MIGRATION.md`); prefer the
+`vitest`-based scripts for new/changed tests.
 
-Designer (`designer/`):
+Designer (`npm run designer:dev` / `npm run designer:build` from the repo root, or `cd packages/designer` first):
 ```bash
 npm run dev          # vite dev server
 npm run build         # tsc && vite build
@@ -72,7 +86,7 @@ npm test              # vitest
 
 ## Architecture
 
-### Module system (root engine)
+### Module system (engine)
 
 `app.js` (`App.init()`) conditionally boots modules based on the comma-separated `ACTIVE_MODULES` env var
 (`src/config/constants.js`: `web`, `server`, `persistence`, `galaxy`), each dynamically `import()`ed only if
@@ -108,8 +122,8 @@ per node type to `src/modules/engine/builder/processors/*` (start/end/script/cat
    `templates/specification.yaml.njk` file (that path is currently commented out in
    `EngineService.generateOpenApiYaml`).
 
-A generated container is bootstrapped via its own `bootstrap.js`/`app.js`, structurally mirroring the root
-project's own `App` class.
+A generated container is bootstrapped via its own `bootstrap.js`/`app.js`, structurally mirroring the
+engine's own `App` class.
 
 ### Embedded containers (dev/sandbox mode)
 

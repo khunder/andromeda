@@ -11,8 +11,4 @@ Road Map
 - support scheduled task and cron start
 - deploy multiple processes in the same container using the same deploymentId
 - add container dependencies dynamically exp: sql.js vs mongoose
-- support ingesting big files via Object storage driver\
-
-
-FIXES:
- DELETE_SINGLE_DB_ON_FINISH does not delete the database
+- support ingesting big files via Object storage driver
