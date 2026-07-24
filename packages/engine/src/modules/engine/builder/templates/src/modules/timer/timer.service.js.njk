@@ -1,7 +1,4 @@
 import cron from 'node-cron';
-import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {Engine} from '@sidequest/engine';
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {PersistenceGateway} from "../persistence/persistence-gateway.js";
 import {Config} from "../../config/config.js";
@@ -12,29 +9,34 @@ import { TimerModel as {{ entry.processDef }}TimerModel } from "{{ entry.timerMo
 {% endfor %}
 
 const Logger = new AndromedaLogger();
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// deployment root - two levels up from src/modules/timer/ - where
-// sidequest.jobs.js (the manual job resolution registry) and bootstrap.js
-// both live
-const DEPLOYMENT_ROOT = path.resolve(__dirname, '../../..');
 
-// how often a container replica polls the shared job backend for due timer
-// catch resumes - see Engine's own jobPollingInterval doc: lower means lower
-// resume latency at the cost of more backend queries per replica.
+// how often a container replica polls TimerJobRepository for due timer
+// catch resumes - lower means lower resume latency at the cost of more
+// backend queries per replica.
 const CATCH_JOB_POLLING_INTERVAL_MS = 1000;
+
+// how often a container replica sweeps for timer resume jobs some other
+// replica claimed but never finished (crashed mid-flight) and releases them
+// back to 'waiting'.
+const STALE_JOB_RELEASE_INTERVAL_MS = 30_000;
+// a claim older than this is considered abandoned - well above how long a
+// single resume should ever take, so a still-legitimately-running job is
+// never wrongly released out from under its replica.
+const STALE_JOB_MAX_CLAIMED_MS = 60_000;
 
 // One TimerService instance serves every workflow compiled into this
 // container - each workflow's own {processDef}.timer-model.js only records
 // which nodes are timers, tagged here with the processDef they came from so
-// this shared scheduler/engine knows which ServiceRegistry entry to dispatch
-// through.
+// this shared scheduler/dispatcher knows which ServiceRegistry entry to
+// dispatch through.
 export class TimerService {
 
     static jobs = [];
-    // the Sidequest engine instance, once started - null until a timer catch
-    // event actually needs it (see init()), and null forever for containers
-    // whose workflows don't have one
-    static engine = null;
+    // interval handles for the catch-resume dispatcher, once started - null
+    // until a timer catch event actually needs it (see init()), and null
+    // forever for containers whose workflows don't have one
+    static dispatcherHandle = null;
+    static staleReleaseHandle = null;
 
     static async init() {
         const timers = [
@@ -53,62 +55,72 @@ export class TimerService {
         });
 
         if (catchTimers.length > 0) {
-            await TimerService.startCatchResumeEngine(catchTimers.length);
+            TimerService.startCatchResumeDispatcher(catchTimers.length);
         }
     }
 
     /**
-     * Starts a Sidequest engine dedicated to resuming timer intermediate
-     * catch events - one job per paused node, scheduled (via `availableAt`)
-     * for exactly when it becomes due, rather than polled for on a fixed
-     * sweep interval. Runs in-process (`fork: false`, `runner: "inline"`):
-     * TimerCatchResumeJob needs live access to this same process's
-     * ContainerService registry and generated service instances, which a
-     * forked child process or worker thread wouldn't have.
+     * Starts the polling loop that resumes timer intermediate catch events -
+     * one claimable slot per paused node, scheduled (via `availableAt`) for
+     * exactly when it becomes due, rather than a fixed full-table sweep.
+     * Runs inline in this same process: TimerCatchResumeJob needs live
+     * access to this same process's ContainerService registry and generated
+     * service instances, which running elsewhere (a forked child process or
+     * worker thread) wouldn't have.
      *
-     * Backend is selected off the same PERSISTENCE_DRIVER this container
-     * already uses (see Config), each with its own dedicated database
-     * (Sidequest manages its own schema/migrations - it does not share
-     * Andromeda's own EventStore/Task/FlowEvent tables). Multiple container
-     * replicas of this same deployment pointed at the same backend get
-     * Sidequest's own exactly-once distributed dispatch for free; the
+     * Backed by TimerJobRepository, which uses the same persistence driver
+     * (Mongo or SQLite) this container already talks to via
+     * PersistenceGateway - a dedicated collection/table, not shared with
+     * Andromeda's own EventStore/Task/FlowEvent data, since a scheduled
+     * resume is dispatch state, not domain state needing replay/audit.
+     * Multiple container replicas of this same deployment pointed at the
+     * same backend get exactly-once dispatch for free from
+     * TimerJobRepository.claimDue()'s atomic conditional claim; the
      * `closeFlowEventIfActive` claim inside TimerCatchResumeJob is kept as
      * an additional guard regardless (see that file's doc comment). One
      * shared queue serves every workflow's catch timers in this container.
+     * @param {number} catchTimerCount
      */
-    static async startCatchResumeEngine(catchTimerCount) {
-        Logger.info(`starting timer catch resume engine for ${catchTimerCount} node(s)`);
-        TimerService.engine = new Engine();
-        await TimerService.engine.start({
-            backend: TimerService.resolveBackendConfig(),
-            fork: false,
-            runner: 'inline',
-            manualJobResolution: true,
-            jobsFilePath: path.join(DEPLOYMENT_ROOT, 'sidequest.jobs.js'),
-            jobPollingInterval: CATCH_JOB_POLLING_INTERVAL_MS,
-            // declared explicitly rather than left to lazy auto-creation on
-            // first poll: two replicas both polling a backend that has never
-            // seen this queue before can otherwise both try to create it at
-            // once and crash on the resulting duplicate-key error
-            queues: [{name: 'default', concurrency: catchTimerCount}],
-            logger: {level: 'warn'},
-        });
+    static startCatchResumeDispatcher(catchTimerCount) {
+        Logger.info(`starting timer catch resume dispatcher for ${catchTimerCount} node(s)`);
+        TimerService.dispatcherHandle = setInterval(() => {
+            TimerService.pollAndDispatch(catchTimerCount).catch((error) => { Logger.error(error); });
+        }, CATCH_JOB_POLLING_INTERVAL_MS);
+        TimerService.staleReleaseHandle = setInterval(() => {
+            PersistenceGateway.releaseStaleTimerJobs({maxClaimedMs: STALE_JOB_MAX_CLAIMED_MS})
+                .catch((error) => { Logger.error(error); });
+        }, STALE_JOB_RELEASE_INTERVAL_MS);
     }
 
-    static resolveBackendConfig() {
-        if (Config.getInstance().persistenceDriver === 'sqlite') {
-            const sqliteFilePath = Config.getInstance().sqliteFilePath;
-            const dir = path.dirname(sqliteFilePath);
-            const base = path.basename(sqliteFilePath, path.extname(sqliteFilePath));
-            return {
-                driver: '@sidequest/sqlite-backend',
-                config: path.join(dir, `${base}.sidequest.sqlite`),
-            };
+    /**
+     * Claims up to `concurrency` due timer resume jobs and runs each one
+     * without awaiting it here (fire-and-forget, like the rest of this
+     * container's node execution) so one slow/stuck resume can't delay the
+     * next poll.
+     * @param {number} concurrency
+     */
+    static async pollAndDispatch(concurrency) {
+        const claimedJobs = await PersistenceGateway.claimDueTimerJobs({limit: concurrency});
+        for (const job of claimedJobs) {
+            void TimerService.runJob(job).catch((error) => { Logger.error(error); });
         }
-        return {
-            driver: '@sidequest/mongo-backend',
-            config: Config.getInstance().mongoDbUri,
-        };
+    }
+
+    /**
+     * Runs a single claimed timer resume job. A thrown error (as opposed to
+     * TimerCatchResumeJob's normal not-resumed outcomes, which it reports by
+     * returning rather than throwing) schedules a retry with backoff, up to
+     * the job's maxAttempts.
+     * @param {object} job - a TimerJobRepository row
+     */
+    static async runJob(job) {
+        try {
+            const result = await new TimerCatchResumeJob().run(job.processInstanceId, job.nodeId, job.processDef);
+            Logger.debug(`timer job ${job._id} settled: ${JSON.stringify(result)}`);
+            await PersistenceGateway.completeTimerJob({id: job._id});
+        } catch (error) {
+            await PersistenceGateway.retryTimerJob({id: job._id, attempt: job.attempt, maxAttempts: job.maxAttempts, error});
+        }
     }
 
     /**
@@ -124,7 +136,7 @@ export class TimerService {
      *   ServiceRegistry entry when it runs
      */
     static async enqueueCatchResume(nodeId, processInstanceId, dueAt, processDef) {
-        await TimerService.engine.build(TimerCatchResumeJob).availableAt(dueAt).enqueue(processInstanceId, nodeId, processDef);
+        await PersistenceGateway.enqueueTimerJob({processInstanceId, nodeId, processDef, availableAt: dueAt});
     }
 
     /**

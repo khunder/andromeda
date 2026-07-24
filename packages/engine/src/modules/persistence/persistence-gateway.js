@@ -16,6 +16,7 @@ import {TaskStreamBuilder} from "./event-store/streams/task/task.stream-builder.
 import {TaskProjection} from "./event-store/projections/task-projection.js";
 import {TaskRepository} from "./event-store/repositories/task.repository.js";
 import {TimerTickRepository} from "./event-store/repositories/timer-tick.repository.js";
+import {TimerJobRepository} from "./event-store/repositories/timer-job.repository.js";
 
 export class PersistenceGateway {
 
@@ -271,6 +272,65 @@ export class PersistenceGateway {
      */
     static async claimTimerTick({deploymentId, processDef, nodeId, tickKey}) {
         return new TimerTickRepository().claimTick(deploymentId, processDef, nodeId, tickKey);
+    }
+
+    /**
+     * Schedules a timer catch event's resume for a specific due time - see
+     * TimerJobRepository. Called once, the moment a process instance first
+     * arrives at a timer intermediate catch event (catch-event.processor.js's
+     * codegen), not from a periodic sweep.
+     * @param {string} processInstanceId
+     * @param {string} nodeId
+     * @param {string} processDef
+     * @param {Date} availableAt
+     * @returns {Promise<object>}
+     */
+    static async enqueueTimerJob({processInstanceId, nodeId, processDef, availableAt}) {
+        return new TimerJobRepository().enqueue({processInstanceId, nodeId, processDef, availableAt});
+    }
+
+    /**
+     * Claims up to `limit` due timer resume jobs for this container replica
+     * to run - see TimerJobRepository.claimDue() for the exactly-once
+     * dispatch guarantee across replicas.
+     * @param {number} limit
+     * @returns {Promise<object[]>}
+     */
+    static async claimDueTimerJobs({limit}) {
+        return new TimerJobRepository().claimDue(limit);
+    }
+
+    /**
+     * Marks a claimed timer resume job as finished.
+     * @param {string} id
+     * @returns {Promise<object|null>}
+     */
+    static async completeTimerJob({id}) {
+        return new TimerJobRepository().complete(id);
+    }
+
+    /**
+     * Requeues a claimed timer resume job that threw, or marks it
+     * permanently failed once it has exhausted its attempts.
+     * @param {string} id
+     * @param {number} attempt
+     * @param {number} maxAttempts
+     * @param {Error|string} error
+     * @returns {Promise<object|null>}
+     */
+    static async retryTimerJob({id, attempt, maxAttempts, error}) {
+        return new TimerJobRepository().retryOrFail(id, attempt, maxAttempts, error);
+    }
+
+    /**
+     * Releases timer resume jobs stuck 'claimed' for too long (a replica
+     * that crashed mid-flight) back to 'waiting' so another replica can pick
+     * them up.
+     * @param {number} maxClaimedMs
+     * @returns {Promise<number>}
+     */
+    static async releaseStaleTimerJobs({maxClaimedMs}) {
+        return new TimerJobRepository().releaseStale(maxClaimedMs);
     }
 
     /**

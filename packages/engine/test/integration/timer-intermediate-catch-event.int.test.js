@@ -26,7 +26,7 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
     // (enqueued via TimerService.enqueueCatchResume(), see catch-event.
     // processor.js / timer.service.js.njk) runs and resumes it, with no POST
     // /signal call at all. Runs against this suite's default PERSISTENCE_DRIVER
-    // (sqlite, via @sidequest/sqlite-backend) - see
+    // (sqlite, via TimerJobRepository's sql.js-backed path) - see
     // timer-intermediate-catch-event-jobqueue.int.test.js for the same
     // behavior against the MongoDB backend specifically.
     describe('timeDuration', () => {

@@ -88,6 +88,25 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: [],
     },
+    TimerJob: {
+        name: 'TimerJob',
+        ddl: `CREATE TABLE IF NOT EXISTS TimerJob (
+            _id TEXT PRIMARY KEY,
+            processInstanceId TEXT NOT NULL,
+            nodeId TEXT NOT NULL,
+            processDef TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'waiting',
+            attempt INTEGER NOT NULL DEFAULT 0,
+            maxAttempts INTEGER NOT NULL DEFAULT 5,
+            availableAt TEXT NOT NULL,
+            claimedAt TEXT,
+            claimedBy TEXT,
+            lastError TEXT,
+            createdAt TEXT,
+            updatedAt TEXT
+        )`,
+        jsonFields: [],
+    },
     Snapshot: {
         name: 'Snapshot',
         ddl: `CREATE TABLE IF NOT EXISTS Snapshot (

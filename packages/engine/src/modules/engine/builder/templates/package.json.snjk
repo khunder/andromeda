@@ -15,11 +15,6 @@
   },
   "dependencies": {
     "@gquittet/graceful-server": "^3.0.0",
-    "@sidequest/core": "^1.16.1",
-    "@sidequest/engine": "^1.16.1",
-    "@sidequest/mongo-backend": "^1.16.1",
-    "@sidequest/sqlite-backend": "^1.16.1",
-    "better-sqlite3": "^12.11.1",
     "dotenv": "^16.0.0",
     "fastify": "^3.25.2",
     "@fastify/autoload": "^4.0.0",

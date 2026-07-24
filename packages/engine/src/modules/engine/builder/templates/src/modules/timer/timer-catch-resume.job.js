@@ -1,4 +1,4 @@
-import {Job} from "@sidequest/core";
+import {Job} from "./job.js";
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {PersistenceGateway} from "../persistence/persistence-gateway.js";
 import {ContainerService} from "../container/container.service.js";
@@ -20,14 +20,13 @@ const Logger = new AndromedaLogger();
  * ServiceRegistry (src/modules/container/registry.js) rather than importing
  * one hardcoded workflow.
  *
- * Sidequest's own dispatcher already guarantees this job's `run()` is
- * claimed and executed by exactly one container replica (an atomic
- * claim-pending-job operation against the shared backend - see
- * TimerService.init()'s engine config), but `closeFlowEventIfActive`'s
- * atomic conditional close is kept as the real, ultimate gate anyway: it's
- * the same claim `/signal` itself relies on, and it's what makes it safe
- * for a manual /signal call and this job to race for the same node without
- * either one needing to know about the other.
+ * TimerJobRepository.claimDue()'s atomic conditional claim already
+ * guarantees this job's `run()` is picked up and executed by exactly one
+ * container replica, but `closeFlowEventIfActive`'s atomic conditional close
+ * is kept as the real, ultimate gate anyway: it's the same claim `/signal`
+ * itself relies on, and it's what makes it safe for a manual /signal call
+ * and this job to race for the same node without either one needing to know
+ * about the other.
  */
 export class TimerCatchResumeJob extends Job {
 

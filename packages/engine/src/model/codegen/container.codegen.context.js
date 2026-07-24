@@ -109,8 +109,8 @@ class ContainerCodegenContext {
     * one shared scheduler for every workflow's timer start/catch events in
     * this container, built from the same registryEntries as renderRegistry().
     * Called once, after every workflow has been built (unlike routes/the
-    * workflow model, timers aren't split per workflow - one node-cron/Sidequest
-    * engine serves the whole container).
+    * workflow model, timers aren't split per workflow - one node-cron
+    * scheduler/timer-job dispatcher serves the whole container).
     * @param {ContainerParsingContext} containerParsingContext
     */
    renderTimerService(containerParsingContext) {

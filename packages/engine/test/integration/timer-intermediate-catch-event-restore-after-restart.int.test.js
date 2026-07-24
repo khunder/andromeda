@@ -18,10 +18,10 @@ import {it, expect, describe, beforeAll, afterAll} from 'vitest';
 // and replaced by a brand new one, which never saw this instance get created
 // in the first place. The fixture's 8s duration gives plenty of margin to
 // detect the pause and swap containers well before the timer is actually
-// due, so it doesn't matter that the first container's own Sidequest engine
-// (with its own jobPollingInterval) never gets the chance to run the job at
-// all - the job is only claimable once `availableAt` passes, and the second
-// container's own engine is what ends up claiming and running it.
+// due, so it doesn't matter that the first container's own dispatcher (with
+// its own polling interval) never gets the chance to run the job at all -
+// the job is only claimable once `availableAt` passes, and the second
+// container's own dispatcher is what ends up claiming and running it.
 describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
     const TEST_TIMEOUT = 45000;
     let deploymentId = "cov/timer_catch_restore";

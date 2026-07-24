@@ -78,9 +78,9 @@ class CatchEventNodeProcessor {
         // status-0 gate below), it just resumes itself automatically instead
         // of waiting on an external POST /signal call. A TimerCatchResumeJob
         // is enqueued (via TimerService.enqueueCatchResume(), see below) for
-        // exactly the computed due time - Sidequest (a DB-backed job queue,
-        // see timer.service.js) schedules and dispatches it, rather than a
-        // fixed-interval sweep polling for due Tasks.
+        // exactly the computed due time - TimerJobRepository (a DB-backed
+        // job queue, see timer.service.js) schedules and dispatches it,
+        // rather than a fixed-interval sweep polling for due Tasks.
         const timerEventDefinition = currentNode.eventDefinitions
             ?.find((def) => def.$type === 'bpmn:TimerEventDefinition');
 

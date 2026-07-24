@@ -30,18 +30,26 @@ I will implement:
 
 
 
-This is an **npm-workspaces monorepo** with two packages today:
+This is a monorepo with two packages today, only one of which is an actual npm workspace:
 
 - **`packages/engine/`** (`@andromeda/engine`) — the engine, code generator, and REST APIs (pure ES6
-  JavaScript, no build step, no TypeScript).
+  JavaScript, no build step, no TypeScript). An npm workspace member (root `package.json`'s `"workspaces"`
+  lists `packages/engine`) — its deps hoist into the root `node_modules`, installed via `npm install` from
+  the repo root.
 - **`packages/designer/`** (`@andromeda/designer`) — a separate BPMN diagramming UI (TypeScript + Vite),
   currently mid-migration from a hand-built SVG renderer to `bpmn-js` (see recent commits touching
   `packages/designer/src/designer/*`). Its own `packages/designer/README.md` still documents the old
-  custom-renderer API and is stale for anything bpmn-js related.
+  custom-renderer API and is stale for anything bpmn-js related. **Deliberately not an npm workspace
+  member** — it's a completely separate frontend toolchain from the engine (different `bpmn-moddle` major
+  version, Vite/TypeScript/vitest deps the engine has no use for), so it keeps its own independent
+  `node_modules`/`package-lock.json`, installed separately (`npm run designer:install` from the repo root, or
+  `cd packages/designer && npm install`). Don't add `packages/designer` back to root `package.json`'s
+  `"workspaces"` array without being asked — that would re-hoist its deps into the engine's install.
 
 A later, separate step will split the engine's own `src/modules/{persistence,galaxy,web}` into their own
 workspace packages too (they're already reused as-is inside generated containers — see Module system below)
-— not done yet, don't assume it's already happened.
+— not done yet, don't assume it's already happened. Those, unlike designer, would join `"workspaces"` since
+they're backend code sharing the engine's dependency tree.
 
 The deliberate choice of plain ES6 for the engine (no transpile step, no TS) is explained in
 `packages/engine/readme.md` and `packages/engine/docs/index.md` — don't suggest introducing TypeScript or a
@@ -76,13 +84,15 @@ There are legacy Mocha/Ava configs (`.mocharc.int.cjs`, `test:mocha:int`, `test:
 a prior test runner — the project has migrated to Vitest (`packages/engine/VITEST_MIGRATION.md`); prefer the
 `vitest`-based scripts for new/changed tests.
 
-Designer (`npm run designer:dev` / `npm run designer:build` from the repo root, or `cd packages/designer` first):
+Designer (not an npm workspace — install separately, then run from the repo root via `--prefix` or `cd`
+first):
 ```bash
-npm run dev          # vite dev server
-npm run build         # tsc && vite build
-npm run type-check    # tsc --noEmit
-npm test              # vitest
+npm run designer:install   # first time only (and after pulling package.json changes): npm install --prefix packages/designer
+npm run designer:dev        # vite dev server
+npm run designer:build      # tsc && vite build
 ```
+Or from inside `packages/designer/`: `npm run dev` / `npm run build` / `npm run type-check` (`tsc --noEmit`)
+/ `npm test` (vitest).
 
 ## Architecture
 

@@ -9,21 +9,18 @@ import PersistenceModule from "../../src/modules/persistence/persistence.module.
 
 import {it, expect, describe, beforeAll, afterAll} from 'vitest';
 
-// Covers the Sidequest-based replacement for the old fixed-interval polling
-// sweep (see timer.service.js.njk / catch-event.processor.js /
-// timer-catch-resume.job.js.njk): a Timer Intermediate Catch Event now
-// enqueues a TimerCatchResumeJob for exactly its due time the moment the
-// process instance arrives at the node, instead of waiting to be discovered
-// by a periodic scan. This test specifically requires PERSISTENCE_DRIVER=
-// mongodb (see the run command below) to exercise the @sidequest/mongo-backend
-// path - the sqlite path (@sidequest/sqlite-backend, which needs the
-// natively-compiled better-sqlite3) is exercised by
+// Covers TimerJobRepository/TimerService's replacement for the old
+// fixed-interval polling sweep (see timer.service.js.njk / catch-event.
+// processor.js / timer-catch-resume.job.js): a Timer Intermediate Catch
+// Event now enqueues a TimerCatchResumeJob for exactly its due time the
+// moment the process instance arrives at the node, instead of waiting to be
+// discovered by a periodic scan. This test specifically requires
+// PERSISTENCE_DRIVER=mongodb (see the run command below) to exercise the
+// Mongoose-backed path - the sqlite path (sql.js-backed) is exercised by
 // timer-intermediate-catch-event.int.test.js instead (this suite's default
-// driver), but could not itself be verified in the environment this was
-// written in (no working Python/node-gyp toolchain to build better-sqlite3 -
-// see CHANGELOG).
+// driver).
 //
-// Run with: PERSISTENCE_DRIVER=mongodb MONGODB_URI=mongodb://127.0.0.1:27018/andromeda
+// Run with: PERSISTENCE_DRIVER=mongodb MONGODB_URI=mongodb://127.0.0.1:27017/andromeda
 describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
     const TEST_TIMEOUT = 30000;
     let deploymentId = "cov/timer_catch_jobqueue";
@@ -54,7 +51,7 @@ describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
         }
     });
 
-    it('resumes a timer catch event via the Sidequest job queue, close to its due time rather than on a fixed poll boundary', async () => {
+    it('resumes a timer catch event via the timer job queue, close to its due time rather than on a fixed poll boundary', async () => {
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
         // reuses the same PT2S-duration fixture as the sweep-based test
