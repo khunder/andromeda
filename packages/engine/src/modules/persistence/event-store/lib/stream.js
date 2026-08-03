@@ -9,7 +9,6 @@ export class Stream {
     // id used to route messages to this stream of events
     streamId
     projections = {}
-    streamPosition = 0;
     eventsRegistry = {}
     validators = {}
 

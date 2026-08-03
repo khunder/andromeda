@@ -20,6 +20,12 @@ import {TimerJobRepository} from "./event-store/repositories/timer-job.repositor
 
 export class PersistenceGateway {
 
+    // sentinel TimerJob.processDef identifying a recurring "system" sweep
+    // occurrence (rescan-waiting-jobs / release-stale-jobs) rather than an
+    // ordinary catch-resume job - see enqueueSystemTimerJob() and
+    // TimerService.claimAndRun()/runSystemJob() in timer.service.js.njk.
+    static SYSTEM_TIMER_JOB_PROCESS_DEF = TimerJobRepository.SYSTEM_JOB_PROCESS_DEF;
+
     static async newProcessInstance({processInstanceId, deploymentId, processDef, containerId}) {
         await EventStore.apply(
             {
@@ -290,14 +296,24 @@ export class PersistenceGateway {
     }
 
     /**
-     * Claims up to `limit` due timer resume jobs for this container replica
-     * to run - see TimerJobRepository.claimDue() for the exactly-once
-     * dispatch guarantee across replicas.
-     * @param {number} limit
+     * Every currently 'waiting' timer resume job - backs TimerService's
+     * low-frequency backstop sweep, not the primary per-job schedule (see
+     * TimerJobRepository.findWaiting()).
      * @returns {Promise<object[]>}
      */
-    static async claimDueTimerJobs({limit}) {
-        return new TimerJobRepository().claimDue(limit);
+    static async findWaitingTimerJobs() {
+        return new TimerJobRepository().findWaiting();
+    }
+
+    /**
+     * Atomically claims one specific due timer resume job for this
+     * container replica to run - see TimerJobRepository.claimById() for the
+     * exactly-once dispatch guarantee across replicas.
+     * @param {string} id
+     * @returns {Promise<object|null>}
+     */
+    static async claimTimerJob({id}) {
+        return new TimerJobRepository().claimById(id);
     }
 
     /**
@@ -331,6 +347,31 @@ export class PersistenceGateway {
      */
     static async releaseStaleTimerJobs({maxClaimedMs}) {
         return new TimerJobRepository().releaseStale(maxClaimedMs);
+    }
+
+    /**
+     * Enqueues one occurrence of a recurring system sweep (rescan-waiting-
+     * jobs / release-stale-jobs) into the same TimerJob queue ordinary
+     * catch-resume jobs use, so it's claimed and run by exactly one replica
+     * at a time instead of every replica ticking its own local cron - see
+     * TimerService.ensureSystemJobScheduled()/runSystemJob().
+     * @param {string} nodeId
+     * @param {Date} availableAt
+     * @returns {Promise<object>}
+     */
+    static async enqueueSystemTimerJob({nodeId, availableAt}) {
+        return new TimerJobRepository().enqueueSystem({nodeId, availableAt});
+    }
+
+    /**
+     * The currently pending occurrence of a given recurring system sweep,
+     * if this deployment already has one - lets a newly-starting replica
+     * rejoin an already-seeded chain instead of seeding a duplicate one.
+     * @param {string} nodeId
+     * @returns {Promise<object|null>}
+     */
+    static async findPendingSystemTimerJob({nodeId}) {
+        return new TimerJobRepository().findPendingSystem(nodeId);
     }
 
     /**

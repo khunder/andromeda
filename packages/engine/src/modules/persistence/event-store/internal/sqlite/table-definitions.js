@@ -107,6 +107,14 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: [],
     },
+    StreamCounter: {
+        name: 'StreamCounter',
+        ddl: `CREATE TABLE IF NOT EXISTS StreamCounter (
+            _id TEXT PRIMARY KEY,
+            seq INTEGER NOT NULL DEFAULT 0
+        )`,
+        jsonFields: [],
+    },
     Snapshot: {
         name: 'Snapshot',
         ddl: `CREATE TABLE IF NOT EXISTS Snapshot (

@@ -3,6 +3,7 @@ import { AndromedaLogger } from "../../../../config/andromeda-logger.js";
 import {EventDataPayloadValidator} from "./event-data-payload.validator.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
 import {SnapshotRepository} from "../repositories/snapshot.repository.js";
+import {StreamCounterRepository} from "../repositories/stream-counter.repository.js";
 import {EOL} from 'os';
 
 const Logger = new AndromedaLogger();
@@ -81,7 +82,7 @@ export class EventStore {
         // validate the event before dispatch
         const stream = EventStore.streamsRegistry[event.streamId];
         // compute event stream position if not provided
-        this.updateStreamPosition(event, stream);
+        await this.updateStreamPosition(event, stream);
 
         if (!(event.type in stream.eventsRegistry)) {
             throw new Error(`event type (${event.type}) not supported by the stream ${stream.streamId}`)
@@ -92,12 +93,19 @@ export class EventStore {
         await stream.dispatch(event);
     }
 
-    static updateStreamPosition(event, stream) {
+    /**
+     * Assigns the next position for this event's stream, atomically against
+     * the shared backend (StreamCounterRepository.reserveNext()) rather than
+     * a local in-memory counter - the previous per-process counter let two
+     * container replicas both compute the same "next" position for the same
+     * stream and collide on the unique (streamId, streamPosition) index the
+     * moment they wrote concurrently.
+     */
+    static async updateStreamPosition(event, stream) {
         // null-aware: 0 is a valid position and must not be overwritten
         if (event.streamPosition == null) {
-            event.streamPosition = stream.streamPosition;
+            event.streamPosition = await new StreamCounterRepository().reserveNext(stream.streamId);
         }
-        stream.streamPosition++;
     }
 
     static registerStream(id, streamProcessor){

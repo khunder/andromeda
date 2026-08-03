@@ -1,6 +1,7 @@
 import {EventStore} from "./event-store.js";
 import {EventStoreRepository} from "../repositories/event-store.repository.js";
 import {SnapshotRepository} from "../repositories/snapshot.repository.js";
+import {StreamCounterRepository} from "../repositories/stream-counter.repository.js";
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
 
 const Logger = new AndromedaLogger();
@@ -8,18 +9,24 @@ const Logger = new AndromedaLogger();
 export class ReplayService {
 
     /**
-     * Seed the in-memory position counters from the persisted log so a restarted
-     * engine continues numbering where the previous run stopped, instead of
-     * restarting at 0 and colliding with the unique (streamId, streamPosition)
-     * index.
+     * Catches each stream's atomic position counter (StreamCounterRepository)
+     * up with whatever's already in the persisted log, without ever moving it
+     * backwards - so a counter that's brand new (a stream with events
+     * persisted before this counter existed) or merely behind (an unlikely
+     * gap) always continues at least where the log left off, instead of
+     * handing out a position that collides with the unique
+     * (streamId, streamPosition) index. Harmless to run redundantly - every
+     * replica of a deployment calls this at its own startup, and
+     * ensureAtLeast() only ever ratchets forward.
      * @returns {Promise<void>}
      */
     static async seedStreamPositions() {
-        const repo = new EventStoreRepository();
+        const eventRepo = new EventStoreRepository();
+        const counterRepo = new StreamCounterRepository();
         for (const stream of Object.values(EventStore.streamsRegistry)) {
-            const maxPosition = await repo.getMaxStreamPosition(stream.streamId);
-            stream.streamPosition = maxPosition + 1;
-            Logger.debug(`stream ${stream.streamId} position seeded to ${stream.streamPosition}`);
+            const maxPosition = await eventRepo.getMaxStreamPosition(stream.streamId);
+            await counterRepo.ensureAtLeast(stream.streamId, maxPosition + 1);
+            Logger.debug(`stream ${stream.streamId} position counter ensured to at least ${maxPosition + 1}`);
         }
     }
 
@@ -84,7 +91,7 @@ export class ReplayService {
         if (!stream.snapshotHandler) {
             throw new Error(`stream ${streamId} has no snapshot handler`);
         }
-        const position = stream.streamPosition - 1;
+        const position = await new EventStoreRepository().getMaxStreamPosition(streamId);
         if (position < 0) {
             return;
         }

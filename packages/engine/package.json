@@ -5,7 +5,7 @@
   "description": "Mico Service Bpmn generator",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon bootstrap.js",
+    "start": "node bootstrap.js",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",

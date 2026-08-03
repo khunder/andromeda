@@ -10,19 +10,29 @@ import { TimerModel as {{ entry.processDef }}TimerModel } from "{{ entry.timerMo
 
 const Logger = new AndromedaLogger();
 
-// how often a container replica polls TimerJobRepository for due timer
-// catch resumes - lower means lower resume latency at the cost of more
-// backend queries per replica.
-const CATCH_JOB_POLLING_INTERVAL_MS = 1000;
+// how often this deployment re-scans TimerJobRepository for any 'waiting'
+// job nobody has a schedule for yet - a low-frequency backstop for
+// cross-replica crash recovery (a job created by a *different* replica, or
+// one just released by the stale-claim sweep below), not the primary
+// dispatch path: a job this container itself enqueues (enqueueCatchResume)
+// gets an exact node-cron schedule the moment it's created, and never waits
+// for this sweep. Deliberately coarse - it only exists to eventually notice
+// jobs this process wouldn't otherwise find out about, not to drive timing.
+// Run as a recurring entry in the TimerJob queue itself (see
+// ensureSystemJobScheduled/runSystemJob below), not a local cron.schedule()
+// ticking independently in every replica - only whichever replica wins the
+// claim for a given occurrence runs it, and it re-enqueues its own next
+// occurrence this many ms later.
+const RESCAN_INTERVAL_MS = 5_000;
+const RESCAN_JOB_NODE_ID = 'rescan-waiting-jobs';
 
-// how often a container replica sweeps for timer resume jobs some other
-// replica claimed but never finished (crashed mid-flight) and releases them
-// back to 'waiting'.
-const STALE_JOB_RELEASE_INTERVAL_MS = 30_000;
-// a claim older than this is considered abandoned - well above how long a
-// single resume should ever take, so a still-legitimately-running job is
-// never wrongly released out from under its replica.
+// safety net for a replica that crashes (or is killed) after claiming a job
+// but before completing it: releases any job still 'claimed' after this
+// long back to 'waiting', so the next rescan picks it up again. Same
+// queue-driven scheduling as the rescan above, as its own independent chain.
 const STALE_JOB_MAX_CLAIMED_MS = 60_000;
+const STALE_RELEASE_INTERVAL_MS = 30_000;
+const STALE_RELEASE_JOB_NODE_ID = 'release-stale-jobs';
 
 // One TimerService instance serves every workflow compiled into this
 // container - each workflow's own {processDef}.timer-model.js only records
@@ -32,11 +42,16 @@ const STALE_JOB_MAX_CLAIMED_MS = 60_000;
 export class TimerService {
 
     static jobs = [];
-    // interval handles for the catch-resume dispatcher, once started - null
-    // until a timer catch event actually needs it (see init()), and null
-    // forever for containers whose workflows don't have one
-    static dispatcherHandle = null;
-    static staleReleaseHandle = null;
+    // TimerJob _id -> node-cron ScheduledTask, or `true` while an immediate
+    // claim attempt for an already-due job is in flight - tracks which
+    // waiting jobs this process has already scheduled, so the periodic
+    // rescan doesn't keep re-scheduling the same job every tick
+    static scheduledJobs = new Map();
+    // system job nodeId (RESCAN_JOB_NODE_ID / STALE_RELEASE_JOB_NODE_ID) ->
+    // {intervalMs, handler} - registered once by ensureSystemJobScheduled(),
+    // consulted by runSystemJob() whenever this process wins the claim for
+    // an occurrence of that recurring sweep
+    static systemJobHandlers = new Map();
 
     static async init() {
         const timers = [
@@ -55,14 +70,15 @@ export class TimerService {
         });
 
         if (catchTimers.length > 0) {
-            TimerService.startCatchResumeDispatcher(catchTimers.length);
+            await TimerService.startCatchResumeDispatcher();
         }
     }
 
     /**
-     * Starts the polling loop that resumes timer intermediate catch events -
-     * one claimable slot per paused node, scheduled (via `availableAt`) for
-     * exactly when it becomes due, rather than a fixed full-table sweep.
+     * Starts the timer intermediate catch event resume mechanism: every
+     * currently pending job gets a precise one-shot node-cron schedule for
+     * its own due time (see scheduleJob()) instead of a fixed-interval sweep
+     * polling the backend regardless of whether anything is actually due.
      * Runs inline in this same process: TimerCatchResumeJob needs live
      * access to this same process's ContainerService registry and generated
      * service instances, which running elsewhere (a forked child process or
@@ -73,61 +89,175 @@ export class TimerService {
      * PersistenceGateway - a dedicated collection/table, not shared with
      * Andromeda's own EventStore/Task/FlowEvent data, since a scheduled
      * resume is dispatch state, not domain state needing replay/audit.
-     * Multiple container replicas of this same deployment pointed at the
-     * same backend get exactly-once dispatch for free from
-     * TimerJobRepository.claimDue()'s atomic conditional claim; the
-     * `closeFlowEventIfActive` claim inside TimerCatchResumeJob is kept as
-     * an additional guard regardless (see that file's doc comment). One
-     * shared queue serves every workflow's catch timers in this container.
-     * @param {number} catchTimerCount
+     * Multiple container replicas of this same deployment can each end up
+     * with their own node-cron task for the same job (one that created it,
+     * one that noticed it via the rescan below); TimerJobRepository.
+     * claimById()'s atomic conditional claim guarantees only one of them
+     * ever wins, and the `closeFlowEventIfActive` claim inside
+     * TimerCatchResumeJob is kept as an additional guard regardless (see
+     * that file's doc comment).
+     *
+     * The rescan and stale-release sweeps themselves are *not* local
+     * cron.schedule() loops ticking independently in every replica - each is
+     * a recurring entry in this same TimerJob queue (see
+     * ensureSystemJobScheduled()/runSystemJob()), so only whichever replica
+     * wins a given occurrence's claim does the work, the same way only one
+     * replica ever runs a given catch-resume job.
      */
-    static startCatchResumeDispatcher(catchTimerCount) {
-        Logger.info(`starting timer catch resume dispatcher for ${catchTimerCount} node(s)`);
-        TimerService.dispatcherHandle = setInterval(() => {
-            TimerService.pollAndDispatch(catchTimerCount).catch((error) => { Logger.error(error); });
-        }, CATCH_JOB_POLLING_INTERVAL_MS);
-        TimerService.staleReleaseHandle = setInterval(() => {
-            PersistenceGateway.releaseStaleTimerJobs({maxClaimedMs: STALE_JOB_MAX_CLAIMED_MS})
-                .catch((error) => { Logger.error(error); });
-        }, STALE_JOB_RELEASE_INTERVAL_MS);
+    static async startCatchResumeDispatcher() {
+        Logger.info(`starting timer catch resume dispatcher`);
+        // one-off catch-up scan, this container's startup only: picks up any
+        // job already 'waiting' from before this process existed (created by
+        // a different replica, or left behind by a prior restart) - distinct
+        // from the recurring rescan chain below, which this call doesn't
+        // depend on and isn't gated by.
+        await TimerService.scanAndScheduleWaitingJobs();
+        await TimerService.ensureSystemJobScheduled(RESCAN_JOB_NODE_ID, RESCAN_INTERVAL_MS, TimerService.scanAndScheduleWaitingJobs);
+        await TimerService.ensureSystemJobScheduled(STALE_RELEASE_JOB_NODE_ID, STALE_RELEASE_INTERVAL_MS, () =>
+            PersistenceGateway.releaseStaleTimerJobs({maxClaimedMs: STALE_JOB_MAX_CLAIMED_MS}));
     }
 
     /**
-     * Claims up to `concurrency` due timer resume jobs and runs each one
-     * without awaiting it here (fire-and-forget, like the rest of this
-     * container's node execution) so one slow/stuck resume can't delay the
-     * next poll.
-     * @param {number} concurrency
+     * Joins (or, the first time ever for this deployment, seeds) a recurring
+     * system sweep's chain in the TimerJob queue, and gives this process a
+     * local node-cron schedule for whichever occurrence is currently
+     * pending, same as any other job (see scheduleJob()). Seeding is a plain
+     * find-then-create, not an atomic election: if more than one replica
+     * cold-starts at the exact same moment and each finds nothing pending
+     * yet, more than one chain can end up seeded, each self-perpetuating
+     * from then on - accepted for now rather than building a dedicated
+     * election primitive for it (same spirit as the lack of a retry path in
+     * runSystemJob() below).
+     * @param {string} nodeId - RESCAN_JOB_NODE_ID or STALE_RELEASE_JOB_NODE_ID
+     * @param {number} intervalMs - delay applied after a run completes,
+     *   before its next occurrence becomes due
+     * @param {() => Promise<any>} handler - the sweep to run when this
+     *   process wins an occurrence's claim
      */
-    static async pollAndDispatch(concurrency) {
-        const claimedJobs = await PersistenceGateway.claimDueTimerJobs({limit: concurrency});
-        for (const job of claimedJobs) {
-            void TimerService.runJob(job).catch((error) => { Logger.error(error); });
+    static async ensureSystemJobScheduled(nodeId, intervalMs, handler) {
+        TimerService.systemJobHandlers.set(nodeId, {intervalMs, handler});
+        const existing = await PersistenceGateway.findPendingSystemTimerJob({nodeId});
+        if (existing) {
+            TimerService.scheduleJob(existing);
+            return;
         }
+        const job = await PersistenceGateway.enqueueSystemTimerJob({nodeId, availableAt: new Date()});
+        TimerService.scheduleJob(job);
     }
 
     /**
-     * Runs a single claimed timer resume job. A thrown error (as opposed to
-     * TimerCatchResumeJob's normal not-resumed outcomes, which it reports by
-     * returning rather than throwing) schedules a retry with backoff, up to
-     * the job's maxAttempts.
+     * Runs one claimed occurrence of a recurring system sweep, then
+     * re-enqueues its own next occurrence - the self-perpetuating chain
+     * ensureSystemJobScheduled() joins/seeds. If `handler()` throws, this
+     * deliberately does not retry or reschedule: the job is left 'claimed'
+     * and the chain stalls there, to eventually be released back to
+     * 'waiting' by the (separate) release-stale-jobs chain and picked up by
+     * whichever replica next calls ensureSystemJobScheduled() (e.g. on its
+     * own startup) - no dedicated recovery mechanism for this yet.
+     * @param {object} job - a TimerJobRepository row already claimed by this
+     *   process
+     */
+    static async runSystemJob(job) {
+        const handler = TimerService.systemJobHandlers.get(job.nodeId);
+        if (!handler) {
+            Logger.error(`timer service: no handler registered for system job "${job.nodeId}"`);
+            return;
+        }
+        await handler.handler();
+        await PersistenceGateway.completeTimerJob({id: job._id});
+        const next = await PersistenceGateway.enqueueSystemTimerJob({
+            nodeId: job.nodeId,
+            availableAt: new Date(Date.now() + handler.intervalMs),
+        });
+        TimerService.scheduleJob(next);
+    }
+
+    /**
+     * Backstop discovery sweep: schedules every currently 'waiting' job
+     * this process doesn't already have a schedule for. Read-only against
+     * the backend (no claim happens here), so running it concurrently with
+     * itself or with per-job schedules is always safe.
+     */
+    static async scanAndScheduleWaitingJobs() {
+        const waitingJobs = await PersistenceGateway.findWaitingTimerJobs();
+        waitingJobs.forEach((job) => TimerService.scheduleJob(job));
+    }
+
+    /**
+     * Schedules exactly one claim-and-run attempt for `job` at its due time
+     * - immediately, if it's already due (e.g. discovered by the rescan
+     * after sitting a while), otherwise via a one-shot node-cron task built
+     * from its exact `availableAt` (UTC, second resolution - node-cron's
+     * finest) that stops itself the instant it fires. A no-op if this
+     * process already has a schedule (or an immediate attempt in flight)
+     * for this job id.
      * @param {object} job - a TimerJobRepository row
      */
-    static async runJob(job) {
+    static scheduleJob(job) {
+        if (TimerService.scheduledJobs.has(job._id)) {
+            return;
+        }
+        const dueAt = new Date(job.availableAt);
+        const delayMs = dueAt.getTime() - Date.now();
+        if (delayMs <= 0) {
+            TimerService.scheduledJobs.set(job._id, true);
+            TimerService.claimAndRun(job._id)
+                .catch((error) => { Logger.error(error); })
+                .finally(() => { TimerService.scheduledJobs.delete(job._id); });
+            return;
+        }
+        // no year field in cron expressions - a pattern built from this
+        // exact second/minute/hour/day/month would otherwise fire again a
+        // year later, so the task stops itself the moment it runs once
+        const cronExpression = `${dueAt.getUTCSeconds()} ${dueAt.getUTCMinutes()} ${dueAt.getUTCHours()} ${dueAt.getUTCDate()} ${dueAt.getUTCMonth() + 1} *`;
+        const task = cron.schedule(cronExpression, () => {
+            task.stop();
+            TimerService.scheduledJobs.delete(job._id);
+            TimerService.claimAndRun(job._id).catch((error) => { Logger.error(error); });
+        }, {timezone: 'UTC'});
+        TimerService.scheduledJobs.set(job._id, task);
+    }
+
+    /**
+     * Attempts to atomically claim a specific due job, and runs it if this
+     * process wins the claim - a no-op if another replica (or this same
+     * process's own rescan, racing its per-job schedule) already claimed it
+     * first. A recurring system sweep's occurrence (rescan-waiting-jobs /
+     * release-stale-jobs) is dispatched to runSystemJob() instead, which has
+     * its own no-retry-on-failure behavior; a thrown error from
+     * TimerCatchResumeJob (as opposed to its normal not-resumed outcomes,
+     * which it reports by returning rather than throwing) schedules a retry
+     * with backoff, rescheduled immediately rather than waiting on the next
+     * rescan.
+     * @param {string} jobId
+     */
+    static async claimAndRun(jobId) {
+        const job = await PersistenceGateway.claimTimerJob({id: jobId});
+        if (!job) {
+            return;
+        }
+        if (job.processDef === PersistenceGateway.SYSTEM_TIMER_JOB_PROCESS_DEF) {
+            return TimerService.runSystemJob(job);
+        }
         try {
             const result = await new TimerCatchResumeJob().run(job.processInstanceId, job.nodeId, job.processDef);
             Logger.debug(`timer job ${job._id} settled: ${JSON.stringify(result)}`);
             await PersistenceGateway.completeTimerJob({id: job._id});
         } catch (error) {
-            await PersistenceGateway.retryTimerJob({id: job._id, attempt: job.attempt, maxAttempts: job.maxAttempts, error});
+            const requeued = await PersistenceGateway.retryTimerJob({id: job._id, attempt: job.attempt, maxAttempts: job.maxAttempts, error});
+            if (requeued && requeued.state === 'waiting') {
+                TimerService.scheduleJob(requeued);
+            }
         }
     }
 
     /**
-     * Enqueues the job that will resume this specific node's process
+     * Schedules the job that will resume this specific node's process
      * instance once due - called from the generated node method's
      * alternateBody the moment a process instance first arrives at a timer
-     * catch event (see catch-event.processor.js), not from a periodic sweep.
+     * catch event (see catch-event.processor.js), giving this container an
+     * exact node-cron schedule for it right away rather than waiting for
+     * the next rescan tick.
      * @param {string} nodeId
      * @param {string} processInstanceId
      * @param {Date} dueAt
@@ -136,7 +266,8 @@ export class TimerService {
      *   ServiceRegistry entry when it runs
      */
     static async enqueueCatchResume(nodeId, processInstanceId, dueAt, processDef) {
-        await PersistenceGateway.enqueueTimerJob({processInstanceId, nodeId, processDef, availableAt: dueAt});
+        const job = await PersistenceGateway.enqueueTimerJob({processInstanceId, nodeId, processDef, availableAt: dueAt});
+        TimerService.scheduleJob(job);
     }
 
     /**
