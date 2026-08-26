@@ -17,6 +17,7 @@ import {TaskProjection} from "./event-store/projections/task-projection.js";
 import {TaskRepository} from "./event-store/repositories/task.repository.js";
 import {TimerTickRepository} from "./event-store/repositories/timer-tick.repository.js";
 import {TimerJobRepository} from "./event-store/repositories/timer-job.repository.js";
+import {ContainerRegistrationRepository} from "./event-store/repositories/container-registration.repository.js";
 
 export class PersistenceGateway {
 
@@ -372,6 +373,32 @@ export class PersistenceGateway {
      */
     static async findPendingSystemTimerJob({nodeId}) {
         return new TimerJobRepository().findPendingSystem(nodeId);
+    }
+
+    /**
+     * Upserts this container replica's own row, keyed by
+     * (deploymentId, version, containerId) - see ContainerRegistrationRepository
+     * for why the unique key prevents concurrent replicas from racing on the
+     * same document.
+     * @param {string} deploymentId
+     * @param {string} version
+     * @param {string} containerId
+     * @returns {Promise<object>}
+     */
+    static async registerContainerHeartbeat({deploymentId, version, containerId}) {
+        return new ContainerRegistrationRepository().heartbeat(deploymentId, version, containerId);
+    }
+
+    /**
+     * Every container registration row whose last heartbeat is still within
+     * `maxAgeMs` - i.e. the currently "running" containers.
+     * @param {string} [deploymentId]
+     * @param {string} [version]
+     * @param {number} maxAgeMs
+     * @returns {Promise<object[]>}
+     */
+    static async findRunningContainers({deploymentId, version, maxAgeMs}) {
+        return new ContainerRegistrationRepository().findRunning({deploymentId, version, maxAgeMs});
     }
 
     /**

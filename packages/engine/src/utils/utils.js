@@ -42,7 +42,7 @@ export class Utils{
     }
 
 
-    static async prepareContainerContext(filesContent, deploymentId) {
+    static async prepareContainerContext(filesContent, deploymentId, version) {
         const ctx = new ContainerParsingContext({
             isTestContainer: false,
         });
@@ -67,6 +67,7 @@ export class Utils{
         }
 
         ctx.deploymentId = deploymentId;
+        ctx.version = version;
         // by default activate web and persistence modules
         ctx.includePersistenceModule = true;
         ctx.includeWebModule = true;

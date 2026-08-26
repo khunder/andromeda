@@ -13,6 +13,7 @@ export class Config {
     mongoDbUri;
     tempPath;
     deploymentId
+    version
 
     host
     port
@@ -35,6 +36,7 @@ export class Config {
         this.host= process.env.host || "127.0.0.1";
         this.port = process.env.port || 10000;
         this.deploymentId = process.env.deploymentId;
+        this.version = process.env.version;
         if(process.env.socketCallBacks){
             this.socketCallBacks =  process.env.socketCallBacks.split(",");
         }

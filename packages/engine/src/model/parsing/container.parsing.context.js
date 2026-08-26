@@ -4,6 +4,7 @@
 export class ContainerParsingContext {
   constructor(config) {
     this.deploymentId = config && config.deploymentId;
+    this.version = config && config.version;
     this.port = config && config.port;
     this.isTestContainer = config && config.isTestContainer;
     this.workflowParsingContext= [];
@@ -14,6 +15,7 @@ export class ContainerParsingContext {
   includeWebModule;
   includePersistenceModule;
   deploymentId;
+  version;
   workflowParsingContext;
 
 }

@@ -107,6 +107,20 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: [],
     },
+    ContainerRegistration: {
+        name: 'ContainerRegistration',
+        ddl: `CREATE TABLE IF NOT EXISTS ContainerRegistration (
+            _id TEXT PRIMARY KEY,
+            deploymentId TEXT NOT NULL,
+            version TEXT,
+            containerId TEXT NOT NULL,
+            lastHeartbeat TEXT NOT NULL,
+            createdAt TEXT,
+            updatedAt TEXT,
+            UNIQUE(deploymentId, version, containerId)
+        )`,
+        jsonFields: [],
+    },
     StreamCounter: {
         name: 'StreamCounter',
         ddl: `CREATE TABLE IF NOT EXISTS StreamCounter (

@@ -110,6 +110,7 @@ export class EmbeddedContainerService {
                     port: String(allocatedPort),
                     mongoDbUri: Config.getInstance().mongoDbUri,
                     deploymentId: deploymentId,
+                    version: options.version,
                     GALAXY_URL: Config.getInstance().galaxyUrl,
                     // standalone / "lone wolf" mode: container starts without galaxy support and never pings
                     WITH_GALAXY: this.resolveWithGalaxy(options),
