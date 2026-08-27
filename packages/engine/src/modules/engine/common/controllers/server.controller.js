@@ -13,10 +13,6 @@ class ServerController {
         if(!req.body.deploymentId){
             throw new Error("deploymentId must be specified");
         }
-
-        if(!req.body.version){
-            throw new Error("version must be specified");
-        }
         //
         let includeGalaxyModule;
         if(req.body.includeGalaxyModule){
@@ -30,7 +26,7 @@ class ServerController {
             for(let fileIndex in req.files){
                 fileContents.push(fs.readFileSync(req.files[fileIndex].path, {encoding: 'utf8'}));
             }
-            const containerParsingContext = await Utils.prepareContainerContext(fileContents, req.body.deploymentId, req.body.version);
+            const containerParsingContext = await Utils.prepareContainerContext(fileContents, req.body.deploymentId);
             containerParsingContext.includeGalaxyModule = includeGalaxyModule;
 
             await new EngineService().generateContainer(containerParsingContext);

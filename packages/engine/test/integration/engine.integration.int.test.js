@@ -26,8 +26,8 @@ describe('EngineIntegration::Basic', function () {
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: 10005});
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10005);
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: 10005});
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, 10005);
             
         } catch (e) {
             console.error(e)

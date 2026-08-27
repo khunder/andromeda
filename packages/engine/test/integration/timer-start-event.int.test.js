@@ -12,6 +12,7 @@ describe('TimerStartEvent::Integration', () => {
     const TEST_TIMEOUT = 30000;
     let deploymentId = "cov/timer_start_event";
     let testPort;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -25,12 +26,12 @@ describe('TimerStartEvent::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // Container might already be stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, {recursive: true, force: true});
             }
@@ -56,26 +57,26 @@ describe('TimerStartEvent::Integration', () => {
         expect(fs.existsSync(bpmnPath), `BPMN file not found at ${bpmnPath}`).toBe(true);
         fileContents.push(fs.readFileSync(bpmnPath, {encoding: 'utf8'}));
 
-        let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
+        ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
 
         const engineService = new EngineService();
         await engineService.generateContainer(ctx);
 
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         // the cron fires every 2s - poll for at least 2 completed instances,
         // proving multiple ticks each independently created and ran an instance
-        const completedCount = await waitForCompletedInstanceCount(deploymentId, 2, TEST_TIMEOUT - 5000);
+        const completedCount = await waitForCompletedInstanceCount(ctx.deploymentId, 2, TEST_TIMEOUT - 5000);
         expect(completedCount).toBeGreaterThanOrEqual(2);
 
         const markerFiredCount = await PersistenceModule.countDocuments("Variable", {
-            deploymentId,
+            deploymentId: ctx.deploymentId,
             name: 'marker',
             value: 'fired'
         });
         expect(markerFiredCount).toBeGreaterThanOrEqual(2);
 
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, testPort);
     }, TEST_TIMEOUT);
 
     async function findAvailablePort() {

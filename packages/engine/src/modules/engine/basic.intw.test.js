@@ -35,10 +35,6 @@ describe('Embedded Container', function () {
         try {
             let deploymentId = "cov/scenario_script";
             const containerPort = UsedPorts.basicIntegration
-            startContainerSocketServer(deploymentId, containerPort, function (){
-                console.log(`--------------------------> callback from inside container`)
-            });
-
 
             let fileContents = [];
             const __filename = fileURLToPath(import.meta.url);
@@ -50,10 +46,13 @@ describe('Embedded Container', function () {
             let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
             ctx.includeGalaxyModule = true;
 
+            startContainerSocketServer(ctx.deploymentId, containerPort, function (){
+                console.log(`--------------------------> callback from inside container`)
+            });
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: containerPort, socketCallBacks: "engine"});
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: containerPort, socketCallBacks: "engine"});
 
             const form = new FormData();
             form.append('bpmnFile', fs.readFileSync(path.join(process.cwd(), "./test/resources/scenario_script.bpmn")), "bpmnFile");
@@ -65,7 +64,7 @@ describe('Embedded Container', function () {
             const count = await mongoose.connection.db.collection("ProcessInstance").count({_id: proc.data.id})
             assert.equal(count, 1)
             await Utils.sleep(2000);
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, containerPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, containerPort);
 
         } catch (e) {
             console.error(e)

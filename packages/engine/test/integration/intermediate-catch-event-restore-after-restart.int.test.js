@@ -23,6 +23,7 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
     let deploymentId = "cov/intermediate_catch_event_restore";
     let portA;
     let portB;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -37,17 +38,17 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portA);
         } catch (e) {
             // already stopped
         }
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portB);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portB);
         } catch (e) {
             // may already be stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, { recursive: true, force: true });
             }
@@ -63,12 +64,12 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
         expect(fs.existsSync(bpmnPath)).toBe(true);
         const bpmnXml = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-        let ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
+        ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
         ctx.includeGalaxyModule = true;
         await new EngineService().generateContainer(ctx);
 
         // First container: start the process and let it pause at the catch event.
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portA});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portA});
 
         const form = new FormData();
         form.append('bpmnFile', fs.readFileSync(bpmnPath), {
@@ -95,9 +96,9 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
         // (its in-memory ContainerService.processInstances registry, and
         // this specific instance object with it, is gone) and start a brand
         // new one for the same deployment against the same persisted state.
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, portA);
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portB});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portB});
 
         // Signal the *new* container process — it has never seen this
         // process instance in memory, so this only works if it restores the
@@ -125,7 +126,7 @@ describe('IntermediateCatchEventRestoreAfterRestart::Integration', () => {
         });
         expect(stage.value).toBe('approved');
 
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portB);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, portB);
     }, TEST_TIMEOUT);
 
     async function findAvailablePort() {

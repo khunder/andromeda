@@ -18,6 +18,7 @@ describe('TwoBpmnSameContainer::Integration', () => {
     const TEST_TIMEOUT = 30000;
     let deploymentId = "cov/two_bpmn_same_container";
     let testPort;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -31,12 +32,12 @@ describe('TwoBpmnSameContainer::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // Container might already be stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, {recursive: true, force: true});
             }
@@ -57,10 +58,10 @@ describe('TwoBpmnSameContainer::Integration', () => {
         const catchEventBpmn = fs.readFileSync(catchEventBpmnPath, {encoding: 'utf8'});
 
         // both BPMN files compiled into the same deploymentId/container
-        let ctx = await Utils.prepareContainerContext([humanTaskBpmn, catchEventBpmn], deploymentId);
+        ctx = await Utils.prepareContainerContext([humanTaskBpmn, catchEventBpmn], deploymentId);
         await new EngineService().generateContainer(ctx);
 
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         // start HumanTaskTest
         const humanTaskForm = new FormData();

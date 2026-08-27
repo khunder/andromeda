@@ -27,6 +27,7 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
     let deploymentId = "cov/timer_catch_restore";
     let portA;
     let portB;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -41,17 +42,17 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portA);
         } catch (e) {
             // already stopped
         }
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portB);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portB);
         } catch (e) {
             // may already be stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, {recursive: true, force: true});
             }
@@ -67,13 +68,13 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
         expect(fs.existsSync(bpmnPath)).toBe(true);
         const bpmnXml = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-        let ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
+        ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
         await new EngineService().generateContainer(ctx);
 
         // First container: start the process and let it pause at the timer
         // catch event, but stop it well before the 8s duration elapses -
         // it must never get the chance to resume this instance itself.
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portA});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portA});
 
         const form = new FormData();
         form.append('bpmnFile', fs.readFileSync(bpmnPath), {
@@ -107,9 +108,9 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
         // new one for the same deployment against the same persisted state.
         // This happens well inside the 8s window, so the timer is nowhere
         // near due yet.
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, portA);
         await new Promise((resolve) => setTimeout(resolve, 1500));
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portB});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portB});
 
         // No /signal call anywhere - only the *new* container's own
         // TimerCatchResumeJob, which has never seen this process instance
@@ -128,7 +129,7 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
         });
         expect(stage.value).toBe('elapsed');
 
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portB);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, portB);
     }, TEST_TIMEOUT);
 
     async function findAvailablePort() {

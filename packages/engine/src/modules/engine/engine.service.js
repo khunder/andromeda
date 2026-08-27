@@ -97,6 +97,7 @@ export class EngineService {
 
         this.addLivelinessProbe(containerCodegenContext);
         this.addReadinessProbe(containerCodegenContext);
+        this.addContainerInfoRoute(containerCodegenContext);
 
 
         for (const bpmnModel of containerParsingContext.workflowParsingContext) {
@@ -108,6 +109,7 @@ export class EngineService {
         containerCodegenContext.renderTimerService(containerParsingContext);
 
         this.generateOpenApiYaml(containerParsingContext, containerCodegenContext);
+        this.writeDeploymentMetadata(containerParsingContext, containerCodegenContext);
         //
         // await Promise.all(
         //     Array.from(containerContext.model.keys()).map(async (processDef) => {
@@ -163,6 +165,37 @@ export class EngineService {
     }
 
 
+    /**
+     * Documents GET /api/containers (see the probe.routes.js.snjk template,
+     * backed by the container module's ContainerService) - this running
+     * container's base id, version, and the processDefs it serves (from
+     * deployment-metadata.json, see writeDeploymentMetadata).
+     */
+    addContainerInfoRoute(containerCodegenContext) {
+        containerCodegenContext.openApiCodegen.addPath("/api/containers", "get")
+            .addPathDescription("/api/containers", "get", "Describes this running container: its base id, version, and the process defs it serves")
+            .addPathTags("/api/containers", "get", ["engine"])
+            .addResponse("/api/containers", "get", {
+                "200": {
+                    "description": "This container's id/version/processDefs",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {"type": "string", "description": "The base deployment id (as supplied to /api/compile), before the version suffix was folded in"},
+                                    "deploymentId": {"type": "string", "description": "The resolved deployment folder id (<id>_<version_with_underscores>)"},
+                                    "version": {"type": "string"},
+                                    "processDefs": {"type": "array", "items": {"type": "string"}}
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+    }
+
+
     GenerateModule(deploymentPath, moduleName) {
         const persistenceModulePathSource = path.join(process.cwd(), "src", "modules", moduleName);
         const persistenceModulePathDestination = path.join(deploymentPath, "src", "modules");
@@ -201,6 +234,26 @@ export class EngineService {
         // );
 
         fs.writeFileSync(path.join(Utils.getDeploymentPath(ctx), "specification.yaml"), containerCodegenContext.openApiCodegen.render());
+    }
+
+    /**
+     * Written alongside the generated code so EmbeddedContainerService can learn
+     * this deployment's base id/version/processDefs at start time without
+     * re-parsing BPMN - registryEntries is already the source of truth for
+     * processDefs (see ContainerCodegenContext.renderRegistry).
+     * @param {ContainerParsingContext} ctx
+     * @param containerCodegenContext : ContainerCodegenContext
+     */
+    writeDeploymentMetadata(ctx, containerCodegenContext) {
+        const metadata = {
+            deploymentId: ctx.baseDeploymentId,
+            version: ctx.version,
+            processDefs: containerCodegenContext.registryEntries.map((entry) => entry.processDef),
+        };
+        fs.writeFileSync(
+            path.join(Utils.getDeploymentPath(ctx), "deployment-metadata.json"),
+            JSON.stringify(metadata, null, 2),
+        );
     }
 
     /**

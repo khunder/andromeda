@@ -45,6 +45,7 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
     let deploymentId = "cov/timer_start_event_race";
     let portA;
     let portB;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -59,17 +60,17 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portA);
         } catch (e) {
             // already stopped
         }
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portB);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, portB);
         } catch (e) {
             // may already be stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, {recursive: true, force: true});
             }
@@ -87,7 +88,7 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
         expect(fs.existsSync(bpmnPath)).toBe(true);
         const bpmnXml = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-        let ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
+        ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
         await new EngineService().generateContainer(ctx);
 
         // Both replicas run the exact same compiled deployment folder and
@@ -95,8 +96,8 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
         // startEmbeddedContainer) the exact same shared persistence - true
         // replicas of one deployment, not two independent deployments.
         const startedAt = Date.now();
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portA});
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: portB});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portA});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portB});
 
         // let several ticks elapse with both replicas racing every one of them
         const RUN_TIME_MS = 8500;
@@ -106,7 +107,7 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
         const expectedTicks = Math.floor(elapsedMs / 2000);
 
         const completedCount = await PersistenceModule.countDocuments("ProcessInstance", {
-            deploymentId,
+            deploymentId: ctx.deploymentId,
             status: 1
         });
 
@@ -119,7 +120,7 @@ describe('TimerStartEventTwoContainerRace::Integration', () => {
         expect(completedCount).toBeGreaterThanOrEqual(Math.max(1, expectedTicks - 1));
         expect(completedCount).toBeLessThanOrEqual(expectedTicks + 1);
 
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, portA);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, portA);
     }, TEST_TIMEOUT);
 
     async function findAvailablePort() {

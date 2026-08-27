@@ -13,6 +13,7 @@ describe('HumanTask::Integration', () => {
     const TEST_TIMEOUT = 30000;
     let deploymentId = "cov/human_task";
     let testPort;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -26,12 +27,12 @@ describe('HumanTask::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // already stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, { recursive: true, force: true });
             }
@@ -47,11 +48,11 @@ describe('HumanTask::Integration', () => {
         expect(fs.existsSync(bpmnPath)).toBe(true);
         const bpmnXml = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-        let ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
+        ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
         ctx.includeGalaxyModule = true;
         await new EngineService().generateContainer(ctx);
 
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         const form = new FormData();
         form.append('bpmnFile', fs.readFileSync(bpmnPath), {
@@ -116,7 +117,7 @@ describe('HumanTask::Integration', () => {
         const tasksAfter = await tasksAfterResponse.json();
         expect(tasksAfter.find((t) => t.processInstanceId === procData.id)).toBeUndefined();
 
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, testPort);
     }, TEST_TIMEOUT);
 
     async function findAvailablePort() {

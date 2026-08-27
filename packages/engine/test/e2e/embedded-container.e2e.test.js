@@ -39,18 +39,21 @@ describe('start/Stop Embedded container', () => {
         // Prepare container context
         const ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
         expect(ctx).toBeDefined();
-        expect(ctx.deploymentId).toBe(deploymentId);
-        
+        // default version (1.0.0) is folded into the deployment folder name
+        expect(ctx.baseDeploymentId).toBe(deploymentId);
+        expect(ctx.version).toBe('1.0.0');
+        expect(ctx.deploymentId).toBe(`${deploymentId}_1_0_0`);
+
         // Generate container
         const engineService = new EngineService();
         await engineService.generateContainer(ctx);
-        
+
         // Start embedded container
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, { port: 10000 });
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, { port: 10000 });
         // The container should be started - we can verify this by checking logs or process
-        
+
         // Stop embedded container
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, 10000);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, 10000);
         // The container should be stopped - stopEmbeddedContainer may not return a value
     }, E2E_TIMEOUT);
 });
