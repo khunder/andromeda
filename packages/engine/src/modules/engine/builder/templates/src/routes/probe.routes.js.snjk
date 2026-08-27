@@ -1,4 +1,5 @@
 import {ServiceRegistry} from "../modules/container/registry.js";
+import ContainerService from "../modules/container/container.service.js";
 
 function route (fastify, opts, next) {
     fastify.route(
@@ -29,6 +30,18 @@ function route (fastify, opts, next) {
             method: 'GET',
             url: '/api/process-defs',
             handler: () => ({processDefs: Object.keys(ServiceRegistry)})
+        }
+    )
+
+    // Lets a caller that already has this container's host/port (e.g. from
+    // Galaxy) query its id/version/processDefs directly, without going back
+    // through the engine that spawned it. Backed by the container module's
+    // own ContainerService (see container.service.js), not read here.
+    fastify.route(
+        {
+            method: 'GET',
+            url: '/api/containers',
+            handler: () => ContainerService.getInfo()
         }
     )
     next();

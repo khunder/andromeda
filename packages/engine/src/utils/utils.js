@@ -51,6 +51,9 @@ export class Utils{
             workflowParsingContext.bpmnContent = filesContent[index]
             workflowParsingContext.model = await new BPMNModdle().fromXML(workflowParsingContext.bpmnContent);
             workflowParsingContext.processPrefix= this.upperFirstChar(this.normalizeProcessPrefixWithoutVersion(workflowParsingContext.model.rootElement.id))
+            // <bpmn:definitions version="..."> - a plain unrecognized attribute, bpmn-moddle
+            // parses it into $attrs rather than a first-class property
+            workflowParsingContext.version = workflowParsingContext.model.rootElement.$attrs?.version || '1.0.0';
             ctx.workflowParsingContext.push(workflowParsingContext);
         }
 
@@ -66,7 +69,20 @@ export class Utils{
             seenProcessDefs.add(workflowParsingContext.processPrefix);
         }
 
-        ctx.deploymentId = deploymentId;
+        // a container is one deployment folder built from every uploaded BPMN
+        // file - they must all agree on the version that folder gets built as
+        const resolvedVersion = ctx.workflowParsingContext[0]?.version || '1.0.0';
+        for (const workflowParsingContext of ctx.workflowParsingContext) {
+            if (workflowParsingContext.version !== resolvedVersion) {
+                throw new Error(`cannot compile container: BPMN files specify different versions ("${resolvedVersion}" vs "${workflowParsingContext.version}") - every workflow in a container must share the same <bpmn:definitions version="...">`);
+            }
+        }
+
+        ctx.baseDeploymentId = deploymentId;
+        ctx.version = resolvedVersion;
+        // the deployment folder concatenates the version so the same deploymentId
+        // can be deployed again under a different version without colliding
+        ctx.deploymentId = `${deploymentId}_${resolvedVersion.replace(/\./g, '_')}`;
         // by default activate web and persistence modules
         ctx.includePersistenceModule = true;
         ctx.includeWebModule = true;

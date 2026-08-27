@@ -11,7 +11,7 @@ import type { GalaxyModal } from './GalaxyModal';
 declare const monaco: any;
 
 const EMPTY_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="wee" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="wee" version="1.0.0" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:itemDefinition id="ItemDefinition_age" structureRef="number" />
   <bpmn:process id="Process_1" isExecutable="false">
     <bpmn:property id="Property_age" itemSubjectRef="ItemDefinition_age" name="age" />
@@ -526,8 +526,11 @@ export class BPMNDesigner {
   }
 
   private getActiveDeploymentId(): string {
+    // prefer the resolved (versioned) folder id returned by the last successful
+    // compile - the engine names the deployment folder <id>_<version>, so Run/Stop
+    // Embedded need that exact id, not the raw "Container ID" the user typed
     const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement | null;
-    return deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
+    return this.configManager.getResolvedDeploymentId() || deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
   }
 
   public showGalaxyPanel(): void {
@@ -774,8 +777,9 @@ export class BPMNDesigner {
   }
 
   private renderDeploymentConfigPanel(content: HTMLElement): void {
-    const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
+    const definitions = this.modeler.getDefinitions() as { id?: string; $attrs?: Record<string, string> } | undefined;
     const defaultContainerId = definitions?.id || this.configManager.getDeploymentId();
+    const currentVersion = definitions?.$attrs?.version || this.configManager.getVersion();
 
     // keep the stored deployment id in sync with the diagram's definitions id
     // (e.g. after editing raw XML and clicking Apply) so Configuration Settings
@@ -794,6 +798,11 @@ export class BPMNDesigner {
         <label>Container ID</label>
         <input id="bpmn-cfg-container-id" type="text" placeholder="my-container" value="${this.escapeHtml(defaultContainerId)}">
         <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Same as the diagram's definitions id</small>
+      </div>
+      <div class="property-group">
+        <label>Version</label>
+        <input id="bpmn-cfg-version" type="text" placeholder="1.0.0" value="${this.escapeHtml(currentVersion)}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Same as the diagram's definitions version; folded into the deployment folder name</small>
       </div>
       <div class="property-group">
         <label>Galaxy URL</label>
@@ -820,6 +829,10 @@ export class BPMNDesigner {
     this.bindConfigInput('bpmn-cfg-container-id', (value) => {
       this.configManager.setDeploymentId(value);
       this.setDefinitionsId(value);
+    });
+    this.bindConfigInput('bpmn-cfg-version', (value) => {
+      this.configManager.setVersion(value);
+      this.setDefinitionsVersion(value);
     });
     this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
     this.bindProcessVariablesForm();
@@ -933,6 +946,23 @@ export class BPMNDesigner {
     const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
     if (definitions) {
       definitions.id = value;
+    }
+  }
+
+  // <bpmn:definitions version="..."> is not a declared bpmn-moddle property, so it only
+  // survives modeler.saveXML() if tracked in $attrs. bpmn-js's bundled bpmn-moddle (v10,
+  // via moddle v8) exposes $attrs as a read-only getter that always returns a live,
+  // mutable object (even {} when empty) - reassigning it (`definitions.$attrs = {...}`)
+  // throws "Cannot set property $attrs of #<Base> which has only a getter", which was
+  // being silently swallowed since it's thrown from a DOM event handler, so the version
+  // never actually got written. Mutating a property on the existing object works fine.
+  private setDefinitionsVersion(value: string): void {
+    if (!value) {
+      return;
+    }
+    const definitions = this.modeler.getDefinitions() as { $attrs?: Record<string, string> } | undefined;
+    if (definitions?.$attrs) {
+      definitions.$attrs.version = value;
     }
   }
 

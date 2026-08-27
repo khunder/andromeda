@@ -13,6 +13,10 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
     const TEST_TIMEOUT = 30000; // 30 seconds timeout for integration test
     let deploymentId = "cov/exclusive_gateway_conditional_flow";
     let testPort;
+    // the deployment folder is named <deploymentId>_<version>, resolved once
+    // prepareContainerContext parses the version out of the BPMN - afterAll
+    // needs this exact id to stop/clean up the right folder
+    let ctx;
 
     beforeAll(async () => {
         // Initialize PersistenceModule
@@ -30,14 +34,14 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
     afterAll(async () => {
         // Clean up: stop container if still running
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // Container might already be stopped
         }
 
         // Clean up deployment folder
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, { recursive: true, force: true });
             }
@@ -60,7 +64,7 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
         /**
          * @type {ContainerParsingContext} containerParsingContext
          */
-        let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
+        ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
         ctx.includeGalaxyModule = true;
 
         // Generate container
@@ -68,7 +72,7 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
         await engineService.generateContainer(ctx);
 
         // Start embedded container with dynamic port
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         // Prepare form data
         const form = new FormData();
@@ -119,7 +123,7 @@ describe('ExclusiveGatewayConditionalFlow::Integration', () => {
         expect(minorFlowCount).toBe(0);
 
         // Cleanup
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, testPort);
     }, TEST_TIMEOUT);
 
     // Helper function to find available port

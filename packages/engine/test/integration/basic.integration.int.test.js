@@ -29,8 +29,8 @@ describe('BasicIntegration::Basic', function () {
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: UsedPorts.basicIntegration});
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, UsedPorts.basicIntegration);
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: UsedPorts.basicIntegration});
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, UsedPorts.basicIntegration);
             
         } catch (e) {
             console.error(e)

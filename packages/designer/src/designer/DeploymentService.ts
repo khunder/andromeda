@@ -118,7 +118,13 @@ export class DeploymentService {
         
         // Save the deployment ID for future use
         this.configManager.setDeploymentId(finalDeploymentId);
-        
+
+        // the engine folds the resolved version into the folder name, so
+        // Run/Stop Embedded need this resolved id rather than finalDeploymentId
+        if (responseData?.deploymentId) {
+          this.configManager.setResolvedDeploymentId(responseData.deploymentId);
+        }
+
         return {
           success: true,
           message: `Successfully deployed BPMN with ID: ${finalDeploymentId}`,
@@ -127,13 +133,13 @@ export class DeploymentService {
       } else {
         const errorText = await response.text();
         let errorData;
-        
+
         try {
           errorData = JSON.parse(errorText);
         } catch {
           errorData = { error: errorText };
         }
-        
+
         return {
           success: false,
           message: `Deployment failed (HTTP ${response.status}): ${errorData.error || errorData.message || errorText}`,
@@ -142,7 +148,7 @@ export class DeploymentService {
       }
     } catch (error) {
       console.error('Deployment error:', error);
-      
+
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         return {
           success: false,
@@ -261,7 +267,10 @@ export class DeploymentService {
         }
         
         this.configManager.setDeploymentId(finalDeploymentId);
-        
+        if (responseData?.deploymentId) {
+          this.configManager.setResolvedDeploymentId(responseData.deploymentId);
+        }
+
         return {
           success: true,
           message: `Successfully deployed BPMN with ID: ${finalDeploymentId}`,

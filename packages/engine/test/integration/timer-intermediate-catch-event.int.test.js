@@ -32,13 +32,14 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
     describe('timeDuration', () => {
         let deploymentId = "cov/timer_catch_duration";
         let testPort;
+        let ctx;
 
         beforeAll(async () => {
             testPort = await findAvailablePort();
         }, TEST_TIMEOUT);
 
         afterAll(async () => {
-            await cleanup(deploymentId, testPort);
+            await cleanup(ctx?.deploymentId || deploymentId, testPort);
         });
 
         it('pauses at the timer catch event, then auto-resumes and completes once the duration elapses', async () => {
@@ -48,11 +49,11 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
             expect(fs.existsSync(bpmnPath), `BPMN file not found at ${bpmnPath}`).toBe(true);
             const bpmnContent = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-            let ctx = await Utils.prepareContainerContext([bpmnContent], deploymentId);
+            ctx = await Utils.prepareContainerContext([bpmnContent], deploymentId);
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
 
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
             const form = new FormData();
             form.append('bpmnFile', Buffer.from(bpmnContent), {
@@ -100,24 +101,25 @@ describe('TimerIntermediateCatchEvent::Integration', () => {
     describe('timeDate', () => {
         let deploymentId = "cov/timer_catch_date";
         let testPort;
+        let ctx;
 
         beforeAll(async () => {
             testPort = await findAvailablePort();
         }, TEST_TIMEOUT);
 
         afterAll(async () => {
-            await cleanup(deploymentId, testPort);
+            await cleanup(ctx?.deploymentId || deploymentId, testPort);
         });
 
         it('pauses at the timer catch event, then auto-resumes and completes once the date passes', async () => {
             const dueDate = new Date(Date.now() + 2000).toISOString();
             const bpmnContent = buildTimeDateBpmn(dueDate);
 
-            let ctx = await Utils.prepareContainerContext([bpmnContent], deploymentId);
+            ctx = await Utils.prepareContainerContext([bpmnContent], deploymentId);
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
 
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
             const form = new FormData();
             form.append('bpmnFile', Buffer.from(bpmnContent), {

@@ -25,6 +25,7 @@ describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
     const TEST_TIMEOUT = 30000;
     let deploymentId = "cov/timer_catch_jobqueue";
     let testPort;
+    let ctx;
 
     beforeAll(async () => {
         try {
@@ -37,12 +38,12 @@ describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
 
     afterAll(async () => {
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // already stopped
         }
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, {recursive: true, force: true});
             }
@@ -59,10 +60,10 @@ describe('TimerIntermediateCatchEventJobQueue::Integration', () => {
         expect(fs.existsSync(bpmnPath)).toBe(true);
         const bpmnXml = fs.readFileSync(bpmnPath, {encoding: 'utf8'});
 
-        let ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
+        ctx = await Utils.prepareContainerContext([bpmnXml], deploymentId);
         await new EngineService().generateContainer(ctx);
 
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         const form = new FormData();
         form.append('bpmnFile', fs.readFileSync(bpmnPath), {

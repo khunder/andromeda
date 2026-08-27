@@ -36,7 +36,7 @@ it('Fail flow event ', async () => {
 
             const engineService = new EngineService();
             await engineService.generateContainer(ctx);
-            await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: containerPort, socketCallBacks: "engine"});
+            await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: containerPort, socketCallBacks: "engine"});
 
             const form = new FormData();
             // form.append('bpmnFile', fs.readFileSync(path.join(process.cwd(), "./test/resources/scenario_script.bpmn")), "bpmnFile");
@@ -52,7 +52,7 @@ it('Fail flow event ', async () => {
             assert.equal(flow.status , 2);
             await Utils.sleep(2000);
 
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, containerPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, containerPort);
             
         } catch (e) {
             console.error(e)

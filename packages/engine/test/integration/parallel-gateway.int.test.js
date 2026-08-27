@@ -13,6 +13,7 @@ describe('ParallelGatewayJoin::Integration', () => {
     const TEST_TIMEOUT = 30000; // 30 seconds timeout for integration test
     let deploymentId = "cov/parallel_gateway_join";
     let testPort;
+    let ctx;
 
     beforeAll(async () => {
         // Initialize PersistenceModule
@@ -30,14 +31,14 @@ describe('ParallelGatewayJoin::Integration', () => {
     afterAll(async () => {
         // Clean up: stop container if still running
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+            await EmbeddedContainerService.stopEmbeddedContainer(ctx?.deploymentId || deploymentId, testPort);
         } catch (e) {
             // Container might already be stopped
         }
 
         // Clean up deployment folder
         try {
-            const deploymentPath = path.join(process.cwd(), 'deployments', deploymentId);
+            const deploymentPath = path.join(process.cwd(), 'deployments', ctx?.deploymentId || deploymentId);
             if (fs.existsSync(deploymentPath)) {
                 fs.rmSync(deploymentPath, { recursive: true, force: true });
             }
@@ -60,7 +61,7 @@ describe('ParallelGatewayJoin::Integration', () => {
         /**
          * @type {ContainerParsingContext} containerParsingContext
          */
-        let ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
+        ctx = await Utils.prepareContainerContext(fileContents, deploymentId);
         ctx.includeGalaxyModule = true;
 
         // Generate container
@@ -68,7 +69,7 @@ describe('ParallelGatewayJoin::Integration', () => {
         await engineService.generateContainer(ctx);
 
         // Start embedded container with dynamic port
-        await EmbeddedContainerService.startEmbeddedContainer(deploymentId, {port: testPort});
+        await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: testPort});
 
         // Prepare form data
         const form = new FormData();
@@ -117,7 +118,7 @@ describe('ParallelGatewayJoin::Integration', () => {
         expect(flow6Count).toBe(1);
 
         // Cleanup
-        await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, testPort);
+        await EmbeddedContainerService.stopEmbeddedContainer(ctx.deploymentId, testPort);
     }, TEST_TIMEOUT);
 
     // Helper function to find available port

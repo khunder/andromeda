@@ -14,6 +14,9 @@ export class ContainerParsingContext {
   includeWebModule;
   includePersistenceModule;
   deploymentId;
+  // raw, client-supplied id (before the resolved version suffix is folded into deploymentId)
+  baseDeploymentId;
+  version;
   workflowParsingContext;
 
 }
