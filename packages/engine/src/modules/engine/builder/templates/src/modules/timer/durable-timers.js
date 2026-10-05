@@ -94,7 +94,12 @@ export function parseIso(str) {
 
 export class TimerService {
   /**
-   * pollMs      how often to look for due timers (timers fire up to this late)
+   * pollMs      how often to look for due timers while there is work
+   * maxPollMs   adaptive polling ceiling: every empty poll doubles the interval
+   *             (pollMs, 2x, 4x, ... up to maxPollMs); a claimed timer or a local
+   *             schedule() resets it to pollMs. Timers scheduled by this instance
+   *             always fire on time; timers scheduled by another instance fire
+   *             at most maxPollMs late (if that instance is gone by then)
    * leaseMs     how long a claim lasts; a crashed instance's timers are retried after this
    * batch       max timers fired concurrently per instance (each holds one connection)
    * maxAttempts failures before a timer is parked (due_at = NULL) for manual attention
@@ -104,16 +109,21 @@ export class TimerService {
    */
   constructor({
     store, instanceId, onError,
-    pollMs = 1000, leaseMs = 30_000, batch = 5,
+    pollMs = 1000, maxPollMs = 30_000, leaseMs = 30_000, batch = 5,
     maxAttempts = 3, backoffMs = 5000, misfire = 'skip',
   } = {}) {
     if (!store) throw new Error('TimerService: a store is required');
+    if (!(maxPollMs >= pollMs)) throw new Error('TimerService: maxPollMs must be >= pollMs');
     this.store = store;
     this.instanceId = instanceId || `${os.hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
     this.onError = onError || ((err, ctx) => console.error('[timers]', ctx, err));
-    Object.assign(this, {pollMs, leaseMs, batch, maxAttempts, backoffMs, misfire});
+    Object.assign(this, {pollMs, maxPollMs, leaseMs, batch, maxAttempts, backoffMs, misfire});
     this.handlers = new Map();
     this.running = false;
+    // current adaptive interval, between pollMs and maxPollMs
+    this._idleMs = pollMs;
+    // epoch ms the current sleep ends at (null when not sleeping)
+    this._sleepUntil = null;
   }
 
   /** Register the handler for a timer type: async (timer, tx) => {} */
@@ -145,7 +155,23 @@ export class TimerService {
 
     const timer = {id: s.id || randomUUID(), type: s.type, payload: s.payload ?? null, dueAt, everyMs, remaining: times};
     const created = await this.store.insert(timer, tx);
+    if (created) this._nudge(dueAt);
     return {id: timer.id, created};
+  }
+
+  /**
+   * A timer was just scheduled locally: drop back to fast polling and, if the
+   * loop is sleeping past the timer's due time, cut the sleep short so the
+   * timer fires on time instead of up to maxPollMs late. (When `tx` is used the
+   * row may only become visible at commit; the fast polling right after covers
+   * a wake-up that runs slightly ahead of it.)
+   */
+  _nudge(dueAt) {
+    this._idleMs = this.pollMs;
+    if (this._sleepUntil === null || dueAt >= this._sleepUntil) return;
+    clearTimeout(this._sleepTimer);
+    this._sleepUntil = Math.max(dueAt, Date.now());
+    this._sleepTimer = setTimeout(this._wake, this._sleepUntil - Date.now());
   }
 
   /** Delete a timer (boundary event cancelled, process undeployed, ...). */
@@ -178,13 +204,21 @@ export class TimerService {
       } catch (err) {
         this.onError(err, {phase: 'poll'});
       }
+      // Adaptive polling: work found -> back to the fast interval; nothing
+      // found (or the poll failed) -> sleep the current interval, then double
+      // it for next time (pollMs, 2x, 4x, ... capped at maxPollMs).
+      if (claimed > 0) this._idleMs = this.pollMs;
+      const sleepMs = this._idleMs * (0.75 + Math.random() * 0.5);
+      if (claimed === 0) this._idleMs = Math.min(this._idleMs * 2, this.maxPollMs);
       // A full batch means there is probably more work: poll again right away.
       // Jitter keeps instances from polling in lockstep.
       if (this.running && claimed < this.batch) {
         await new Promise((resolve) => {
           this._wake = resolve;
-          this._sleepTimer = setTimeout(resolve, this.pollMs * (0.75 + Math.random() * 0.5));
+          this._sleepUntil = Date.now() + sleepMs;
+          this._sleepTimer = setTimeout(resolve, sleepMs);
         });
+        this._sleepUntil = null;
       }
     }
   }

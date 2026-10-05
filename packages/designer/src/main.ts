@@ -1,4 +1,6 @@
 import { BPMNDesigner } from './designer';
+import { BPMN_EXAMPLES } from './designer/examples';
+import { showToast } from './designer/Toast';
 import './style.css';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
@@ -72,6 +74,32 @@ function setupToolbar(designer: BPMNDesigner) {
     });
   }
   
+  // Examples dropdown - loads one of the engine's test scenario diagrams
+  const examplesSelect = document.getElementById('examples-select') as HTMLSelectElement | null;
+  if (examplesSelect) {
+    for (const example of BPMN_EXAMPLES) {
+      const option = document.createElement('option');
+      option.value = example.path;
+      option.textContent = example.label;
+      option.title = example.path;
+      examplesSelect.appendChild(option);
+    }
+    examplesSelect.addEventListener('change', async () => {
+      const example = BPMN_EXAMPLES.find(e => e.path === examplesSelect.value);
+      if (example) {
+        try {
+          await designer.importFromXML(example.xml);
+          showToast(`Loaded example: ${example.label}`, 'success');
+        } catch (error) {
+          console.error(`Error loading example ${example.path}:`, error);
+          showToast(`Could not load example ${example.label}`, 'error');
+        }
+      }
+      // reset so the same example can be picked again
+      examplesSelect.value = '';
+    });
+  }
+
   // Export BPMN button
   const btnExportBPMN = document.getElementById('btn-export-bpmn');
   if (btnExportBPMN) {
