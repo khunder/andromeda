@@ -193,6 +193,16 @@ export class EngineService {
                     }
                 }
             })
+        // served by the web module's log-stream.routes.js, copied into every container
+        containerCodegenContext.openApiCodegen.addPath("/api/logs/stream", "get")
+            .addPathDescription("/api/logs/stream", "get", "Live log feed (Server-Sent Events). Query: level=trace|debug|info|warn|error|fatal (minimum level, default trace), since=<event id> (replay buffered events after it, default 0 = whole backlog; Last-Event-ID takes precedence)")
+            .addPathTags("/api/logs/stream", "get", ["engine"])
+            .addResponse("/api/logs/stream", "get", {
+                "200": {
+                    "description": "text/event-stream of `log` events, each a pino record as JSON with `id`, `level` (label) and `levelValue`",
+                    "content": {"text/event-stream": {"schema": {"type": "string"}}}
+                }
+            })
     }
 
 

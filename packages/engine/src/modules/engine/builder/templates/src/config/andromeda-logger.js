@@ -3,7 +3,7 @@ import PinoConfig from './pino.config.js';
 
 // Create singleton logger instance
 const pinoConfig = new PinoConfig();
-const defaultLogger = pino(pinoConfig.getConfig());
+const defaultLogger = pino(pinoConfig.getConfig(), pinoConfig.getStreams());
 
 /**
  * AndromedaLogger - Wrapper around Pino logger for backward compatibility

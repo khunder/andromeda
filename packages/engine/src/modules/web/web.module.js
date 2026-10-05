@@ -7,6 +7,7 @@ import fastifySwaggerUI from "@fastify/swagger-ui";
 import fastifyCors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import autoload from "@fastify/autoload";
+import logStreamRoutes from "./log-stream.routes.js";
 
 import {AndromedaLogger} from "../../config/andromeda-logger.js";
 import {Config} from "../../config/config.js";
@@ -130,6 +131,10 @@ export class WebModule {
                 headerPairs: 2000 // Max number of header key=>value pairs
             }
         })
+
+        // live log feed (SSE) - registered here, not auto-loaded, so generated
+        // containers get it too along with this module
+        this.app.register(logStreamRoutes);
 
         this.app.register(autoload, {
             dir: path.join(__dirname, '../../routes'),

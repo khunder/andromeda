@@ -1,6 +1,8 @@
 import pino from 'pino';
+import pinoPretty from 'pino-pretty';
 import path from 'path';
 import fs from 'fs';
+import {LogStream} from './log-stream.js';
 
 /**
  * Pino Logger Configuration
@@ -16,7 +18,6 @@ export class PinoConfig {
     }
 
     getConfig() {
-        const isDevelopment = process.env.NODE_ENV !== 'production';
         const logLevel = process.env.LOG_LEVEL || 'trace';
 
         // Base configuration
@@ -31,32 +32,10 @@ export class PinoConfig {
             timestamp: pino.stdTimeFunctions.isoTime
         };
 
-        // Development configuration with pretty printing
-        if (isDevelopment && process.env.isUnitTestMode !== 'true') {
-            return {
-                ...baseConfig,
-                transport: {
-                    targets: [
-                        {
-                            target: 'pino-pretty',
-                            level: logLevel,
-                            options: {
-                                colorize: true,
-                                translateTime: 'yyyy-mm-dd HH:MM:ss.l',
-                                ignore: 'pid,hostname,application,ENV,ip'
-                            }
-                        },
-                        {
-                            target: 'pino/file',
-                            level: logLevel,
-                            options: {
-                                destination: path.join(process.cwd(), 'logs', 'app.log'),
-                                mkdir: true
-                            }
-                        }
-                    ]
-                }
-            };
+        // Development configuration - pretty printing and the log file are
+        // destinations of getStreams(), not transports, see there
+        if (this.isPrettyMode()) {
+            return baseConfig;
         }
 
         // Production configuration - can use formatters here
@@ -68,6 +47,45 @@ export class PinoConfig {
                 }
             }
         };
+    }
+
+    isPrettyMode() {
+        return process.env.NODE_ENV !== 'production' && process.env.isUnitTestMode !== 'true';
+    }
+
+    /**
+     * Where log lines go. An in-process pino.multistream rather than
+     * transport targets: transports run in a worker thread, and LogStream
+     * (the SSE appender behind GET /api/logs/stream) has to live in this
+     * process to reach its subscribers.
+     * - dev: pretty console + logs/app.log + LogStream
+     * - production / unit tests: JSON on stdout + LogStream
+     */
+    getStreams() {
+        const logLevel = process.env.LOG_LEVEL || 'trace';
+        const streams = [];
+        if (this.isPrettyMode()) {
+            streams.push({
+                level: logLevel,
+                stream: pinoPretty({
+                    colorize: true,
+                    translateTime: 'yyyy-mm-dd HH:MM:ss.l',
+                    ignore: 'pid,hostname,application,ENV,ip'
+                })
+            });
+            streams.push({
+                level: logLevel,
+                stream: pino.destination({
+                    dest: path.join(process.cwd(), 'logs', 'app.log'),
+                    mkdir: true,
+                    sync: false
+                })
+            });
+        } else {
+            streams.push({level: logLevel, stream: process.stdout});
+        }
+        streams.push({level: logLevel, stream: LogStream.getInstance()});
+        return pino.multistream(streams);
     }
 
     /**
