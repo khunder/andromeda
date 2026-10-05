@@ -318,6 +318,34 @@ export class PersistenceGateway {
         return new VariableRepository().getVariables(processInstanceId);
     }
 
+    /**
+     * Read-only listing of process instances, narrowed by any of the given
+     * fields - backs a container's GET /api/process-instances (scoped there
+     * to the container's own deploymentId, since embedded containers share
+     * the engine's sqlite file).
+     * @param {string} [deploymentId]
+     * @param {string} [processDef]
+     * @param {number} [status] - ProcessInstanceStatus value
+     * @returns {Promise<object[]>}
+     */
+    static async findProcessInstances({deploymentId, processDef, status} = {}) {
+        return new ProcessInstanceRepository().findProcessInstances({deploymentId, processDef, status});
+    }
+
+    /**
+     * Read-only listing of persisted variables, narrowed by any of the given
+     * fields - backs a container's GET /api/variables. Values come back as
+     * stored (strings, with their type alongside).
+     * @param {string} [deploymentId]
+     * @param {string} [processInstanceId]
+     * @param {string} [processDef]
+     * @param {string} [name]
+     * @returns {Promise<object[]>}
+     */
+    static async findVariables({deploymentId, processInstanceId, processDef, name} = {}) {
+        return new VariableRepository().findVariables({deploymentId, processInstanceId, processDef, name});
+    }
+
     static async init() {
         PersistenceGateway.registerStreams()
         // continue stream numbering from the persisted log after a restart

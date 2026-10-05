@@ -38,10 +38,11 @@ export class Config {
         if(process.env.socketCallBacks){
             this.socketCallBacks =  process.env.socketCallBacks.split(",");
         }
-        // manual persistence driver switch: 'mongodb' (default) or 'sqlite'.
-        // for sqlite, SQLITE_FILE_PATH must match the engine's own path (see
+        // persistence driver switch: 'sqlite' (default - sql.js) or 'mongodb'
+        // (needs MONGODB_URI). Embedded containers are handed the engine's own
+        // driver and, for sqlite, SQLITE_FILE_PATH (see
         // embedded.containers.service.js) so both share the same database.
-        this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'mongodb';
+        this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'sqlite';
         this.sqliteFilePath = process.env.SQLITE_FILE_PATH || path.join(process.cwd(), 'andromeda.sqlite');
     }
 }

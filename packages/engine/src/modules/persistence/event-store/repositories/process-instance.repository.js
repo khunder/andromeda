@@ -48,6 +48,20 @@ export class ProcessInstanceRepository {
     }
 
     /**
+     * Process instances matching every given field (equality only, so the
+     * same condition works on both drivers) - backs GET /api/process-instances.
+     * @param {{deploymentId?: string, processDef?: string, status?: number}} filter
+     * @returns {Promise<object[]>}
+     */
+    async findProcessInstances({deploymentId, processDef, status}) {
+        const cond = {};
+        if (deploymentId) cond.deploymentId = deploymentId;
+        if (processDef) cond.processDef = processDef;
+        if (status !== undefined && status !== null) cond.status = status;
+        return this.repo.find(cond);
+    }
+
+    /**
      *
      * @param {string} processInstanceId
      * @returns {Promise<void>}

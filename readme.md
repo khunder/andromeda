@@ -97,7 +97,7 @@ older custom SVG renderer.
 |---------|-------------------------------------------------------------------------|
 | Node.js | **>= 22.6.0** (enforced via `engines`)                                  |
 | npm     | ships with Node (workspaces support required)                           |
-| MongoDB | required when `PERSISTENCE_DRIVER=mongodb` (the default); not needed for SQLite |
+| MongoDB | optional: only for `PERSISTENCE_DRIVER=mongodb`. The default SQLite driver (`sql.js`) needs no database server |
 
 ---
 
@@ -143,10 +143,10 @@ ACTIVE_MODULES=server,web,persistence,galaxy
 # Environment: local | test | ...  (local/dev also starts the embedded sidecar daemon)
 ENV=local
 
-# Persistence backend: mongodb (default) | sqlite
-PERSISTENCE_DRIVER=mongodb
-MONGODB_URI=mongodb://127.0.0.1:27017/andromeda
-# SQLITE_FILE_PATH=./andromeda.sqlite   # used when PERSISTENCE_DRIVER=sqlite
+# Persistence backend: sqlite (default) | mongodb
+# PERSISTENCE_DRIVER=sqlite
+# SQLITE_FILE_PATH=./andromeda.sqlite   # default: andromeda.sqlite in packages/engine
+# MONGODB_URI=mongodb://127.0.0.1:27017/andromeda   # only for PERSISTENCE_DRIVER=mongodb
 
 # Where containers find Galaxy (when it is not embedded)
 # GALAXY_HOST=localhost
@@ -158,9 +158,16 @@ MONGODB_URI=mongodb://127.0.0.1:27017/andromeda
 |----------------------|--------------------------------------------------------------------------|
 | `ACTIVE_MODULES`     | Modules to boot (`server`, `web`, `persistence`, `galaxy`)               |
 | `ENV`                | Runtime environment (`local`, `test`, …)                                 |
-| `PERSISTENCE_DRIVER` | `mongodb` (default) or `sqlite` (WASM `sql.js`, no native build)         |
-| `MONGODB_URI`        | MongoDB connection string                                                |
-| `SQLITE_FILE_PATH`   | SQLite database file, when the SQLite driver is used                     |
+| `PERSISTENCE_DRIVER` | `sqlite` (default, WASM `sql.js`, no native build) or `mongodb`          |
+| `SQLITE_FILE_PATH`   | SQLite database file (default `andromeda.sqlite` in `packages/engine`)   |
+| `MONGODB_URI`        | MongoDB connection string, only needed with `PERSISTENCE_DRIVER=mongodb` |
+
+> **SQLite starts empty on every engine start (when the engine runs `persistence`).** An engine with
+> `persistence` in `ACTIVE_MODULES` deletes and recreates its SQLite file when it boots, including on every
+> nodemon reload, so process instances, tasks, variables and timers don't survive an engine restart.
+> Containers never reset the file, they attach to it (creating it if missing), so with an engine that
+> doesn't run `persistence` the file is kept. Use `PERSISTENCE_DRIVER=mongodb` when runtime state must
+> outlive the engine process.
 | `GALAXY_HOST` / `GALAXY_PORT` / `GALAXY_URL` | Location of a standalone Galaxy instance         |
 
 ---
@@ -309,8 +316,9 @@ A generated container has its own `bootstrap.js` and `app.js`, structured like t
 - **Event sourcing.** Every state change of a process instance, flow event, or task is appended to an event
   log. `ReplayService` rebuilds read models from the latest snapshot plus the events after it. Details are
   in [`packages/engine/docs/EventSourcing.md`](packages/engine/docs/EventSourcing.md).
-- **Repository pattern** over two interchangeable drivers: **MongoDB** (Mongoose) and **SQLite** (`sql.js`).
-  Select one with `PERSISTENCE_DRIVER`.
+- **Repository pattern** over two interchangeable drivers: **SQLite** (`sql.js`, the default) and
+  **MongoDB** (Mongoose). Select one with `PERSISTENCE_DRIVER`. Embedded containers inherit the engine's
+  driver and share its SQLite file.
 - **`PersistenceGateway`** is the only entry point other layers (the engine, Galaxy, generated containers)
   use to reach persistence.
 - **Variables** are stored as strings with their type recorded alongside, which keeps them easy to inspect

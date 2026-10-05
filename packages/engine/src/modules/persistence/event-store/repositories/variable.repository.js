@@ -65,6 +65,21 @@ export class VariableRepository {
         return this.repo.find({processInstance: processInstanceId});
     }
 
+    /**
+     * Variables matching every given field (equality only, so the same
+     * condition works on both drivers) - backs GET /api/variables.
+     * @param {{deploymentId?: string, processInstanceId?: string, processDef?: string, name?: string}} filter
+     * @returns {Promise<object[]>}
+     */
+    async findVariables({deploymentId, processInstanceId, processDef, name}) {
+        const cond = {};
+        if (deploymentId) cond.deploymentId = deploymentId;
+        if (processInstanceId) cond.processInstance = processInstanceId;
+        if (processDef) cond.processDef = processDef;
+        if (name) cond.name = name;
+        return this.repo.find(cond);
+    }
+
 }
 
 export default VariableRepository;

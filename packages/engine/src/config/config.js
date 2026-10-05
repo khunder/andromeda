@@ -41,8 +41,9 @@ export class Config {
         this.galaxyHost = process.env.GALAXY_HOST || '127.0.0.1';
         this.galaxyPort = process.env.GALAXY_PORT || '5001';
         this.galaxyUrl = process.env.GALAXY_URL || `http://${this.galaxyHost}:${this.galaxyPort}`;
-        // manual persistence driver switch: 'mongodb' (default) or 'sqlite'
-        this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'mongodb';
+        // persistence driver switch: 'sqlite' (default - sql.js, no database
+        // server needed) or 'mongodb' (needs MONGODB_URI)
+        this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'sqlite';
         this.sqliteFilePath = process.env.SQLITE_FILE_PATH || path.join(process.cwd(), 'andromeda.sqlite');
     }
 }

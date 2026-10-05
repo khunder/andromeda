@@ -10,11 +10,19 @@ export interface OpenLogsDetail {
     url: string;
 }
 
+/** `open-instances` event detail: which deployment's process instances to list. */
+export interface OpenInstancesDetail {
+    deploymentId: string;
+    /** Galaxy base URL serving /galaxy/process-instances and /galaxy/variables */
+    galaxyUrl: string;
+}
+
 /**
  * Galaxy registry view: the containers registered with Galaxy and their
  * actions (open API, stream logs, start a process instance, stop). Lives in a
  * dock panel opened from the left menu (see Workspace), replacing the old
- * modal. "Logs" fires an `open-logs` event that Workspace turns into a log panel.
+ * modal. "Logs" fires an `open-logs` event, and a click on a card fires
+ * `open-instances`; Workspace turns them into log / process instance panels.
  */
 export class GalaxyPanel extends HTMLElement {
     private shadow: ShadowRoot;
@@ -80,7 +88,7 @@ export class GalaxyPanel extends HTMLElement {
         listDiv.innerHTML = `
             <div class="list-container">
                 ${this.items.map(i => `
-                    <div class="item">
+                    <div class="item" data-deployment-id="${i.deploymentId}" tabindex="0" title="Show process instances">
                         <div class="item-head">
                             <div class="item-id" title="${i.deploymentId}">${i.deploymentId}</div>
                             <div class="item-status status-${i.status === 'ready' ? 'ready' : 'error'}">
@@ -167,8 +175,25 @@ export class GalaxyPanel extends HTMLElement {
                 const port = target.getAttribute('data-port') || '';
                 const processDefs = this.getProcessDefs(deploymentId, port);
                 void this.processStartModal?.show(this.getContainerHost(), port, deploymentId, processDefs);
+            } else if (!target.closest('button')) {
+                this.openInstances(target);
             }
         });
+        listDiv?.addEventListener('keydown', (e) => {
+            const target = e.target as HTMLElement;
+            if ((e.key === 'Enter' || e.key === ' ') && target.classList.contains('item')) {
+                e.preventDefault();
+                this.openInstances(target);
+            }
+        });
+    }
+
+    /** A click on a card (outside its buttons) asks Workspace to list that deployment's process instances. */
+    private openInstances(target: HTMLElement) {
+        const card = target.closest<HTMLElement>('.item');
+        if (!card?.dataset.deploymentId) return;
+        const detail: OpenInstancesDetail = { deploymentId: card.dataset.deploymentId, galaxyUrl: this.galaxyUrl };
+        this.dispatchEvent(new CustomEvent<OpenInstancesDetail>('open-instances', { detail, bubbles: true, composed: true }));
     }
 
     private async startProcessInstance(deploymentId: string, port: string): Promise<void> {
@@ -286,8 +311,17 @@ export class GalaxyPanel extends HTMLElement {
                     transition: background 0.2s;
                 }
 
+                .item {
+                    cursor: pointer;
+                }
+
                 .item:hover {
                     background: rgba(255, 255, 255, 0.6);
+                }
+
+                .item:focus-visible {
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(91, 91, 247, 0.3);
                 }
 
                 .item-head {

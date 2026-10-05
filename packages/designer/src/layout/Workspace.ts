@@ -9,8 +9,9 @@ import {
   type IContentRenderer,
 } from 'dockview-core';
 import type { BPMNDesigner } from '../designer';
-import { GalaxyPanel, type OpenLogsDetail } from '../designer/GalaxyPanel';
+import { GalaxyPanel, type OpenInstancesDetail, type OpenLogsDetail } from '../designer/GalaxyPanel';
 import { LogViewer } from '../designer/LogViewer';
+import { ProcessInstancesView } from '../designer/ProcessInstancesView';
 
 /**
  * The designer's dockable workspace (dockview-core, framework-free).
@@ -83,7 +84,36 @@ interface LogPanelParams {
 }
 
 const LOGS_COMPONENT = 'logs';
-const LOG_PANEL_HEIGHT = 260;
+const INSTANCES_COMPONENT = 'instances';
+// per-container panels (logs, process instances) share one group under the diagram
+const BOTTOM_PANEL_PREFIXES = ['logs:', 'instances:'];
+const BOTTOM_PANEL_HEIGHT = 300;
+
+/** params of an `instances` panel - also what a saved layout reopens it with */
+interface InstancesPanelParams {
+  galaxyUrl: string;
+  deploymentId: string;
+}
+
+/** One deployment's process instances, with details/variables of the selected one. */
+class InstancesPanelRenderer implements IContentRenderer {
+  readonly element = document.createElement('div');
+  private view = new ProcessInstancesView();
+
+  constructor() {
+    this.element.className = 'dock-panel dock-panel-instances';
+    this.element.appendChild(this.view);
+  }
+
+  init(params: GroupPanelPartInitParameters): void {
+    const { galaxyUrl, deploymentId } = params.params as unknown as InstancesPanelParams;
+    this.view.open(galaxyUrl, deploymentId);
+  }
+
+  dispose(): void {
+    this.view.stop();
+  }
+}
 
 /** A container's live log stream - one panel (and one EventSource) per container. */
 class LogPanelRenderer implements IContentRenderer {
@@ -171,6 +201,9 @@ export class Workspace {
         if (name === LOGS_COMPONENT) {
           return new LogPanelRenderer();
         }
+        if (name === INSTANCES_COMPONENT) {
+          return new InstancesPanelRenderer();
+        }
         const spec = this.specs[name as PanelId];
         if (!spec) throw new Error(`workspace: unknown panel "${name}"`);
         return new BorrowedElementRenderer(name as PanelId, spec, this.holder);
@@ -196,6 +229,9 @@ export class Workspace {
     this.galaxyPanel.addEventListener('open-logs', (event) => {
       this.openLogs((event as CustomEvent<OpenLogsDetail>).detail);
     });
+    this.galaxyPanel.addEventListener('open-instances', (event) => {
+      this.openInstances((event as CustomEvent<OpenInstancesDetail>).detail);
+    });
     this.updateMenu();
   }
 
@@ -210,20 +246,47 @@ export class Workspace {
       existing.api.setActive();
       return;
     }
-    const otherLogs = this.api.panels.find((panel) => panel.id.startsWith('logs:'));
-    const position = otherLogs
-      ? { position: { referencePanel: otherLogs.id, direction: 'within' } }
-      : this.api.getPanel('diagram')
-        ? { position: { referencePanel: 'diagram', direction: 'below' }, initialHeight: LOG_PANEL_HEIGHT }
-        : {};
     const params: LogPanelParams = { url };
     this.api.addPanel({
       id,
       component: LOGS_COMPONENT,
       title: `Logs · ${deploymentId}`,
       params,
-      ...position,
+      ...this.bottomPanelPosition(),
     } as AddPanelOptions);
+  }
+
+  /**
+   * Opens (or brings to front) the process instances panel of one
+   * deployment - opened by clicking its card in the Galaxy panel.
+   */
+  openInstances({ deploymentId, galaxyUrl }: OpenInstancesDetail): void {
+    const id = `instances:${deploymentId}`;
+    const existing = this.api.getPanel(id);
+    if (existing) {
+      existing.api.setActive();
+      return;
+    }
+    const params: InstancesPanelParams = { galaxyUrl, deploymentId };
+    this.api.addPanel({
+      id,
+      component: INSTANCES_COMPONENT,
+      title: `Instances · ${deploymentId}`,
+      params,
+      ...this.bottomPanelPosition(),
+    } as AddPanelOptions);
+  }
+
+  /** Per-container panels stack as tabs in one group docked under the diagram. */
+  private bottomPanelPosition(): Partial<AddPanelOptions> {
+    const sibling = this.api.panels.find((panel) => BOTTOM_PANEL_PREFIXES.some((prefix) => panel.id.startsWith(prefix)));
+    if (sibling) {
+      return { position: { referencePanel: sibling.id, direction: 'within' } } as Partial<AddPanelOptions>;
+    }
+    if (this.api.getPanel('diagram')) {
+      return { position: { referencePanel: 'diagram', direction: 'below' }, initialHeight: BOTTOM_PANEL_HEIGHT } as Partial<AddPanelOptions>;
+    }
+    return {};
   }
 
   /** Connects the designer and replays visibility for the panels already showing. */
@@ -284,7 +347,7 @@ export class Workspace {
       this.api.fromJSON(JSON.parse(saved));
       // a layout saved by an older build may reference panels that no longer exist
       return this.api.panels.length > 0
-        && this.api.panels.every((p) => p.id in this.specs || p.id.startsWith('logs:'));
+        && this.api.panels.every((p) => p.id in this.specs || BOTTOM_PANEL_PREFIXES.some((prefix) => p.id.startsWith(prefix)));
     } catch (error) {
       console.warn('Ignoring saved designer layout:', error);
       return false;
