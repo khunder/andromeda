@@ -15,17 +15,10 @@ import {VariableRepository} from "./event-store/repositories/variable.repository
 import {TaskStreamBuilder} from "./event-store/streams/task/task.stream-builder.js";
 import {TaskProjection} from "./event-store/projections/task-projection.js";
 import {TaskRepository} from "./event-store/repositories/task.repository.js";
-import {TimerTickRepository} from "./event-store/repositories/timer-tick.repository.js";
-import {TimerJobRepository} from "./event-store/repositories/timer-job.repository.js";
+import {EngineTimerRepository} from "./event-store/repositories/engine-timer.repository.js";
 import {ContainerRegistrationRepository} from "./event-store/repositories/container-registration.repository.js";
 
 export class PersistenceGateway {
-
-    // sentinel TimerJob.processDef identifying a recurring "system" sweep
-    // occurrence (rescan-waiting-jobs / release-stale-jobs) rather than an
-    // ordinary catch-resume job - see enqueueSystemTimerJob() and
-    // TimerService.claimAndRun()/runSystemJob() in timer.service.js.njk.
-    static SYSTEM_TIMER_JOB_PROCESS_DEF = TimerJobRepository.SYSTEM_JOB_PROCESS_DEF;
 
     static async newProcessInstance({processInstanceId, deploymentId, processDef, containerId}) {
         await EventStore.apply(
@@ -266,113 +259,16 @@ export class PersistenceGateway {
     }
 
     /**
-     * Claims a single cron tick for a Timer Start Event node, for the HA
-     * dedupe mechanism described in TimerTickRepository: every container
-     * replica running this deployment races to claim the same
-     * (deploymentId, processDef, nodeId, tickKey), and the backing unique
-     * index guarantees only one of them gets `true` back.
-     * @param {string} deploymentId
-     * @param {string} processDef
-     * @param {string} nodeId
-     * @param {string} tickKey
-     * @returns {Promise<boolean>}
+     * The durable-timers.js Store for this container's TimerService - backs
+     * both the Timer Start Event (recurring/cron-driven) and Timer
+     * Intermediate Catch Event (one-shot resume) mechanisms. See
+     * EngineTimerRepository's own doc comment for the exactly-once
+     * guarantee it provides (an atomic lease claim) and what it doesn't (a
+     * real cross-document transaction with the handler's own writes).
+     * @returns {EngineTimerRepository}
      */
-    static async claimTimerTick({deploymentId, processDef, nodeId, tickKey}) {
-        return new TimerTickRepository().claimTick(deploymentId, processDef, nodeId, tickKey);
-    }
-
-    /**
-     * Schedules a timer catch event's resume for a specific due time - see
-     * TimerJobRepository. Called once, the moment a process instance first
-     * arrives at a timer intermediate catch event (catch-event.processor.js's
-     * codegen), not from a periodic sweep.
-     * @param {string} processInstanceId
-     * @param {string} nodeId
-     * @param {string} processDef
-     * @param {Date} availableAt
-     * @returns {Promise<object>}
-     */
-    static async enqueueTimerJob({processInstanceId, nodeId, processDef, availableAt}) {
-        return new TimerJobRepository().enqueue({processInstanceId, nodeId, processDef, availableAt});
-    }
-
-    /**
-     * Every currently 'waiting' timer resume job - backs TimerService's
-     * low-frequency backstop sweep, not the primary per-job schedule (see
-     * TimerJobRepository.findWaiting()).
-     * @returns {Promise<object[]>}
-     */
-    static async findWaitingTimerJobs() {
-        return new TimerJobRepository().findWaiting();
-    }
-
-    /**
-     * Atomically claims one specific due timer resume job for this
-     * container replica to run - see TimerJobRepository.claimById() for the
-     * exactly-once dispatch guarantee across replicas.
-     * @param {string} id
-     * @returns {Promise<object|null>}
-     */
-    static async claimTimerJob({id}) {
-        return new TimerJobRepository().claimById(id);
-    }
-
-    /**
-     * Marks a claimed timer resume job as finished.
-     * @param {string} id
-     * @returns {Promise<object|null>}
-     */
-    static async completeTimerJob({id}) {
-        return new TimerJobRepository().complete(id);
-    }
-
-    /**
-     * Requeues a claimed timer resume job that threw, or marks it
-     * permanently failed once it has exhausted its attempts.
-     * @param {string} id
-     * @param {number} attempt
-     * @param {number} maxAttempts
-     * @param {Error|string} error
-     * @returns {Promise<object|null>}
-     */
-    static async retryTimerJob({id, attempt, maxAttempts, error}) {
-        return new TimerJobRepository().retryOrFail(id, attempt, maxAttempts, error);
-    }
-
-    /**
-     * Releases timer resume jobs stuck 'claimed' for too long (a replica
-     * that crashed mid-flight) back to 'waiting' so another replica can pick
-     * them up.
-     * @param {number} maxClaimedMs
-     * @returns {Promise<number>}
-     */
-    static async releaseStaleTimerJobs({maxClaimedMs}) {
-        return new TimerJobRepository().releaseStale(maxClaimedMs);
-    }
-
-    /**
-     * Enqueues one occurrence of a recurring system sweep (rescan-waiting-
-     * jobs / release-stale-jobs) into the same TimerJob queue ordinary
-     * catch-resume jobs use, so it's claimed and run by exactly one replica
-     * at a time instead of every replica ticking its own local cron - see
-     * TimerService.ensureSystemJobScheduled()/runSystemJob().
-     * @param {string} nodeId
-     * @param {Date} availableAt
-     * @returns {Promise<object>}
-     */
-    static async enqueueSystemTimerJob({nodeId, availableAt}) {
-        return new TimerJobRepository().enqueueSystem({nodeId, availableAt});
-    }
-
-    /**
-     * The currently pending occurrence of a given recurring system sweep,
-     * if this deployment already has one - lets a newly-starting replica
-     * rejoin an already-seeded chain instead of seeding a duplicate one.
-     * @param {string} nodeId
-     * @returns {Promise<object|null>}
-     */
-    static async findPendingSystemTimerJob({nodeId}) {
-        return new TimerJobRepository().findPendingSystem(nodeId);
+    static getTimerStore() {
+        return new EngineTimerRepository();
     }
 
     /**

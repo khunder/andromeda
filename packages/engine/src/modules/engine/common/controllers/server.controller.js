@@ -30,7 +30,13 @@ class ServerController {
             containerParsingContext.includeGalaxyModule = includeGalaxyModule;
 
             await new EngineService().generateContainer(containerParsingContext);
-            return {};
+            // the deployment folder is <deploymentId>_<version>, clients (designer
+            // Run/Stop Embedded) need this resolved id, not the raw one they sent
+            return {
+                deploymentId: containerParsingContext.deploymentId,
+                baseDeploymentId: containerParsingContext.baseDeploymentId,
+                version: containerParsingContext.version
+            };
         } catch (err) {
             const returnError = new Error();
             returnError.statusCode = 500;

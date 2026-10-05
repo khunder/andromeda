@@ -74,38 +74,27 @@ export const TABLE_DEFINITIONS = {
         )`,
         jsonFields: ['correlation'],
     },
-    TimerTick: {
-        name: 'TimerTick',
-        ddl: `CREATE TABLE IF NOT EXISTS TimerTick (
+    // Backs durable-timers.js's Store contract - see EngineTimerRepository
+    // and engine-timer.orm-model.js for why lockedBy/lockedUntil (an atomic
+    // lease, not a real cross-document transaction) is the whole claim
+    // mechanism on both drivers.
+    EngineTimer: {
+        name: 'EngineTimer',
+        ddl: `CREATE TABLE IF NOT EXISTS EngineTimer (
             _id TEXT PRIMARY KEY,
-            deploymentId TEXT NOT NULL,
-            processDef TEXT NOT NULL,
-            nodeId TEXT NOT NULL,
-            tickKey TEXT NOT NULL,
-            createdAt TEXT,
-            updatedAt TEXT,
-            UNIQUE(deploymentId, processDef, nodeId, tickKey)
-        )`,
-        jsonFields: [],
-    },
-    TimerJob: {
-        name: 'TimerJob',
-        ddl: `CREATE TABLE IF NOT EXISTS TimerJob (
-            _id TEXT PRIMARY KEY,
-            processInstanceId TEXT NOT NULL,
-            nodeId TEXT NOT NULL,
-            processDef TEXT NOT NULL,
-            state TEXT NOT NULL DEFAULT 'waiting',
-            attempt INTEGER NOT NULL DEFAULT 0,
-            maxAttempts INTEGER NOT NULL DEFAULT 5,
-            availableAt TEXT NOT NULL,
-            claimedAt TEXT,
-            claimedBy TEXT,
+            type TEXT NOT NULL,
+            payload TEXT,
+            dueAt TEXT,
+            everyMs INTEGER,
+            remaining INTEGER,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            lockedBy TEXT,
+            lockedUntil TEXT,
             lastError TEXT,
             createdAt TEXT,
             updatedAt TEXT
         )`,
-        jsonFields: [],
+        jsonFields: ['payload'],
     },
     ContainerRegistration: {
         name: 'ContainerRegistration',

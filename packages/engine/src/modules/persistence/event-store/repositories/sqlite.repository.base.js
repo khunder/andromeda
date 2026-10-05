@@ -76,6 +76,15 @@ export class SqliteRepositoryBase {
                 params.push(this.encodeValue(key, value[op]));
                 return;
             }
+            // plain SQL equality (`= ?`) never matches NULL, even with a NULL
+            // parameter - callers conditioning a claim on a column still
+            // being unset (e.g. EngineTimerRepository's lockedUntil lease)
+            // need real `IS NULL` semantics, same as MongoDB's own
+            // {field: null} query behaviour (matches null/missing).
+            if (value === null || value === undefined) {
+                parts.push(`${key} IS NULL`);
+                return;
+            }
             parts.push(`${key} = ?`);
             params.push(this.encodeValue(key, value));
         });

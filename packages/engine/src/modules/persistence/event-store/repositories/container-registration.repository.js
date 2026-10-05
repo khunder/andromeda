@@ -12,7 +12,7 @@ const Logger = new AndromedaLogger();
  * write the same document - see ContainerService's heartbeat loop
  * (container.service.js.njk). A plain, non-event-sourced collection - a
  * heartbeat isn't domain state that needs replay/audit, it's a throwaway
- * liveness marker, same reasoning as TimerTick/TimerJob.
+ * liveness marker, same reasoning as EngineTimer.
  */
 export class ContainerRegistrationRepository {
 

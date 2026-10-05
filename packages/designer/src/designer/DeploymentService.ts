@@ -121,9 +121,7 @@ export class DeploymentService {
 
         // the engine folds the resolved version into the folder name, so
         // Run/Stop Embedded need this resolved id rather than finalDeploymentId
-        if (responseData?.deploymentId) {
-          this.configManager.setResolvedDeploymentId(responseData.deploymentId);
-        }
+        this.configManager.setResolvedDeploymentId(this.resolveDeploymentId(responseData, finalDeploymentId));
 
         return {
           success: true,
@@ -203,6 +201,20 @@ export class DeploymentService {
   }
 
   /**
+   * The deployment folder id the engine built: <id>_<version with underscores>.
+   * Prefer what the engine returned; otherwise derive it the same way the engine
+   * does (engines predating the compile response field return {}), so a stale id
+   * from a previous compile is never reused.
+   */
+  private resolveDeploymentId(responseData: any, deploymentId: string): string {
+    if (responseData?.deploymentId) {
+      return responseData.deploymentId;
+    }
+    const version = this.configManager.getVersion() || '1.0.0';
+    return `${deploymentId}_${version.replace(/\./g, '_')}`;
+  }
+
+  /**
    * Create multipart form data boundary
    */
   private createBoundary(): string {
@@ -267,9 +279,7 @@ export class DeploymentService {
         }
         
         this.configManager.setDeploymentId(finalDeploymentId);
-        if (responseData?.deploymentId) {
-          this.configManager.setResolvedDeploymentId(responseData.deploymentId);
-        }
+        this.configManager.setResolvedDeploymentId(this.resolveDeploymentId(responseData, finalDeploymentId));
 
         return {
           success: true,
