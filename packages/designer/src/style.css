@@ -59,7 +59,7 @@
 .glass-card,
 .header,
 .side-menu,
-.zoom-controls {
+.diagram-toolbar {
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -75,7 +75,7 @@
 
 .header,
 .side-menu,
-.zoom-controls {
+.diagram-toolbar {
     box-shadow: var(--glass-shadow-soft);
 }
 
@@ -158,7 +158,9 @@ body {
 }
 
 .toolbar button,
-.toolbar select {
+.toolbar select,
+.diagram-toolbar button,
+.diagram-toolbar select {
     height: 36px;
     padding: 0 14px;
     display: inline-flex;
@@ -177,40 +179,51 @@ body {
 }
 
 .toolbar button:hover,
-.toolbar select:hover {
+.toolbar select:hover,
+.diagram-toolbar button:hover,
+.diagram-toolbar select:hover {
     background: var(--glass-control-bg-hover);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.toolbar button:active {
+.toolbar button:active,
+.diagram-toolbar button:active {
     transform: translateY(1px);
 }
 
 .toolbar button:focus-visible,
-.toolbar select:focus-visible {
+.toolbar select:focus-visible,
+.diagram-toolbar button:focus-visible,
+.diagram-toolbar select:focus-visible {
     outline: none;
     box-shadow: var(--accent-ring);
 }
 
-.toolbar .btn-icon {
+.toolbar .btn-icon,
+.diagram-toolbar .btn-icon {
     width: 36px;
     padding: 0;
 }
 
-.toolbar .btn-accent {
+.toolbar .btn-accent,
+.diagram-toolbar .btn-accent {
     color: white;
     font-weight: 600;
     border-color: rgba(255, 255, 255, 0.35);
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
 }
 
-.toolbar .btn-accent:hover {
+.toolbar .btn-accent:hover,
+.diagram-toolbar .btn-accent:hover {
     filter: brightness(1.08);
 }
 
-.toolbar .btn-compile { background: var(--tint-compile); }
-.toolbar .btn-deploy { background: var(--tint-deploy); }
-.toolbar .btn-register { background: var(--tint-register); }
+.toolbar .btn-compile,
+.diagram-toolbar .btn-compile { background: var(--tint-compile); }
+.toolbar .btn-deploy,
+.diagram-toolbar .btn-deploy { background: var(--tint-deploy); }
+.toolbar .btn-register,
+.diagram-toolbar .btn-register { background: var(--tint-register); }
 
 .toolbar-divider {
     width: 1px;
@@ -522,41 +535,44 @@ body {
     width: auto;
 }
 
-/* ---------- floating canvas controls ---------- */
+/* ---------- floating diagram toolbar ---------- */
 
-.zoom-controls {
+/* centred at the top of the canvas, clear of the bpmn-js palette on the left */
+.diagram-toolbar {
     position: absolute;
-    bottom: 16px;
-    right: 16px;
-    border-radius: var(--glass-radius-sm);
-    display: flex;
-    overflow: hidden;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: calc(100% - 140px);
+    padding: 6px 8px;
+    border-radius: var(--glass-radius);
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
-.zoom-controls button {
-    padding: 6px 12px;
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--glass-divider);
-    cursor: pointer;
-    font-family: inherit;
+.diagram-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.diagram-toolbar button {
+    height: 32px;
+    font-size: 13px;
+}
+
+.diagram-toolbar .btn-icon {
+    width: 32px;
     font-size: 16px;
-    color: var(--text-muted);
-    transition: background 0.2s, color 0.2s;
 }
 
-.zoom-controls button:last-child {
-    border-right: none;
-}
-
-.zoom-controls button:hover {
-    background: rgba(255, 255, 255, 0.5);
-    color: var(--text);
-}
-
-.zoom-controls button:active {
-    background: rgba(255, 255, 255, 0.7);
+.diagram-toolbar .toolbar-divider {
+    height: 20px;
+    margin: 0 2px;
 }
 
 /* ---------- XML editor ---------- */
