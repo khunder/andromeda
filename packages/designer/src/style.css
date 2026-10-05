@@ -49,7 +49,6 @@
 
     --tint-compile: rgba(46, 170, 98, 0.85);
     --tint-deploy: rgba(33, 136, 243, 0.85);
-    --tint-galaxy: rgba(103, 58, 183, 0.85);
     --tint-register: rgba(156, 39, 176, 0.85);
 
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -59,10 +58,8 @@
 
 .glass-card,
 .header,
-#canvas-container,
-.properties-panel.visible,
-.zoom-controls,
-.view-switcher-footer {
+.side-menu,
+.zoom-controls {
     background: var(--glass-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -70,24 +67,22 @@
     position: relative;
 }
 
-.glass-card,
-.properties-panel.visible {
+.glass-card {
     border-radius: var(--glass-radius);
     box-shadow: var(--glass-shadow);
     overflow: hidden;
 }
 
 .header,
-#canvas-container,
-.zoom-controls,
-.view-switcher-footer {
+.side-menu,
+.zoom-controls {
     box-shadow: var(--glass-shadow-soft);
 }
 
 /* the two light edges of the .glass-card recipe */
 .glass-card::before,
 .header::before,
-.properties-panel.visible::before {
+.side-menu::before {
     content: '';
     position: absolute;
     top: 0;
@@ -100,7 +95,7 @@
 
 .glass-card::after,
 .header::after,
-.properties-panel.visible::after {
+.side-menu::after {
     content: '';
     position: absolute;
     top: 0;
@@ -215,7 +210,6 @@ body {
 
 .toolbar .btn-compile { background: var(--tint-compile); }
 .toolbar .btn-deploy { background: var(--tint-deploy); }
-.toolbar .btn-galaxy { background: var(--tint-galaxy); }
 .toolbar .btn-register { background: var(--tint-register); }
 
 .toolbar-divider {
@@ -234,9 +228,147 @@ body {
     min-height: 0;
 }
 
-#canvas-container {
-    flex: 1;
+/* ---------- left menu ---------- */
+
+.side-menu {
+    flex: 0 0 auto;
+    width: 76px;
+    padding: 10px 8px;
     border-radius: var(--glass-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.side-menu button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--glass-radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    position: relative;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.side-menu button svg {
+    width: 22px;
+    height: 22px;
+}
+
+.side-menu button:hover {
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--text);
+}
+
+.side-menu button:focus-visible {
+    outline: none;
+    box-shadow: var(--accent-ring);
+}
+
+/* panel is open */
+.side-menu button.open {
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* panel is open and focused */
+.side-menu button.active::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+}
+
+.side-menu-divider {
+    height: 1px;
+    margin: 2px 6px;
+    background: var(--glass-divider);
+}
+
+.side-menu .side-menu-bottom {
+    margin-top: auto;
+}
+
+/* ---------- dock (dockview-core) ---------- */
+
+.dock-root {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* glass theme on top of dockview's light-spaced theme */
+.dockview-theme-light-spaced.andromeda-dock {
+    --dv-background-color: transparent;
+    --dv-group-view-background-color: var(--glass-bg);
+    --dv-tabs-and-actions-container-background-color: transparent;
+    --dv-tabs-and-actions-container-font-size: 13px;
+    --dv-activegroup-visiblepanel-tab-background-color: rgba(255, 255, 255, 0.75);
+    --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+    --dv-inactivegroup-visiblepanel-tab-background-color: rgba(255, 255, 255, 0.45);
+    --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+    --dv-activegroup-visiblepanel-tab-color: var(--text);
+    --dv-activegroup-hiddenpanel-tab-color: var(--text-muted);
+    --dv-inactivegroup-visiblepanel-tab-color: var(--text-muted);
+    --dv-inactivegroup-hiddenpanel-tab-color: var(--text-subtle);
+    --dv-separator-border: transparent;
+    --dv-paneview-header-border-color: var(--glass-divider);
+    --dv-active-sash-color: rgba(91, 91, 247, 0.45);
+    --dv-drag-over-background-color: rgba(91, 91, 247, 0.18);
+    --dv-drag-over-border-color: rgba(91, 91, 247, 0.6);
+    --dv-icon-hover-background-color: rgba(255, 255, 255, 0.6);
+    --dv-border-radius: var(--glass-radius);
+    --dv-spacing-padding: 0px;
+    font-family: var(--font);
+    background: transparent;
+}
+
+/* each group is a glass card */
+.andromeda-dock .dv-groupview {
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow-soft);
+    overflow: hidden;
+}
+
+.andromeda-dock .dv-tab {
+    font-weight: 500;
+}
+
+.andromeda-dock .dv-tab.dv-active-tab {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.dock-panel {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#panel-sources {
+    display: none;
+}
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
     overflow: hidden;
     /* the diagram needs a calmer surface than pure glass to stay readable */
     background: rgba(255, 255, 255, 0.5);
@@ -276,14 +408,8 @@ body {
 /* ---------- properties panel ---------- */
 
 .properties-panel {
-    width: 0;
-    padding: 0;
-    overflow-y: auto;
-    transition: width 0.3s ease, padding 0.3s ease;
-}
-
-.properties-panel.visible {
-    width: 290px;
+    width: 100%;
+    height: 100%;
     padding: 20px;
     overflow-y: auto;
 }
@@ -398,71 +524,39 @@ body {
 
 /* ---------- floating canvas controls ---------- */
 
-.zoom-controls,
-.view-switcher-footer {
+.zoom-controls {
     position: absolute;
     bottom: 16px;
+    right: 16px;
     border-radius: var(--glass-radius-sm);
     display: flex;
     overflow: hidden;
     z-index: 100;
 }
 
-.zoom-controls {
-    right: 16px;
-}
-
-.view-switcher-footer {
-    left: 16px;
-    height: 34px;
-}
-
-.zoom-controls button,
-.view-btn {
+.zoom-controls button {
     padding: 6px 12px;
     background: transparent;
     border: none;
     border-right: 1px solid var(--glass-divider);
     cursor: pointer;
     font-family: inherit;
+    font-size: 16px;
     color: var(--text-muted);
     transition: background 0.2s, color 0.2s;
 }
 
-.zoom-controls button {
-    font-size: 16px;
-}
-
-.view-btn {
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.zoom-controls button:last-child,
-.view-btn:last-child {
+.zoom-controls button:last-child {
     border-right: none;
 }
 
-.zoom-controls button:hover,
-.view-btn:hover {
+.zoom-controls button:hover {
     background: rgba(255, 255, 255, 0.5);
     color: var(--text);
 }
 
 .zoom-controls button:active {
     background: rgba(255, 255, 255, 0.7);
-}
-
-.view-btn.active {
-    background: var(--accent);
-    color: white;
-}
-
-.view-btn svg {
-    width: 14px;
-    height: 14px;
 }
 
 /* ---------- XML editor ---------- */

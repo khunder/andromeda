@@ -2,12 +2,27 @@ import { DeploymentService } from './DeploymentService';
 import { ProcessStartModal } from './ProcessStartModal';
 import { showToast } from './Toast';
 
-export class GalaxyModal extends HTMLElement {
+/** `open-logs` event detail: which container's log stream to show. */
+export interface OpenLogsDetail {
+    deploymentId: string;
+    port: string;
+    /** the container's GET /api/logs/stream (SSE) endpoint */
+    url: string;
+}
+
+/**
+ * Galaxy registry view: the containers registered with Galaxy and their
+ * actions (open API, stream logs, start a process instance, stop). Lives in a
+ * dock panel opened from the left menu (see Workspace), replacing the old
+ * modal. "Logs" fires an `open-logs` event that Workspace turns into a log panel.
+ */
+export class GalaxyPanel extends HTMLElement {
     private shadow: ShadowRoot;
     private galaxyUrl: string = '';
     private deploymentService: DeploymentService | null = null;
     private processStartModal: ProcessStartModal | null = null;
     private items: any[] = [];
+    private rendered = false;
 
     constructor() {
         super();
@@ -15,24 +30,32 @@ export class GalaxyModal extends HTMLElement {
     }
 
     connectedCallback() {
+        // the dock moves this element between containers (panel closed and
+        // reopened) - render and wire listeners only once
+        if (this.rendered) return;
+        this.rendered = true;
         this.render();
         this.addEventListeners();
     }
 
     setGalaxyUrl(url: string) {
         this.galaxyUrl = url;
+        const urlLabel = this.shadow.getElementById('galaxy-url');
+        if (urlLabel) urlLabel.textContent = url;
     }
 
     setDeploymentService(deploymentService: DeploymentService) {
+        if (this.deploymentService === deploymentService) return;
         this.deploymentService = deploymentService;
         this.processStartModal = new ProcessStartModal(deploymentService);
     }
 
     async load() {
         if (!this.galaxyUrl) return;
-        
+
         const listDiv = this.shadow.getElementById('galaxy-list');
-        if (listDiv) listDiv.innerHTML = '<div class="loading">Loading...</div>';
+        // keep the current list while refreshing, only show "Loading" the first time
+        if (listDiv && this.items.length === 0) listDiv.innerHTML = '<div class="loading">Loading...</div>';
 
         try {
             const res = await fetch(`${this.galaxyUrl}/galaxy/containers`);
@@ -40,6 +63,7 @@ export class GalaxyModal extends HTMLElement {
             this.items = data;
             this.updateList();
         } catch (e) {
+            this.items = [];
             if (listDiv) listDiv.innerHTML = `<div class="error">Cannot reach Galaxy at ${this.galaxyUrl}</div>`;
         }
     }
@@ -57,17 +81,18 @@ export class GalaxyModal extends HTMLElement {
             <div class="list-container">
                 ${this.items.map(i => `
                     <div class="item">
-                        <div class="item-info">
-                            <div class="item-id"><strong>${i.deploymentId}</strong></div>
-                            <div class="item-meta">port: ${i.port} • lastSeen: ${new Date(i.lastSeen).toLocaleTimeString()}</div>
-                        </div>
-                        <div class="item-actions">
+                        <div class="item-head">
+                            <div class="item-id" title="${i.deploymentId}">${i.deploymentId}</div>
                             <div class="item-status status-${i.status === 'ready' ? 'ready' : 'error'}">
                                 ${i.status || 'unknown'}
                             </div>
-                            <button class="btn btn-api" data-port="${i.port}">API</button>
+                        </div>
+                        <div class="item-meta">port ${i.port} • seen ${new Date(i.lastSeen).toLocaleTimeString()}</div>
+                        <div class="item-actions">
                             <button class="btn btn-play" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance">▶</button>
                             <button class="btn btn-play-params" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance with Parameters">▶⚙</button>
+                            <button class="btn btn-api" data-port="${i.port}" title="Open the container's API (Swagger)">API</button>
+                            <button class="btn btn-logs" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Stream the container's logs">Logs</button>
                             <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
                         </div>
                     </div>
@@ -109,20 +134,11 @@ export class GalaxyModal extends HTMLElement {
     }
 
     private addEventListeners() {
-        const closeBtn = this.shadow.querySelector('.close-btn');
-        const overlay = this.shadow.querySelector('.overlay');
-        const footerCloseBtn = this.shadow.getElementById('btn-close');
+        const refreshBtn = this.shadow.getElementById('galaxy-refresh');
         const clearBtn = this.shadow.getElementById('galaxy-clear');
         const listDiv = this.shadow.getElementById('galaxy-list');
 
-        const close = () => {
-            this.remove();
-        };
-
-        closeBtn?.addEventListener('click', close);
-        overlay?.addEventListener('click', close);
-        footerCloseBtn?.addEventListener('click', close);
-
+        refreshBtn?.addEventListener('click', () => this.load());
         clearBtn?.addEventListener('click', () => this.clearRegistry());
 
         listDiv?.addEventListener('click', (e) => {
@@ -134,6 +150,14 @@ export class GalaxyModal extends HTMLElement {
             } else if (target.classList.contains('btn-api')) {
                 const port = target.getAttribute('data-port') || '';
                 window.open(`http://${this.getContainerHost()}:${port}/api`, '_blank');
+            } else if (target.classList.contains('btn-logs')) {
+                // the panel itself doesn't know about the dock - Workspace listens for this
+                const detail: OpenLogsDetail = {
+                    deploymentId: target.getAttribute('data-deployment-id') || '',
+                    port: target.getAttribute('data-port') || '',
+                    url: `http://${this.getContainerHost()}:${target.getAttribute('data-port')}/api/logs/stream`,
+                };
+                this.dispatchEvent(new CustomEvent<OpenLogsDetail>('open-logs', { detail, bubbles: true, composed: true }));
             } else if (target.classList.contains('btn-play')) {
                 const deploymentId = target.getAttribute('data-deployment-id') || '';
                 const port = target.getAttribute('data-port') || '';
@@ -192,181 +216,116 @@ export class GalaxyModal extends HTMLElement {
         this.shadow.innerHTML = `
             <style>
                 :host {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    z-index: 10000;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                }
-                
-                .overlay {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: var(--glass-overlay);
-                    backdrop-filter: blur(4px);
-                }
-                
-                .modal {
-                    position: relative;
-                    background: var(--glass-bg);
-                    backdrop-filter: var(--glass-blur);
-                    -webkit-backdrop-filter: var(--glass-blur);
-                    border: var(--glass-border);
-                    border-radius: var(--glass-radius);
-                    box-shadow: var(--glass-shadow);
-                    width: 90%;
-                    max-width: 800px;
-                    max-height: 85vh;
                     display: flex;
                     flex-direction: column;
-                    overflow: hidden;
-                    animation: slideIn 0.2s ease-out;
+                    height: 100%;
+                    font-family: var(--font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+                    color: var(--text, #1f2340);
                 }
-                
-                @keyframes slideIn {
-                    from { transform: translateY(20px); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
-                
-                .header {
-                    padding: 20px;
+
+                .toolbar {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 10px 12px;
                     border-bottom: 1px solid var(--glass-divider);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    background: rgba(255, 255, 255, 0.25);
                 }
-                
-                .header h2 {
-                    margin: 0;
-                    font-size: 20px;
-                    color: var(--text);
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-                
-                .close-btn {
-                    background: none;
-                    border: none;
-                    font-size: 24px;
-                    cursor: pointer;
-                    color: var(--text-muted);
-                    padding: 0;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: background 0.2s;
-                }
-                
-                .close-btn:hover {
-                    background: rgba(255, 255, 255, 0.7);
-                    color: var(--text);
-                }
-                
-                .body {
-                    padding: 20px;
-                    overflow-y: auto;
+
+                .url {
                     flex: 1;
-                    min-height: 300px;
+                    min-width: 0;
+                    font-size: 11px;
+                    color: var(--text-subtle);
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
-                
-                .footer {
-                    padding: 15px 20px;
-                    border-top: 1px solid var(--glass-divider);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    background: rgba(255, 255, 255, 0.25);
+
+                .body {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 12px;
                 }
-                
+
                 .btn {
-                    padding: 8px 16px;
-                    border-radius: 10px;
-                    font-size: 14px;
+                    padding: 5px 10px;
+                    border-radius: 8px;
+                    font-size: 12px;
                     font-weight: 500;
+                    font-family: inherit;
                     cursor: pointer;
                     border: 1px solid transparent;
-                    transition: all 0.2s;
-                }
-                
-                .btn-secondary {
                     background: var(--glass-control-bg);
                     color: var(--text-muted);
+                    transition: all 0.2s;
+                }
+
+                .btn-secondary {
                     border-color: rgba(255, 255, 255, 0.6);
                 }
-                
+
                 .btn-secondary:hover {
-                    background: rgba(255, 255, 255, 0.7);
-                    border-color: rgba(255, 255, 255, 0.9);
+                    background: rgba(255, 255, 255, 0.85);
+                    color: var(--text);
                 }
-                
+
                 .list-container {
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
                 }
-                
+
                 .item {
-                    padding: 12px;
-                    background: rgba(255, 255, 255, 0.3);
+                    padding: 10px 12px;
+                    background: rgba(255, 255, 255, 0.35);
                     border: 1px solid var(--glass-divider);
                     border-radius: 12px;
                     display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    transition: background 0.2s, transform 0.1s;
-                }
-                
-                .item:hover {
-                    background: rgba(255, 255, 255, 0.7);
-                    border-color: #e0e0e0;
-                    transform: translateX(2px);
-                }
-                
-                .item-info {
-                    display: flex;
                     flex-direction: column;
-                    gap: 4px;
+                    gap: 6px;
+                    transition: background 0.2s;
                 }
-                
+
+                .item:hover {
+                    background: rgba(255, 255, 255, 0.6);
+                }
+
+                .item-head {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                }
+
                 .item-id {
-                    font-size: 15px;
-                    color: var(--text);
+                    font-size: 14px;
+                    font-weight: 600;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
-                
+
                 .item-meta {
-                    font-size: 12px;
+                    font-size: 11px;
                     color: var(--text-muted);
                 }
-                
+
                 .item-actions {
                     display: flex;
-                    align-items: center;
-                    gap: 10px;
+                    flex-wrap: wrap;
+                    gap: 6px;
                 }
 
                 .item-status {
-                    font-size: 13px;
+                    flex: 0 0 auto;
+                    font-size: 11px;
                     font-weight: 600;
-                    padding: 4px 10px;
-                    border-radius: 12px;
+                    padding: 2px 8px;
+                    border-radius: 10px;
                     background: rgba(255, 255, 255, 0.5);
                 }
 
                 .btn-api {
-                    background: var(--glass-control-bg);
                     color: #1565c0;
                     border-color: #bbdefb;
                 }
@@ -376,8 +335,17 @@ export class GalaxyModal extends HTMLElement {
                     border-color: #1565c0;
                 }
 
+                .btn-logs {
+                    color: #5b5bf7;
+                    border-color: #d3d3fd;
+                }
+
+                .btn-logs:hover {
+                    background: rgba(91, 91, 247, 0.1);
+                    border-color: #5b5bf7;
+                }
+
                 .btn-play, .btn-play-params {
-                    background: var(--glass-control-bg);
                     color: #00796b;
                     border-color: #b2dfdb;
                 }
@@ -388,56 +356,51 @@ export class GalaxyModal extends HTMLElement {
                 }
 
                 .btn-stop {
-                    background: var(--glass-control-bg);
                     color: #c62828;
                     border-color: #f3c0c0;
+                    margin-left: auto;
                 }
 
                 .btn-stop:hover {
                     background: rgba(255, 235, 238, 0.75);
                     border-color: #c62828;
                 }
-                
+
                 .status-ready {
                     background: rgba(232, 245, 233, 0.75);
                     color: #2e7d32;
                 }
-                
+
                 .status-error {
                     background: rgba(255, 235, 238, 0.75);
                     color: #c62828;
                 }
-                
+
                 .loading, .empty, .error {
                     text-align: center;
-                    padding: 40px;
+                    padding: 30px 10px;
                     color: var(--text-muted);
+                    font-size: 13px;
                     font-style: italic;
                 }
-                
+
                 .error {
                     color: #c62828;
                 }
             </style>
-            
-            <div class="overlay"></div>
-            <div class="modal">
-                <div class="header">
-                    <h2>🌌 Galaxy Registry</h2>
-                    <button class="close-btn" title="Close">×</button>
-                </div>
-                <div class="body">
-                    <div id="galaxy-list">
-                        <div class="loading">Initializing...</div>
-                    </div>
-                </div>
-                <div class="footer">
-                    <button id="galaxy-clear" class="btn btn-secondary">Clear Registry</button>
-                    <button id="btn-close" class="btn btn-secondary">Close</button>
+
+            <div class="toolbar">
+                <span class="url" id="galaxy-url" title="Galaxy URL (Configuration Settings)">${this.galaxyUrl}</span>
+                <button id="galaxy-refresh" class="btn btn-secondary" title="Refresh">⟳</button>
+                <button id="galaxy-clear" class="btn btn-secondary" title="Remove every registration">Clear</button>
+            </div>
+            <div class="body">
+                <div id="galaxy-list">
+                    <div class="loading">Initializing...</div>
                 </div>
             </div>
         `;
     }
 }
 
-customElements.define('andromeda-galaxy-modal', GalaxyModal);
+customElements.define('andromeda-galaxy-panel', GalaxyPanel);

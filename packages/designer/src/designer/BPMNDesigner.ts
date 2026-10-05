@@ -5,8 +5,6 @@ import { ConfigurationPanel } from './ConfigurationPanel';
 import { DeploymentService } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
 import { showToast } from './Toast';
-import './GalaxyModal';
-import type { GalaxyModal } from './GalaxyModal';
 
 declare const monaco: any;
 
@@ -308,6 +306,14 @@ export class BPMNDesigner {
   private xmlEditorContainer: HTMLElement | null = null;
   private xmlEditor: any = null;
   private xmlEditorReadyPromise: Promise<void> | null = null;
+  // the XML editor sits in its own dock panel, possibly side by side with the
+  // diagram: while it's visible, diagram edits are mirrored into it
+  private xmlEditorVisible = false;
+  // set while the editor content is replaced programmatically, so that
+  // change doesn't bounce back as a re-import of the diagram
+  private settingXmlValue = false;
+  // a diagram was imported while the canvas had no size - fit once it's shown
+  private pendingFit = false;
   private zoom = 1;
 
   constructor(private container: HTMLElement) {
@@ -373,47 +379,66 @@ export class BPMNDesigner {
 
       let changeTimer: number | null = null;
       this.xmlEditor.onDidChangeModelContent(() => {
+        if (this.settingXmlValue) {
+          return;
+        }
         if (changeTimer) {
           window.clearTimeout(changeTimer);
         }
         changeTimer = window.setTimeout(() => this.applyXMLFromEditor(), 800);
       });
     });
+
+    // keep a visible XML editor in sync with diagram edits (unless the user
+    // is typing in it - their edits flow the other way, see above)
+    const eventBus = this.modeler.get('eventBus' as never) as any;
+    eventBus.on('commandStack.changed', () => {
+      if (this.xmlEditorVisible && !this.xmlEditor?.hasTextFocus()) {
+        void this.refreshXMLEditor();
+      }
+    });
   }
 
-  public async showDesigner(): Promise<void> {
-    if (this.xmlEditorContainer?.style.display !== 'none') {
-      await this.applyXMLFromEditor();
-    }
-
-    this.container.style.display = 'block';
-    if (this.xmlEditorContainer) {
-      this.xmlEditorContainer.style.display = 'none';
-    }
-
+  /** The diagram's dock panel was shown or resized. */
+  public showDesigner(): void {
     this.getCanvas()?.resized();
+    if (this.pendingFit) {
+      this.fitViewport();
+    }
   }
 
-  public async showXMLEditor(): Promise<void> {
-    const xml = await this.getXML();
-
-    await this.xmlEditorReadyPromise;
-    this.xmlEditor?.setValue(xml);
-
-    this.container.style.display = 'none';
-    if (this.xmlEditorContainer) {
-      this.xmlEditorContainer.style.display = 'block';
+  /** The XML editor's dock panel was shown or hidden. */
+  public async setXMLEditorVisible(visible: boolean): Promise<void> {
+    this.xmlEditorVisible = visible;
+    if (visible) {
+      await this.refreshXMLEditor();
     }
+  }
 
+  /** Re-lays out the XML editor after its dock panel was resized. */
+  public layoutXMLEditor(): void {
     this.xmlEditor?.layout();
   }
 
-  public async toggleView(): Promise<void> {
-    if (this.xmlEditorContainer?.style.display === 'block') {
-      await this.showDesigner();
-    } else {
-      await this.showXMLEditor();
+  private async refreshXMLEditor(): Promise<void> {
+    let xml: string;
+    try {
+      xml = await this.getXML();
+    } catch {
+      return; // no diagram imported yet - nothing to show
     }
+
+    await this.xmlEditorReadyPromise;
+    if (this.xmlEditor && this.xmlEditor.getValue() !== xml) {
+      this.settingXmlValue = true;
+      try {
+        this.xmlEditor.setValue(xml);
+      } finally {
+        this.settingXmlValue = false;
+      }
+    }
+
+    this.xmlEditor?.layout();
   }
 
   public async exportSVG(): Promise<void> {
@@ -450,9 +475,28 @@ export class BPMNDesigner {
 
   public async importFromXML(xml: string): Promise<void> {
     await this.modeler.importXML(xml);
+    this.pendingFit = true;
+    this.fitViewport();
+    this.clearPropertiesPanel();
+    // e.g. an example loaded, or the first diagram finishing its import after
+    // a restored layout already showed the XML tab
+    if (this.xmlEditorVisible && !this.xmlEditor?.hasTextFocus()) {
+      void this.refreshXMLEditor();
+    }
+  }
+
+  /**
+   * Fits the diagram to the canvas - deferred (see showDesigner) while the
+   * canvas has no size, e.g. its dock tab is in the background: bpmn-js would
+   * otherwise compute a non-finite zoom from a 0x0 viewport.
+   */
+  private fitViewport(): void {
+    if (this.container.clientWidth === 0 || this.container.clientHeight === 0) {
+      return;
+    }
+    this.pendingFit = false;
     this.getCanvas()?.zoom('fit-viewport', 'auto');
     this.zoom = this.readCurrentZoom();
-    this.clearPropertiesPanel();
   }
 
   public addElement(type: string, x: number, y: number): string {
@@ -533,17 +577,17 @@ export class BPMNDesigner {
     return this.configManager.getResolvedDeploymentId() || deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
   }
 
-  public showGalaxyPanel(): void {
-    let modal = document.querySelector('andromeda-galaxy-modal') as GalaxyModal | null;
+  /** Galaxy base URL from Configuration Settings, read fresh on every use. */
+  public getGalaxyUrl(): string {
+    return this.configManager.getGalaxyUrl();
+  }
 
-    if (!modal) {
-      modal = document.createElement('andromeda-galaxy-modal') as GalaxyModal;
-      document.body.appendChild(modal);
-    }
+  public getDeploymentService(): DeploymentService {
+    return this.deploymentService;
+  }
 
-    modal.setGalaxyUrl(this.configManager.getGalaxyUrl());
-    modal.setDeploymentService(this.deploymentService);
-    void modal.load();
+  public showConfiguration(): void {
+    this.configPanel.show();
   }
 
   private setupPropertiesPanel(): void {

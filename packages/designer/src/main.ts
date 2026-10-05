@@ -1,42 +1,54 @@
 import { BPMNDesigner } from './designer';
 import { BPMN_EXAMPLES } from './designer/examples';
 import { showToast } from './designer/Toast';
+import { Workspace } from './layout/Workspace';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
-// after the bpmn-js styles so the glass theme wins over them
+import './vendor/dockview.css';
+// after the library styles so the glass theme wins over them
 import './style.css';
 
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   const canvasContainer = document.getElementById('bpmn-canvas');
-  
-  if (!canvasContainer) {
-    console.error('Canvas container not found');
+  const dockRoot = document.getElementById('dock');
+  const panelSources = document.getElementById('panel-sources');
+  const sideMenu = document.querySelector<HTMLElement>('.side-menu');
+
+  if (!canvasContainer || !dockRoot || !panelSources || !sideMenu) {
+    console.error('Designer layout elements not found');
     return;
   }
-  
+
+  // Lay out the dock first, so bpmn-js is created on a visible canvas
+  const workspace = new Workspace(dockRoot, panelSources, sideMenu);
+  workspace.init();
+
   // Create designer instance
   const designer = new BPMNDesigner(canvasContainer);
-  
+
   // Initialize XML editor
   const xmlEditorContainer = document.getElementById('xml-editor');
   if (xmlEditorContainer) {
     designer.initXMLEditor(xmlEditorContainer);
   }
-  
+
+  workspace.attachDesigner(designer);
+
   // Expose designer to window for toolbar interactions and ElementRegistryUI
   (window as any).designer = designer;
   (window as any).bpmnDesigner = designer;
-  
+  (window as any).workspace = workspace;
+
   // Setup toolbar events
-  setupToolbar(designer);
-  
+  setupToolbar(designer, workspace);
+
   // Setup palette drag and drop
   setupPalette(designer);
 });
 
-function setupToolbar(designer: BPMNDesigner) {
+function setupToolbar(designer: BPMNDesigner, workspace: Workspace) {
   // Undo button
   const btnUndo = document.getElementById('btn-undo');
   if (btnUndo) {
@@ -113,7 +125,7 @@ function setupToolbar(designer: BPMNDesigner) {
   const btnConfig = document.getElementById('btn-config');
   if (btnConfig) {
     btnConfig.addEventListener('click', () => {
-      (designer as any).configPanel?.show();
+      designer.showConfiguration();
     });
   }
   
@@ -133,34 +145,14 @@ function setupToolbar(designer: BPMNDesigner) {
     });
   }
 
-  // Galaxy button
-  const btnGalaxy = document.getElementById('btn-galaxy');
-  if (btnGalaxy) {
-    btnGalaxy.addEventListener('click', () => {
-      (designer as any).showGalaxyPanel();
+  // Galaxy, Diagram, XML and Properties are opened from the left menu (Workspace)
+  const btnResetLayout = document.getElementById('btn-reset-layout');
+  if (btnResetLayout) {
+    btnResetLayout.addEventListener('click', () => {
+      workspace.resetLayout();
     });
   }
-  
-  // View switcher buttons
-  const btnDesignerView = document.getElementById('btn-designer-view');
-  const btnXmlView = document.getElementById('btn-xml-view');
-  
-  if (btnDesignerView) {
-    btnDesignerView.addEventListener('click', () => {
-      designer.showDesigner();
-      btnDesignerView.classList.add('active');
-      btnXmlView?.classList.remove('active');
-    });
-  }
-  
-  if (btnXmlView) {
-    btnXmlView.addEventListener('click', async () => {
-      await designer.showXMLEditor();
-      btnXmlView.classList.add('active');
-      btnDesignerView?.classList.remove('active');
-    });
-  }
-  
+
   // Zoom controls
   const btnZoomIn = document.getElementById('btn-zoom-in');
   if (btnZoomIn) {
