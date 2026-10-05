@@ -37,9 +37,11 @@ function ensureContainer(): HTMLElement {
         align-items: flex-start;
         gap: 10px;
         padding: 12px 14px;
-        border-radius: 6px;
+        border-radius: 12px;
         border: 1px solid transparent;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--glass-shadow-soft);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
         font-size: 13px;
         line-height: 1.4;
         animation: andromeda-toast-in 0.15s ease-out;
@@ -80,19 +82,19 @@ function ensureContainer(): HTMLElement {
       }
 
       .andromeda-toast-success {
-        background: #e8f5e9;
+        background: rgba(232, 245, 233, 0.75);
         border-color: #a5d6a7;
         color: #2e7d32;
       }
 
       .andromeda-toast-error {
-        background: #ffebee;
+        background: rgba(255, 235, 238, 0.75);
         border-color: #f3c0c0;
         color: #c62828;
       }
 
       .andromeda-toast-info {
-        background: #e3f2fd;
+        background: rgba(227, 242, 253, 0.75);
         border-color: #bbdefb;
         color: #1565c0;
       }

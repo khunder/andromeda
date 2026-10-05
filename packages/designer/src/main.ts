@@ -1,10 +1,11 @@
 import { BPMNDesigner } from './designer';
 import { BPMN_EXAMPLES } from './designer/examples';
 import { showToast } from './designer/Toast';
-import './style.css';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
+// after the bpmn-js styles so the glass theme wins over them
+import './style.css';
 
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {

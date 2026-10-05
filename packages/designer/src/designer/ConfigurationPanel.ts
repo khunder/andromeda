@@ -268,14 +268,18 @@ export class ConfigurationPanel {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: var(--glass-overlay);
+      backdrop-filter: blur(4px);
       }
       
       .config-modal-content {
         position: relative;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: var(--glass-radius);
+        box-shadow: var(--glass-shadow);
         width: 90%;
         max-width: 500px;
         max-height: 80vh;
@@ -285,7 +289,7 @@ export class ConfigurationPanel {
       
       .config-modal-header {
         padding: 20px;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--glass-divider);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -294,14 +298,14 @@ export class ConfigurationPanel {
       .config-modal-header h2 {
         margin: 0;
         font-size: 20px;
-        color: #333;
+        color: var(--text);
       }
       
       .config-modal-close {
         background: none;
         border: none;
         font-size: 28px;
-        color: #999;
+        color: var(--text-subtle);
         cursor: pointer;
         padding: 0;
         width: 30px;
@@ -309,13 +313,13 @@ export class ConfigurationPanel {
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 4px;
+        border-radius: 10px;
         transition: all 0.2s;
       }
       
       .config-modal-close:hover {
-        background: #f5f5f5;
-        color: #333;
+        background: rgba(255, 255, 255, 0.7);
+        color: var(--text);
       }
       
       .config-modal-body {
@@ -335,7 +339,7 @@ export class ConfigurationPanel {
       .config-section h3 {
         font-size: 14px;
         font-weight: 600;
-        color: #666;
+        color: var(--text-muted);
         margin: 0 0 15px 0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -348,7 +352,7 @@ export class ConfigurationPanel {
       .config-field label {
         display: block;
         font-size: 14px;
-        color: #333;
+        color: var(--text);
         margin-bottom: 5px;
         font-weight: 500;
       }
@@ -356,27 +360,27 @@ export class ConfigurationPanel {
       .config-field input {
         width: 100%;
         padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: var(--glass-control-border);
+        border-radius: 10px;
         font-size: 14px;
         transition: border-color 0.2s;
       }
       
       .config-field input:focus {
         outline: none;
-        border-color: #1e88e5;
+        border-color: var(--accent);
       }
       
       .config-field small {
         display: block;
         margin-top: 5px;
         font-size: 12px;
-        color: #999;
+        color: var(--text-subtle);
       }
       
       .config-modal-footer {
         padding: 15px 20px;
-        border-top: 1px solid #e0e0e0;
+        border-top: 1px solid var(--glass-divider);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -389,7 +393,7 @@ export class ConfigurationPanel {
       
       .btn-primary, .btn-secondary, .btn-test {
         padding: 8px 16px;
-        border-radius: 4px;
+        border-radius: 10px;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
@@ -398,25 +402,25 @@ export class ConfigurationPanel {
       }
       
       .btn-primary {
-        background: #1e88e5;
+        background: var(--accent);
         color: white;
-        border-color: #1e88e5;
+        border-color: var(--accent);
       }
       
       .btn-primary:hover {
-        background: #1976d2;
-        border-color: #1976d2;
+        background: #4a4ae0;
+        border-color: #4a4ae0;
       }
       
       .btn-secondary {
-        background: white;
-        color: #666;
-        border-color: #ddd;
+        background: var(--glass-control-bg);
+        color: var(--text-muted);
+        border-color: rgba(255, 255, 255, 0.6);
       }
       
       .btn-secondary:hover {
-        background: #f5f5f5;
-        border-color: #999;
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(255, 255, 255, 0.9);
       }
       
       .btn-test {
@@ -432,35 +436,35 @@ export class ConfigurationPanel {
       
       .btn-test:disabled {
         background: #ccc;
-        border-color: #ccc;
+        border-color: rgba(255, 255, 255, 0.9);
         cursor: not-allowed;
       }
       
       .test-result {
         margin-top: 10px;
         padding: 8px 12px;
-        border-radius: 4px;
+        border-radius: 10px;
         font-size: 13px;
         display: none;
       }
       
       .test-result.testing {
         display: block;
-        background: #e3f2fd;
+        background: rgba(227, 242, 253, 0.75);
         color: #1976d2;
         border: 1px solid #90caf9;
       }
       
       .test-result.success {
         display: block;
-        background: #e8f5e9;
+        background: rgba(232, 245, 233, 0.75);
         color: #2e7d32;
         border: 1px solid #81c784;
       }
       
       .test-result.error {
         display: block;
-        background: #ffebee;
+        background: rgba(255, 235, 238, 0.75);
         color: #c62828;
         border: 1px solid #ef5350;
       }

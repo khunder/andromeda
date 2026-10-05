@@ -210,15 +210,18 @@ export class GalaxyModal extends HTMLElement {
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    background: rgba(0, 0, 0, 0.5);
-                    backdrop-filter: blur(2px);
+                    background: var(--glass-overlay);
+                    backdrop-filter: blur(4px);
                 }
                 
                 .modal {
                     position: relative;
-                    background: white;
-                    border-radius: 8px;
-                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                    background: var(--glass-bg);
+                    backdrop-filter: var(--glass-blur);
+                    -webkit-backdrop-filter: var(--glass-blur);
+                    border: var(--glass-border);
+                    border-radius: var(--glass-radius);
+                    box-shadow: var(--glass-shadow);
                     width: 90%;
                     max-width: 800px;
                     max-height: 85vh;
@@ -235,17 +238,17 @@ export class GalaxyModal extends HTMLElement {
                 
                 .header {
                     padding: 20px;
-                    border-bottom: 1px solid #eee;
+                    border-bottom: 1px solid var(--glass-divider);
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    background: #f8f9fa;
+                    background: rgba(255, 255, 255, 0.25);
                 }
                 
                 .header h2 {
                     margin: 0;
                     font-size: 20px;
-                    color: #333;
+                    color: var(--text);
                     display: flex;
                     align-items: center;
                     gap: 10px;
@@ -256,7 +259,7 @@ export class GalaxyModal extends HTMLElement {
                     border: none;
                     font-size: 24px;
                     cursor: pointer;
-                    color: #666;
+                    color: var(--text-muted);
                     padding: 0;
                     width: 32px;
                     height: 32px;
@@ -268,8 +271,8 @@ export class GalaxyModal extends HTMLElement {
                 }
                 
                 .close-btn:hover {
-                    background: #e0e0e0;
-                    color: #333;
+                    background: rgba(255, 255, 255, 0.7);
+                    color: var(--text);
                 }
                 
                 .body {
@@ -281,16 +284,16 @@ export class GalaxyModal extends HTMLElement {
                 
                 .footer {
                     padding: 15px 20px;
-                    border-top: 1px solid #eee;
+                    border-top: 1px solid var(--glass-divider);
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    background: #f8f9fa;
+                    background: rgba(255, 255, 255, 0.25);
                 }
                 
                 .btn {
                     padding: 8px 16px;
-                    border-radius: 4px;
+                    border-radius: 10px;
                     font-size: 14px;
                     font-weight: 500;
                     cursor: pointer;
@@ -299,14 +302,14 @@ export class GalaxyModal extends HTMLElement {
                 }
                 
                 .btn-secondary {
-                    background: white;
-                    color: #666;
-                    border-color: #ddd;
+                    background: var(--glass-control-bg);
+                    color: var(--text-muted);
+                    border-color: rgba(255, 255, 255, 0.6);
                 }
                 
                 .btn-secondary:hover {
-                    background: #f5f5f5;
-                    border-color: #ccc;
+                    background: rgba(255, 255, 255, 0.7);
+                    border-color: rgba(255, 255, 255, 0.9);
                 }
                 
                 .list-container {
@@ -317,8 +320,9 @@ export class GalaxyModal extends HTMLElement {
                 
                 .item {
                     padding: 12px;
-                    border: 1px solid #eee;
-                    border-radius: 6px;
+                    background: rgba(255, 255, 255, 0.3);
+                    border: 1px solid var(--glass-divider);
+                    border-radius: 12px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -326,7 +330,7 @@ export class GalaxyModal extends HTMLElement {
                 }
                 
                 .item:hover {
-                    background: #fcfcfc;
+                    background: rgba(255, 255, 255, 0.7);
                     border-color: #e0e0e0;
                     transform: translateX(2px);
                 }
@@ -339,12 +343,12 @@ export class GalaxyModal extends HTMLElement {
                 
                 .item-id {
                     font-size: 15px;
-                    color: #333;
+                    color: var(--text);
                 }
                 
                 .item-meta {
                     font-size: 12px;
-                    color: #777;
+                    color: var(--text-muted);
                 }
                 
                 .item-actions {
@@ -358,56 +362,56 @@ export class GalaxyModal extends HTMLElement {
                     font-weight: 600;
                     padding: 4px 10px;
                     border-radius: 12px;
-                    background: #eee;
+                    background: rgba(255, 255, 255, 0.5);
                 }
 
                 .btn-api {
-                    background: white;
+                    background: var(--glass-control-bg);
                     color: #1565c0;
                     border-color: #bbdefb;
                 }
 
                 .btn-api:hover {
-                    background: #e3f2fd;
+                    background: rgba(227, 242, 253, 0.75);
                     border-color: #1565c0;
                 }
 
                 .btn-play, .btn-play-params {
-                    background: white;
+                    background: var(--glass-control-bg);
                     color: #00796b;
                     border-color: #b2dfdb;
                 }
 
                 .btn-play:hover, .btn-play-params:hover {
-                    background: #e0f2f1;
+                    background: rgba(224, 242, 241, 0.75);
                     border-color: #00796b;
                 }
 
                 .btn-stop {
-                    background: white;
+                    background: var(--glass-control-bg);
                     color: #c62828;
                     border-color: #f3c0c0;
                 }
 
                 .btn-stop:hover {
-                    background: #ffebee;
+                    background: rgba(255, 235, 238, 0.75);
                     border-color: #c62828;
                 }
                 
                 .status-ready {
-                    background: #e8f5e9;
+                    background: rgba(232, 245, 233, 0.75);
                     color: #2e7d32;
                 }
                 
                 .status-error {
-                    background: #ffebee;
+                    background: rgba(255, 235, 238, 0.75);
                     color: #c62828;
                 }
                 
                 .loading, .empty, .error {
                     text-align: center;
                     padding: 40px;
-                    color: #777;
+                    color: var(--text-muted);
                     font-style: italic;
                 }
                 

@@ -165,14 +165,18 @@ export class ProcessStartModal {
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: var(--glass-overlay);
+      backdrop-filter: blur(4px);
       }
 
       .start-params-content {
         position: relative;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        background: var(--glass-bg);
+        backdrop-filter: var(--glass-blur);
+        -webkit-backdrop-filter: var(--glass-blur);
+        border: var(--glass-border);
+        border-radius: var(--glass-radius);
+        box-shadow: var(--glass-shadow);
         width: 90%;
         max-width: 600px;
         display: flex;
@@ -181,7 +185,7 @@ export class ProcessStartModal {
 
       .start-params-header {
         padding: 20px;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--glass-divider);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -190,14 +194,14 @@ export class ProcessStartModal {
       .start-params-header h2 {
         margin: 0;
         font-size: 20px;
-        color: #333;
+        color: var(--text);
       }
 
       .start-params-close {
         background: none;
         border: none;
         font-size: 28px;
-        color: #999;
+        color: var(--text-subtle);
         cursor: pointer;
         padding: 0;
         width: 30px;
@@ -205,12 +209,12 @@ export class ProcessStartModal {
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 4px;
+        border-radius: 10px;
       }
 
       .start-params-close:hover {
-        background: #f5f5f5;
-        color: #333;
+        background: rgba(255, 255, 255, 0.7);
+        color: var(--text);
       }
 
       .start-params-body {
@@ -220,13 +224,13 @@ export class ProcessStartModal {
       .start-params-hint {
         margin: 0 0 10px 0;
         font-size: 13px;
-        color: #666;
+        color: var(--text-muted);
       }
 
       .start-params-editor {
         height: 240px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: var(--glass-control-border);
+        border-radius: 10px;
         overflow: hidden;
       }
 
@@ -234,7 +238,7 @@ export class ProcessStartModal {
         display: block;
         font-size: 12px;
         font-weight: 600;
-        color: #666;
+        color: var(--text-muted);
         margin-bottom: 4px;
       }
 
@@ -242,15 +246,15 @@ export class ProcessStartModal {
         width: 100%;
         padding: 8px 10px;
         margin-bottom: 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: var(--glass-control-border);
+        border-radius: 10px;
         font-size: 13px;
-        background: white;
+        background: var(--glass-control-bg);
       }
 
       .start-params-footer {
         padding: 15px 20px;
-        border-top: 1px solid #e0e0e0;
+        border-top: 1px solid var(--glass-divider);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -281,7 +285,7 @@ export class ProcessStartModal {
 
       .btn-primary, .btn-secondary {
         padding: 8px 16px;
-        border-radius: 4px;
+        border-radius: 10px;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
@@ -289,25 +293,25 @@ export class ProcessStartModal {
       }
 
       .btn-primary {
-        background: #1e88e5;
+        background: var(--accent);
         color: white;
-        border-color: #1e88e5;
+        border-color: var(--accent);
       }
 
       .btn-primary:hover {
-        background: #1976d2;
-        border-color: #1976d2;
+        background: #4a4ae0;
+        border-color: #4a4ae0;
       }
 
       .btn-secondary {
-        background: white;
-        color: #666;
-        border-color: #ddd;
+        background: var(--glass-control-bg);
+        color: var(--text-muted);
+        border-color: rgba(255, 255, 255, 0.6);
       }
 
       .btn-secondary:hover {
-        background: #f5f5f5;
-        border-color: #999;
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(255, 255, 255, 0.9);
       }
     `;
 
