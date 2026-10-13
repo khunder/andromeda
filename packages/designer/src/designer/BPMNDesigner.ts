@@ -316,7 +316,7 @@ export class BPMNDesigner {
   private pendingFit = false;
   private zoom = 1;
 
-  constructor(private container: HTMLElement) {
+  constructor(private container: HTMLElement, initialXML: string = EMPTY_BPMN) {
     this.container.classList.add('bpmn-io-canvas');
     this.modeler = new Modeler({
       container,
@@ -330,7 +330,7 @@ export class BPMNDesigner {
     this.setupPropertiesPanel();
     this.renderPropertiesPanel(null);
 
-    this.importFromXML(EMPTY_BPMN).catch((error) => {
+    this.importFromXML(initialXML).catch((error) => {
       console.error('Failed to initialize BPMN.io modeler:', error);
     });
   }

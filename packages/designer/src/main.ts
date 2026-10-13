@@ -1,5 +1,5 @@
 import { BPMNDesigner } from './designer';
-import { BPMN_EXAMPLES } from './designer/examples';
+import { BPMN_EXAMPLES, DEFAULT_EXAMPLE } from './designer/examples';
 import { showToast } from './designer/Toast';
 import { Workspace } from './layout/Workspace';
 import 'bpmn-js/dist/assets/diagram-js.css';
@@ -25,8 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const workspace = new Workspace(dockRoot, panelSources, sideMenu);
   workspace.init();
 
-  // Create designer instance
-  const designer = new BPMNDesigner(canvasContainer);
+  // Create designer instance, opened on the default example
+  const designer = new BPMNDesigner(canvasContainer, DEFAULT_EXAMPLE?.xml);
 
   // Initialize XML editor
   const xmlEditorContainer = document.getElementById('xml-editor');

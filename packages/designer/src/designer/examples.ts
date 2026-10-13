@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
 /**
- * Example diagrams for the toolbar "Examples" dropdown: every BPMN scenario
- * used by the engine's test suite (packages/engine/test/**), bundled as raw
- * XML at build time so new test fixtures show up here automatically.
+ * Example diagrams for the toolbar "Examples" dropdown: a curated subset of the
+ * BPMN scenarios used by the engine's test suite (packages/engine/test/**),
+ * bundled as raw XML at build time.
  */
 
 export interface BpmnExample {
@@ -14,7 +14,16 @@ export interface BpmnExample {
   xml: string;
 }
 
-const files = import.meta.glob('../../../engine/test/**/*.bpmn', {
+// import.meta.glob only accepts literals, so the list is spelled out here
+const files = import.meta.glob([
+  '../../../engine/test/resources/timer-start-event.bpmn',
+  '../../../engine/test/resources/timer-intermediate-catch-event.bpmn',
+  '../../../engine/test/resources/timer-intermediate-catch-event-restore.bpmn',
+  '../../../engine/test/resources/parallel-gateway-join.bpmn',
+  '../../../engine/test/resources/intermediate-catch-event-signal.bpmn',
+  '../../../engine/test/resources/exclusive-gateway-conditional-flow.bpmn',
+  '../../../engine/test/resources/double-variable-assignment.bpmn',
+], {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -36,3 +45,8 @@ export const BPMN_EXAMPLES: BpmnExample[] = Object.entries(files)
     return { label: toLabel(fileName), path, xml };
   })
   .sort((a, b) => a.label.localeCompare(b.label));
+
+/** diagram the designer opens with */
+export const DEFAULT_EXAMPLE = BPMN_EXAMPLES.find(
+  e => e.path === 'resources/timer-intermediate-catch-event.bpmn'
+);

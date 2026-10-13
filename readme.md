@@ -10,6 +10,29 @@ state, and can run next to the engine during development or be shipped and deplo
 > "Container" in this project always means *a generated Node.js app*, not a Docker container (although a
 > generated container can of course be packaged into a Docker image).
 
+The repo has two parts: the **engine** (compiles and runs workflows, REST API on port 5000) and the
+**designer** (a browser BPMN editor to draw a diagram, compile it, run it and drive its instances).
+
+### Quick start
+
+```bash
+npm install
+echo "ACTIVE_MODULES=server,web,persistence,galaxy" >  packages/engine/.env
+echo "ENV=local"                                     >> packages/engine/.env
+npm run dev
+```
+.env File
+```
+ACTIVE_MODULES=server,web,persistence,galaxy
+ENV=local
+PERSISTENCE_DRIVER=sqlite
+```
+
+
+`npm run dev` starts the engine (http://localhost:5000) and the designer (http://localhost:3000) together,
+with each process's output prefixed by its name. Open the designer: it loads the *Timer Intermediate Catch
+Event* example, and more examples are in the toolbar's **Examples** dropdown. Stop both with `Ctrl+C`.
+
 ---
 
 ## Table of contents
@@ -108,14 +131,20 @@ older custom SVG renderer.
 npm install
 
 # 2. Configure the engine
-#    create packages/engine/.env (see "Configuration" below)
+#    create packages/engine/.env (see "Configuration" below; it is git-ignored)
 
-# 3. Run the engine (http://localhost:5000)
-npm start
-
-# 4. In another terminal, run the designer dev server
-npm run designer:dev
+# 3. Run the engine and the designer together
+npm run dev
 ```
+
+| Command                | Starts                                                                 |
+|------------------------|------------------------------------------------------------------------|
+| `npm run dev`          | Engine and designer in parallel (`run-p`), output prefixed per process |
+| `npm start`            | Engine only, http://localhost:5000                                     |
+| `npm run designer:dev` | Designer only (Vite), http://localhost:3000 (next free port if taken)  |
+
+The designer talks to the engine at `http://localhost:5000` by default. You can change this in its
+configuration panel.
 
 Every engine command must run with the working directory set to `packages/engine/`. The engine resolves
 runtime paths (deployments, SQLite file, PID files) from `process.cwd()`. Either use the root aliases or
