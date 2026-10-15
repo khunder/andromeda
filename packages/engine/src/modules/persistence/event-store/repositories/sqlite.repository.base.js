@@ -1,6 +1,7 @@
 import {v4} from 'uuid';
 import SqliteConnection from '../internal/sqlite/sqlite-connection.js';
 import {AndromedaLogger} from '../../../../config/andromeda-logger.js';
+import {loggable} from './log-redaction.js';
 
 const Logger = new AndromedaLogger();
 
@@ -121,7 +122,7 @@ export class SqliteRepositoryBase {
     async create(item) {
         await this.ready();
         const toInsert = item._id ? item : {...item, _id: v4()};
-        Logger.trace(`Sqlite repository (${this.table.name}): creating item ${JSON.stringify(toInsert)}`);
+        Logger.trace(`Sqlite repository (${this.table.name}): creating item ${loggable(toInsert)}`);
         const columns = Object.keys(toInsert);
         const placeholders = columns.map(() => '?').join(', ');
         const values = columns.map((c) => this.encodeValue(c, toInsert[c]));
@@ -165,7 +166,7 @@ export class SqliteRepositoryBase {
 
     async upsert(cond, item) {
         await this.ready();
-        Logger.trace(`Sqlite repository (${this.table.name}): upsert: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
+        Logger.trace(`Sqlite repository (${this.table.name}): upsert: cond:${loggable(cond)}, item : ${loggable(item)}`);
         const existing = await this.findOne(cond);
         if (existing) {
             this.runWrite(item, cond);
@@ -195,7 +196,7 @@ export class SqliteRepositoryBase {
     // the same process interleave and see the same still-unclaimed row.
     async update(cond, item) {
         await this.ready();
-        Logger.trace(`Sqlite repository (${this.table.name}): update: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
+        Logger.trace(`Sqlite repository (${this.table.name}): update: cond:${loggable(cond)}, item : ${loggable(item)}`);
         const {clause, params} = this.buildWhere(cond);
         const match = this.runSelect(`SELECT * FROM ${this.table.name} ${clause} LIMIT 1`, params)[0];
         if (!match) {

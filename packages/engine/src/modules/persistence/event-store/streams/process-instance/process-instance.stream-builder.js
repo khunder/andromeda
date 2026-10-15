@@ -26,6 +26,18 @@ export const closeProcessInstanceDataSchema = {
 }
 
 
+// the reason stays in the event log - the read model only records status Error
+export const failProcessInstanceDataSchema = {
+    type: "object",
+    properties: {
+        id: {type: "string"},
+        reason: {type: "string"},
+    },
+    required: ["id"],
+    additionalProperties: false,
+}
+
+
 export class ProcessInstanceStreamBuilder {
 
     /**
@@ -36,11 +48,13 @@ export class ProcessInstanceStreamBuilder {
         const stream = new Stream(StreamIds.PROCESS_INSTANCE);
         stream.eventsRegistry =  {
             CREATE_PROCESS_INSTANCE: "CREATE_PROCESS_INSTANCE",
-            CLOSE_PROCESS_INSTANCE: "CLOSE_PROCESS_INSTANCE"
+            CLOSE_PROCESS_INSTANCE: "CLOSE_PROCESS_INSTANCE",
+            FAIL_PROCESS_INSTANCE: "FAIL_PROCESS_INSTANCE"
         }
         stream.validators ={
             [stream.eventsRegistry.CREATE_PROCESS_INSTANCE] : processInstanceDataSchema,
             [stream.eventsRegistry.CLOSE_PROCESS_INSTANCE] : closeProcessInstanceDataSchema,
+            [stream.eventsRegistry.FAIL_PROCESS_INSTANCE] : failProcessInstanceDataSchema,
         }
 
         EventStore.registerStream(stream.streamId, stream);

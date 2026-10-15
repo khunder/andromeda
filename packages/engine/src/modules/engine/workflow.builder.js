@@ -330,6 +330,9 @@ class WorkflowBuilder {
                 return {schema: {type: 'object'}, example: {}};
             case 'Date':
                 return {schema: {type: 'string', format: 'date-time'}, example: new Date().toISOString()};
+            case 'file':
+                // the stored reference, see the container's src/modules/files/file.service.js
+                return {schema: {type: 'object', description: 'File reference: fileName, contentType, size, sha256, storage, key'}, example: {}};
             case 'string':
             default:
                 return {schema: {type: 'string'}, example: 'value'};
@@ -349,12 +352,50 @@ class WorkflowBuilder {
             properties: {},
             example: {}
         };
-        processVariables.forEach((variable) => {
-            const {schema: propertySchema, example} = this.mapVariableType(variable.type);
-            schema.properties[variable.name] = propertySchema;
-            schema.example[variable.name] = example;
-        });
+        processVariables
+            // file variables are set through `files` (see buildFilesSchema), not here
+            .filter((variable) => variable.type !== 'file')
+            .forEach((variable) => {
+                const {schema: propertySchema, example} = this.mapVariableType(variable.type);
+                schema.properties[variable.name] = propertySchema;
+                schema.example[variable.name] = example;
+            });
         return schema;
+    }
+
+    /**
+     * OpenAPI pieces for a process's `file` variables: the JSON `files`
+     * object (one base64/url/path source per file variable), and the
+     * multipart parts (one binary part per file variable, named after it).
+     * See the container's src/modules/files/file-inputs.js.
+     * @param {Array<{name: string, type: string}>} processVariables
+     * @returns {{filesSchema: object, multipartParts: object, forceSchema: object}}
+     */
+    buildFilesSchema(processVariables) {
+        const fileVariables = processVariables.filter((variable) => variable.type === 'file');
+        const source = {
+            type: 'object',
+            description: 'Exactly one of base64, url or path',
+            properties: {
+                base64: {type: 'string', description: 'File content, base64 or a data: URL'},
+                url: {type: 'string', format: 'uri', description: 'http(s) URL the container downloads the file from'},
+                path: {type: 'string', description: 'Path relative to the container\'s FILE_INPUT_DIR (disabled when unset)'},
+                fileName: {type: 'string'},
+                contentType: {type: 'string'},
+            },
+        };
+        const filesSchema = {
+            type: 'object',
+            description: 'Files for the process\'s file variables, keyed by variable name. Up to FILE_INLINE_MAX_BYTES a file is kept in the database, bigger ones in object storage; above FILE_MAX_BYTES the process instance fails unless forceFileSize is set.',
+            properties: Object.fromEntries(fileVariables.map((variable) => [variable.name, source])),
+            additionalProperties: false,
+        };
+        const multipartParts = Object.fromEntries(fileVariables.map((variable) => [
+            variable.name,
+            {type: 'string', format: 'binary', description: `Content of file variable "${variable.name}"`},
+        ]));
+        const forceSchema = {type: 'boolean', description: 'Accept files above FILE_MAX_BYTES (up to FILE_FORCED_MAX_BYTES), with a warning'};
+        return {filesSchema, multipartParts, forceSchema};
     }
 
     /**
@@ -367,7 +408,9 @@ class WorkflowBuilder {
     generateContainerControllerClass(normalizedProcessDef, bpmnModel, containerParsingContext, workflowCodegenContext) {
             const controllerName= `${normalizedProcessDef}Controller`
 
-        const variablesSchema = this.buildVariablesSchema(this.getProcessVariables(bpmnModel.model));
+        const processVariables = this.getProcessVariables(bpmnModel.model);
+        const variablesSchema = this.buildVariablesSchema(processVariables);
+        const {filesSchema, multipartParts, forceSchema} = this.buildFilesSchema(processVariables);
 
         const openApiCodegen = workflowCodegenContext.containerCodegenContext.openApiCodegen;
         const startPath = `/${normalizedProcessDef}/start`;
@@ -406,7 +449,13 @@ class WorkflowBuilder {
                                 "type": "string",
                                 "description": "JSON-encoded process variables object",
                                 "example": JSON.stringify(variablesSchema.example)
-                            }
+                            },
+                            "files": {
+                                "type": "string",
+                                "description": "JSON-encoded `files` object (base64/url/path sources), as in the JSON body"
+                            },
+                            "forceFileSize": {"type": "string", "enum": ["true", "false"], "description": forceSchema.description},
+                            ...multipartParts
                         }
                     }
                 },
@@ -414,11 +463,18 @@ class WorkflowBuilder {
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "variables": variablesSchema
+                            "variables": variablesSchema,
+                            "files": filesSchema,
+                            "forceFileSize": forceSchema
                         }
                     }
                 }
             }
+        })
+        openApiCodegen.addResponse(startPath, "post", {
+            "400": {"description": "Invalid variables or files (unknown file variable, bad source, path outside FILE_INPUT_DIR, ...)"},
+            "413": {"description": "A file exceeds FILE_MAX_BYTES (or FILE_FORCED_MAX_BYTES when forced): the process instance is created and marked as failed; the body carries its id"},
+            "422": {"description": "A file could not be read (download failed, missing local file)"}
         })
         workflowCodegenContext.routes.push({verb: "POST", path: startPath , method: "start"})
 
@@ -441,12 +497,29 @@ class WorkflowBuilder {
                     }
                 }
             },
+            "400": {"description": "Missing processInstanceId/nodeId, or invalid variables or files"},
             "404": {"description": "Process instance not found/active, or nodeId is not a known node in this workflow"},
-            "409": {"description": "Process instance is not currently waiting at that node"}
+            "409": {"description": "Process instance is not currently waiting at that node"},
+            "413": {"description": "A file exceeds FILE_MAX_BYTES (or FILE_FORCED_MAX_BYTES when forced) - nothing is resumed, the instance keeps waiting"},
+            "422": {"description": "A file could not be read (download failed, missing local file)"}
         })
         openApiCodegen.setRequestBody(signalPath, "post", {
             "required": true,
             "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["processInstanceId", "nodeId"],
+                        "properties": {
+                            "processInstanceId": {"type": "string"},
+                            "nodeId": {"type": "string"},
+                            "variables": {"type": "string", "description": "JSON-encoded process variables object"},
+                            "files": {"type": "string", "description": "JSON-encoded `files` object (base64/url/path sources), as in the JSON body"},
+                            "forceFileSize": {"type": "string", "enum": ["true", "false"], "description": forceSchema.description},
+                            ...multipartParts
+                        }
+                    }
+                },
                 "application/json": {
                     "schema": {
                         "type": "object",
@@ -454,7 +527,9 @@ class WorkflowBuilder {
                         "properties": {
                             "processInstanceId": {"type": "string", "description": "The id returned by POST /start"},
                             "nodeId": {"type": "string", "description": "The id of the intermediate catch event or human task node to resume"},
-                            "variables": variablesSchema
+                            "variables": variablesSchema,
+                            "files": filesSchema,
+                            "forceFileSize": forceSchema
                         }
                     }
                 }

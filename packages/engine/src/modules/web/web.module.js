@@ -31,7 +31,12 @@ export class WebModule {
         const __dirname = path.dirname(__filename);
 
 
-        this.app = fastify({ logger: null })
+        // file variables can arrive base64-encoded in a JSON body (or a
+        // multipart text field): allow up to the forced file cap plus base64's
+        // 4/3 growth and some room for the rest of the body
+        const maxUploadBytes = Config.getInstance().fileForcedMaxBytes || 10000000;
+        this.maxEncodedBodyBytes = Math.ceil(maxUploadBytes * 4 / 3) + 1024 * 1024;
+        this.app = fastify({ logger: null, bodyLimit: this.maxEncodedBodyBytes })
         this.gracefulServer = GracefulServer(this.app.server)
 
         // Configure CORS to allow requests from frontend
@@ -124,9 +129,12 @@ export class WebModule {
         this.app.register(multipart, {
             limits: {
                 fieldNameSize: 100, // Max field name size in bytes
-                fieldSize: 1000000, // Max field value size in bytes
+                fieldSize: this.maxEncodedBodyBytes, // Max field value size in bytes (a `files` field may carry base64)
                 fields: 10, // Max number of non-file fields
-                fileSize: 10000000, // 10 MB - max file size
+                // largest accepted upload - file variables can be forced up to
+                // FILE_FORCED_MAX_BYTES (see config.js), the size policy itself
+                // is applied by the container's FileService
+                fileSize: Config.getInstance().fileForcedMaxBytes || 10000000,
                 files: 10, // Max number of file fields
                 headerPairs: 2000 // Max number of header key=>value pairs
             }

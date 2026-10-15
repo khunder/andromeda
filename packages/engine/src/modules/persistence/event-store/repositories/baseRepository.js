@@ -1,5 +1,6 @@
 import {v4} from "uuid"
 import {AndromedaLogger} from "../../../../config/andromeda-logger.js";
+import {loggable} from "./log-redaction.js";
 const Logger = new AndromedaLogger();
 class BaseRepository {
   /**
@@ -22,7 +23,7 @@ class BaseRepository {
 
   async create(item) {
     try {
-      Logger.trace(`Base repository: creating item ${JSON.stringify(item)}`);
+      Logger.trace(`Base repository: creating item ${loggable(item)}`);
       return await this._model.create(item);
     } catch (e) {
       Logger.error(e);
@@ -64,7 +65,7 @@ class BaseRepository {
   }
 
   async upsert(cond, item){
-    Logger.trace(`Base repository: upsert: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
+    Logger.trace(`Base repository: upsert: cond:${loggable(cond)}, item : ${loggable(item)}`);
     const options = {
       upsert: true,
       new: true,
@@ -78,7 +79,7 @@ class BaseRepository {
   // updates an existing document only: no document is created when cond matches
   // nothing, unlike upsert which would insert a partial (and unvalidated) doc
   async update(cond, item){
-    Logger.trace(`Base repository: update: cond:${JSON.stringify(cond)}, item : ${JSON.stringify(item)}`);
+    Logger.trace(`Base repository: update: cond:${loggable(cond)}, item : ${loggable(item)}`);
     return this._model.findOneAndUpdate(cond, item, { new: true });
   }
 

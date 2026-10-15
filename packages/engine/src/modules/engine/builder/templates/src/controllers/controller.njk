@@ -2,37 +2,103 @@ import  {AndromedaLogger} from "../config/andromeda-logger.js";
 import {ContainerService} from "../modules/container/container.service.js";
 import {WorkflowModel} from "../modules/container/{{ ProcessDef.toLowerCase() }}.workflow-model.js";
 import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js";
+import {Config} from "../config/config.js";
+import { {{ ProcessDef }}ProcessInstanceContext} from "../services/{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
+import {collectFileInputs, FileTooLargeError, fileVariableNames, getFileService, isForced} from "../modules/files/files.js";
 const Logger = new AndromedaLogger();
+
+// names of this workflow's `file` variables (see src/modules/files)
+const FILE_VARIABLES = fileVariableNames(new {{ ProcessDef }}ProcessInstanceContext(null));
+
+// the start event files given to /start are recorded against
+const START_NODE_ID = Object.values(WorkflowModel).find((flow) => flow.source && flow.source.$type === 'StartEvent')?.source.id || 'start';
+
+/** `variables` from a JSON body (object) or a multipart field (JSON string). */
+function parseVariables(value) {
+    if (!value) {
+        return {};
+    }
+    if (typeof value !== 'string') {
+        return value;
+    }
+    try {
+        return JSON.parse(value);
+    } catch {
+        throw Object.assign(new Error('"variables" must be a JSON object'), {statusCode: 400});
+    }
+}
+
+/** The request's file inputs - validated, not read yet (src/modules/files/file-inputs.js). */
+function requestFileInputs(req) {
+    const config = Config.getInstance();
+    // the route's multipart preHandler sets req.files to the uploaded parts;
+    // otherwise it is @fastify/multipart's own files() decorator - not ours
+    const uploads = Array.isArray(req.files) ? req.files : [];
+    return collectFileInputs({body: req.body, files: uploads}, FILE_VARIABLES, {
+        inputDir: config.fileInputDir,
+        urlTimeoutMs: config.fileUrlTimeoutMs,
+    });
+}
+
+/** Where stored files go: <deploymentId>/<version>/<processInstanceId>/<nodeId>/<fileName>. */
+function fileLocation(processInstanceId, nodeId) {
+    return {
+        deploymentId: ContainerService.deploymentId || Config.getInstance().deploymentId,
+        version: ContainerService.version || 'unversioned',
+        processInstanceId,
+        nodeId,
+    };
+}
 
 class {{ ControllerClassName }} {
 
     static start = async (req, res) => {
 
         try {
-            let variables = {};
-            if(req.body && req.body.variables){
-                // multipart/form-data sends "variables" as a JSON-encoded string field;
-                // application/json bodies arrive already parsed as an object
-                variables = typeof req.body.variables === 'string'
-                    ? JSON.parse(req.body.variables)
-                    : req.body.variables;
+            const body = req.body || {};
+            const variables = parseVariables(body.variables);
+
+            // read and size-check every file before anything is created: a
+            // bad request (unknown variable, unreadable source) creates nothing
+            const fileService = getFileService();
+            const inputs = requestFileInputs(req);
+            let loadedFiles = [];
+            let tooLarge = null;
+            try {
+                loadedFiles = await fileService.loadAll(inputs, {force: isForced(body)});
+            } catch (error) {
+                if (!(error instanceof FileTooLargeError)) {
+                    throw error;
+                }
+                tooLarge = error;
             }
 
-            if(req.files){
-                Object.keys(req.files).forEach( (file) => {
-                Logger.debug(`storing file ${file} in persistent storage`);
-                });
-            }
             const processInstance = await {{ startMethod.name }}ProcessInstanceService.createInstance();
-            processInstance.bootstrap(variables);
-            return {id: processInstance.processInstanceId};
+            if (!processInstance) {
+                throw new Error('could not create the process instance');
+            }
+            const processInstanceId = processInstance.processInstanceId;
+
+            // a file over the limit fails the process instance at start
+            if (tooLarge) {
+                Logger.warn(`process instance ${processInstanceId} failed at start: ${tooLarge.message}`);
+                await PersistenceGateway.failProcessInstance({processInstanceId, reason: tooLarge.message});
+                delete ContainerService.getInstance().processInstances[processInstanceId];
+                res.code(413);
+                const hint = isForced(body) ? ' (the forced maximum, FILE_FORCED_MAX_BYTES)' : ' - pass forceFileSize to accept it anyway';
+                return {id: processInstanceId, status: 'error', message: `${tooLarge.message}${hint}`};
+            }
+
+            const {refs, warnings} = await fileService.storeAll(loadedFiles, fileLocation(processInstanceId, START_NODE_ID));
+            processInstance.bootstrap({...variables, ...refs});
+            return warnings.length > 0 ? {id: processInstanceId, warnings} : {id: processInstanceId};
 
         } catch (err) {
             Logger.error(err);
             const returnError = new Error();
-            returnError.statusCode = 500;
-            returnError.message = err;
-            returnError.stack=err;
+            returnError.statusCode = err.statusCode || 500;
+            returnError.message = err.message || err;
+            returnError.stack = err.stack || err;
             throw returnError;
         }
     }
@@ -93,14 +159,19 @@ class {{ ControllerClassName }} {
                 throw err;
             }
 
-            if (body.variables) {
-                const variables = typeof body.variables === 'string' ? JSON.parse(body.variables) : body.variables;
-                Object.keys(variables).forEach((key) => {
-                    if (key in processInstance.variables) {
-                        processInstance.variables[key] = variables[key];
-                    }
-                });
-            }
+            // files (e.g. a human task's attachment) are read and stored before
+            // the node is claimed below, so a bad or oversized file is
+            // rejected while the instance keeps waiting for a valid signal
+            const fileService = getFileService();
+            const loadedFiles = await fileService.loadAll(requestFileInputs(req), {force: isForced(body)});
+            const {refs, warnings} = await fileService.storeAll(loadedFiles, fileLocation(processInstanceId, nodeId));
+
+            const variables = {...parseVariables(body.variables), ...refs};
+            Object.keys(variables).forEach((key) => {
+                if (key in processInstance.variables) {
+                    processInstance.variables[key] = variables[key];
+                }
+            });
 
             // atomic (status-conditional) close, not the plain check-then-close
             // above would suggest: a timer intermediate catch event's own
@@ -124,7 +195,7 @@ class {{ ControllerClassName }} {
             processInstance[`fn_${nodeId}`]({executeBody: true, id: pendingFlow.id})
                 .catch((error) => { Logger.error(error); });
 
-            return {resumed: true, processInstanceId, nodeId};
+            return warnings.length > 0 ? {resumed: true, processInstanceId, nodeId, warnings} : {resumed: true, processInstanceId, nodeId};
 
         } catch (err) {
             Logger.error(err);

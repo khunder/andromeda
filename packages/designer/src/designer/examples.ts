@@ -23,6 +23,7 @@ const files = import.meta.glob([
   '../../../engine/test/resources/intermediate-catch-event-signal.bpmn',
   '../../../engine/test/resources/exclusive-gateway-conditional-flow.bpmn',
   '../../../engine/test/resources/double-variable-assignment.bpmn',
+  '../../../engine/test/resources/document-intake.bpmn',
 ], {
   query: '?raw',
   import: 'default',

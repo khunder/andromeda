@@ -78,6 +78,20 @@ export const TABLE_DEFINITIONS = {
     // and engine-timer.orm-model.js for why lockedBy/lockedUntil (an atomic
     // lease, not a real cross-document transaction) is the whole claim
     // mechanism on both drivers.
+    FileContent: {
+        name: 'FileContent',
+        ddl: `CREATE TABLE IF NOT EXISTS FileContent (
+            _id TEXT PRIMARY KEY,
+            contentType TEXT,
+            size INTEGER NOT NULL,
+            sha256 TEXT NOT NULL,
+            data TEXT NOT NULL,
+            metadata TEXT,
+            createdAt TEXT,
+            updatedAt TEXT
+        )`,
+        jsonFields: ['metadata'],
+    },
     EngineTimer: {
         name: 'EngineTimer',
         ddl: `CREATE TABLE IF NOT EXISTS EngineTimer (

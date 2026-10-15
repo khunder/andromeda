@@ -45,5 +45,21 @@ export class Config {
         // server needed) or 'mongodb' (needs MONGODB_URI)
         this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'sqlite';
         this.sqliteFilePath = process.env.SQLITE_FILE_PATH || path.join(process.cwd(), 'andromeda.sqlite');
+        // file variables - handed to embedded containers as-is (see
+        // embedded.containers.service.js and the container's own config.js).
+        // Defaults live here so every embedded container shares one storage
+        // folder instead of one per deployment folder (deleted on recompile).
+        this.fileStorageDriver = process.env.FILE_STORAGE_DRIVER || 'local';
+        this.fileStorageDir = process.env.FILE_STORAGE_DIR || path.join(process.cwd(), 'storage');
+        this.fileInputDir = process.env.FILE_INPUT_DIR ? path.resolve(process.env.FILE_INPUT_DIR) : '';
+        this.fileInlineMaxBytes = bytesFromEnv('FILE_INLINE_MAX_BYTES', 256 * 1024);
+        this.fileMaxBytes = bytesFromEnv('FILE_MAX_BYTES', 10 * 1024 * 1024);
+        this.fileForcedMaxBytes = bytesFromEnv('FILE_FORCED_MAX_BYTES', 100 * 1024 * 1024);
+        this.fileUrlTimeoutMs = bytesFromEnv('FILE_URL_TIMEOUT_MS', 30_000);
     }
+}
+
+function bytesFromEnv(name, fallback) {
+    const value = Number(process.env[name]);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
 }

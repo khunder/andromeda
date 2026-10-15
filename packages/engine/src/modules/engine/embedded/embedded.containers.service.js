@@ -118,7 +118,16 @@ export class EmbeddedContainerService {
                     // uses the same backend , and, for sqlite, the exact same file , as
                     // the engine that spawned it, rather than each resolving its own default
                     PERSISTENCE_DRIVER: Config.getInstance().persistenceDriver,
-                    SQLITE_FILE_PATH: Config.getInstance().sqliteFilePath
+                    SQLITE_FILE_PATH: Config.getInstance().sqliteFilePath,
+                    // file variables: one shared storage folder and the same
+                    // limits for every embedded container (see config.js)
+                    FILE_STORAGE_DRIVER: Config.getInstance().fileStorageDriver,
+                    FILE_STORAGE_DIR: Config.getInstance().fileStorageDir,
+                    FILE_INPUT_DIR: Config.getInstance().fileInputDir,
+                    FILE_INLINE_MAX_BYTES: String(Config.getInstance().fileInlineMaxBytes),
+                    FILE_MAX_BYTES: String(Config.getInstance().fileMaxBytes),
+                    FILE_FORCED_MAX_BYTES: String(Config.getInstance().fileForcedMaxBytes),
+                    FILE_URL_TIMEOUT_MS: String(Config.getInstance().fileUrlTimeoutMs)
                 },
                 cwd: deploymentPath,
                 args: args

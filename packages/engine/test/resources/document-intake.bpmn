@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example: treating files. Start with a `document` file (POST /DocumentIntake/start,
+  `files.document` or a multipart part named "document"). A script inspects the
+  file reference (name, type, size, storage, sha256 - never the bytes), a gateway
+  accepts PDFs and images, and the "Sign document" human task waits for the signed
+  copy as a second file (POST /DocumentIntake/signal with `files.signedCopy`).
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="DocumentIntake" version="1.0.0" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:itemDefinition id="ItemDefinition_document" structureRef="file" />
+  <bpmn:itemDefinition id="ItemDefinition_signedCopy" structureRef="file" />
+  <bpmn:itemDefinition id="ItemDefinition_category" structureRef="string" />
+  <bpmn:itemDefinition id="ItemDefinition_accepted" structureRef="boolean" />
+  <bpmn:itemDefinition id="ItemDefinition_summary" structureRef="string" />
+  <bpmn:itemDefinition id="ItemDefinition_outcome" structureRef="string" />
+  <bpmn:process id="Process_DocumentIntake" isExecutable="true">
+    <bpmn:property id="Property_document" itemSubjectRef="ItemDefinition_document" name="document" />
+    <bpmn:property id="Property_signedCopy" itemSubjectRef="ItemDefinition_signedCopy" name="signedCopy" />
+    <bpmn:property id="Property_category" itemSubjectRef="ItemDefinition_category" name="category" />
+    <bpmn:property id="Property_accepted" itemSubjectRef="ItemDefinition_accepted" name="accepted" />
+    <bpmn:property id="Property_summary" itemSubjectRef="ItemDefinition_summary" name="summary" />
+    <bpmn:property id="Property_outcome" itemSubjectRef="ItemDefinition_outcome" name="outcome" />
+    <bpmn:startEvent id="StartEvent_Received" name="Document received">
+      <bpmn:outgoing>Flow_ToInspect</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="InspectDocument" name="Inspect document">
+      <bpmn:incoming>Flow_ToInspect</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDecision</bpmn:outgoing>
+      <bpmn:script>const doc = this.variables.document;
+if (!doc) {
+  this.variables.category = "none";
+  this.variables.accepted = false;
+  this.variables.summary = "no document was attached";
+} else {
+  const type = (doc.contentType || "").toLowerCase();
+  const isPdf = type === "application/pdf" || /\.pdf$/i.test(doc.fileName);
+  const isImage = type.startsWith("image/");
+  this.variables.category = isPdf ? "pdf" : (isImage ? "image" : "other");
+  this.variables.accepted = isPdf || isImage;
+  this.variables.summary = `${doc.fileName} - ${type || "unknown type"}, ${doc.size} bytes, kept in ${doc.storage} storage, sha256 ${doc.sha256.slice(0, 12)}`;
+}</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="Gateway_Accepted" name="Accepted type?">
+      <bpmn:incoming>Flow_ToDecision</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accepted</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Rejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="SignDocument" name="Sign document">
+      <bpmn:incoming>Flow_Accepted</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToArchive</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:scriptTask id="ArchiveDocument" name="Archive">
+      <bpmn:incoming>Flow_ToArchive</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToArchived</bpmn:outgoing>
+      <bpmn:script>const signed = this.variables.signedCopy;
+const original = this.variables.document;
+if (!signed) {
+  this.variables.outcome = `archived ${original.fileName} without a signed copy`;
+} else if (signed.sha256 === original.sha256) {
+  this.variables.outcome = `the signed copy of ${original.fileName} is identical to the original - archived unsigned`;
+} else {
+  this.variables.outcome = `archived ${original.fileName} with signed copy ${signed.fileName} (${signed.size} bytes, received at ${signed.nodeId})`;
+}</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="RejectDocument" name="Reject">
+      <bpmn:incoming>Flow_Rejected</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRejected</bpmn:outgoing>
+      <bpmn:script>this.variables.outcome = `rejected: ${this.variables.category} documents are not accepted (${this.variables.summary})`;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent_Archived" name="Archived">
+      <bpmn:incoming>Flow_ToArchived</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Rejected" name="Rejected">
+      <bpmn:incoming>Flow_ToRejected</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ToInspect" sourceRef="StartEvent_Received" targetRef="InspectDocument" />
+    <bpmn:sequenceFlow id="Flow_ToDecision" sourceRef="InspectDocument" targetRef="Gateway_Accepted" />
+    <bpmn:sequenceFlow id="Flow_Accepted" name="pdf or image" sourceRef="Gateway_Accepted" targetRef="SignDocument">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">this.variables.accepted === true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Rejected" name="other" sourceRef="Gateway_Accepted" targetRef="RejectDocument">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">this.variables.accepted !== true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToArchive" sourceRef="SignDocument" targetRef="ArchiveDocument" />
+    <bpmn:sequenceFlow id="Flow_ToArchived" sourceRef="ArchiveDocument" targetRef="EndEvent_Archived" />
+    <bpmn:sequenceFlow id="Flow_ToRejected" sourceRef="RejectDocument" targetRef="EndEvent_Rejected" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_DocumentIntake">
+      <bpmndi:BPMNShape id="StartEvent_Received_di" bpmnElement="StartEvent_Received">
+        <dc:Bounds x="152" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="InspectDocument_di" bpmnElement="InspectDocument">
+        <dc:Bounds x="240" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Accepted_di" bpmnElement="Gateway_Accepted" isMarkerVisible="true">
+        <dc:Bounds x="395" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SignDocument_di" bpmnElement="SignDocument">
+        <dc:Bounds x="500" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ArchiveDocument_di" bpmnElement="ArchiveDocument">
+        <dc:Bounds x="660" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Archived_di" bpmnElement="EndEvent_Archived">
+        <dc:Bounds x="822" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RejectDocument_di" bpmnElement="RejectDocument">
+        <dc:Bounds x="500" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Rejected_di" bpmnElement="EndEvent_Rejected">
+        <dc:Bounds x="662" y="262" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToInspect_di" bpmnElement="Flow_ToInspect">
+        <di:waypoint x="188" y="200" />
+        <di:waypoint x="240" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToDecision_di" bpmnElement="Flow_ToDecision">
+        <di:waypoint x="340" y="200" />
+        <di:waypoint x="395" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accepted_di" bpmnElement="Flow_Accepted">
+        <di:waypoint x="420" y="175" />
+        <di:waypoint x="420" y="120" />
+        <di:waypoint x="500" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Rejected_di" bpmnElement="Flow_Rejected">
+        <di:waypoint x="420" y="225" />
+        <di:waypoint x="420" y="280" />
+        <di:waypoint x="500" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToArchive_di" bpmnElement="Flow_ToArchive">
+        <di:waypoint x="600" y="120" />
+        <di:waypoint x="660" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToArchived_di" bpmnElement="Flow_ToArchived">
+        <di:waypoint x="760" y="120" />
+        <di:waypoint x="822" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRejected_di" bpmnElement="Flow_ToRejected">
+        <di:waypoint x="600" y="280" />
+        <di:waypoint x="662" y="280" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

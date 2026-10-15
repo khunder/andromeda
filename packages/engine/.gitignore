@@ -8,3 +8,6 @@
 
 # local sqlite database (PERSISTENCE_DRIVER=sqlite), reset on every engine start
 *.sqlite
+
+# file variables stored in local object storage (FILE_STORAGE_DIR default)
+storage/

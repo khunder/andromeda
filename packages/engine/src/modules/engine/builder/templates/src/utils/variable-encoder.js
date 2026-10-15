@@ -18,6 +18,15 @@ export class VariableEncoder {
             // untouched boolean variable (whose only valid non-null values
             // are true/false/"") would throw on its own default value.
             return value;
+        } else if (type === "file") {
+            // a file variable holds a FileRef object (see src/modules/files) -
+            // parsed directly rather than evaluated: it carries caller-supplied
+            // text such as the file name
+            const ref = typeof value === "string" ? JSON.parse(value) : value;
+            if (!ref || typeof ref !== "object" || Array.isArray(ref)) {
+                throw new Error(`cannot transcode variable ${name} of type file, expected a file reference object`);
+            }
+            return ref;
         } else {
             switch (type) {
                 case "string":

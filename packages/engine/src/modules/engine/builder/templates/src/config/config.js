@@ -44,7 +44,26 @@ export class Config {
         // embedded.containers.service.js) so both share the same database.
         this.persistenceDriver = process.env.PERSISTENCE_DRIVER || 'sqlite';
         this.sqliteFilePath = process.env.SQLITE_FILE_PATH || path.join(process.cwd(), 'andromeda.sqlite');
+        // file variables (see src/modules/files). Embedded containers are
+        // handed the engine's own values (see embedded.containers.service.js).
+        // object storage for files above fileInlineMaxBytes: 'local' (folder) for now
+        this.fileStorageDriver = process.env.FILE_STORAGE_DRIVER || 'local';
+        this.fileStorageDir = process.env.FILE_STORAGE_DIR || path.join(process.cwd(), 'storage');
+        // folder `path` file inputs may be read from - unset = path inputs disabled
+        this.fileInputDir = process.env.FILE_INPUT_DIR || '';
+        // up to this size a file is kept in the database rather than object storage
+        this.fileInlineMaxBytes = bytesFromEnv('FILE_INLINE_MAX_BYTES', 256 * 1024);
+        // bigger files fail the process instance at start, unless forced
+        this.fileMaxBytes = bytesFromEnv('FILE_MAX_BYTES', 10 * 1024 * 1024);
+        // absolute cap for forced files (also the multipart upload limit)
+        this.fileForcedMaxBytes = bytesFromEnv('FILE_FORCED_MAX_BYTES', 100 * 1024 * 1024);
+        this.fileUrlTimeoutMs = bytesFromEnv('FILE_URL_TIMEOUT_MS', 30_000);
     }
+}
+
+function bytesFromEnv(name, fallback) {
+    const value = Number(process.env[name]);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 export default Config;

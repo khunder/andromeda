@@ -71,6 +71,11 @@ export class ProcessInstanceRepository {
         await this.repo.update({_id: processInstanceId}, {lock: null})
     }
 
+    async failProcessInstance(processInstanceId){
+        Logger.debug(`updating process instance ${processInstanceId}, set lock to null and status = ${ProcessInstanceStatus.Error}`);
+        await this.repo.update({_id: processInstanceId}, {status: ProcessInstanceStatus.Error, lock: null})
+    }
+
     async completeProcessInstance(processInstanceId){
         Logger.debug(`updating process instance ${processInstanceId}, set lock to null and status = ${ ProcessInstanceStatus.Completed}`);
         await this.repo.update({_id: processInstanceId}, {status: ProcessInstanceStatus.Completed, lock: null})

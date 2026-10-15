@@ -9,6 +9,27 @@ export interface DeploymentResult {
   success: boolean;
   message: string;
   details?: any;
+  /** e.g. a file accepted above the size limit because it was forced */
+  warnings?: string[];
+}
+
+/** A file for one of the process's `file` variables - one source each. */
+export interface StartFile {
+  variable: string;
+  /** uploaded as a multipart part named after the variable */
+  file?: File;
+  /** downloaded by the container (http/https) */
+  url?: string;
+  /** relative to the container's FILE_INPUT_DIR */
+  path?: string;
+  /** content as base64 or a data: URL */
+  base64?: string;
+}
+
+export interface StartOptions {
+  files?: StartFile[];
+  /** accept files above the container's FILE_MAX_BYTES, with a warning */
+  forceFileSize?: boolean;
 }
 
 export class DeploymentService {
@@ -172,10 +193,31 @@ export class DeploymentService {
    * workflow) - pass '' for containers generated before that namespacing
    * existed, which still only serve a bare /start.
    */
-  async startProcessInstance(host: string, port: string | number, deploymentId: string, processDef: string, variables?: Record<string, unknown>): Promise<DeploymentResult> {
+  async startProcessInstance(host: string, port: string | number, deploymentId: string, processDef: string, variables?: Record<string, unknown>, options: StartOptions = {}): Promise<DeploymentResult> {
     try {
       const formData = new FormData();
       formData.append('variables', JSON.stringify(variables || {}));
+
+      // uploads go as file parts named after their variable; the other
+      // sources travel in the `files` field, like in a JSON body
+      const fileSpecs: Record<string, { url?: string; path?: string; base64?: string }> = {};
+      for (const entry of options.files || []) {
+        if (entry.file) {
+          formData.append(entry.variable, entry.file, entry.file.name);
+        } else if (entry.url) {
+          fileSpecs[entry.variable] = { url: entry.url };
+        } else if (entry.path) {
+          fileSpecs[entry.variable] = { path: entry.path };
+        } else if (entry.base64) {
+          fileSpecs[entry.variable] = { base64: entry.base64 };
+        }
+      }
+      if (Object.keys(fileSpecs).length > 0) {
+        formData.append('files', JSON.stringify(fileSpecs));
+      }
+      if (options.forceFileSize) {
+        formData.append('forceFileSize', 'true');
+      }
 
       const startPath = processDef ? `/${processDef}/start` : '/start';
       const response = await fetch(`http://${host}:${port}${startPath}`, {
@@ -184,13 +226,16 @@ export class DeploymentService {
         mode: 'cors'
       });
 
+      const data = await response.json().catch(() => null);
       if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        return { success: true, message: `Process instance started on ${deploymentId}: ${data.id || 'ok'}`, details: data };
+        const warnings: string[] = Array.isArray(data?.warnings) ? data.warnings : [];
+        const suffix = warnings.length > 0 ? ` (warning: ${warnings.join('; ')})` : '';
+        return { success: true, message: `Process instance started on ${deploymentId}: ${data?.id || 'ok'}${suffix}`, details: data, warnings };
       }
 
-      const errorText = await response.text();
-      return { success: false, message: `Start failed (HTTP ${response.status}): ${errorText}` };
+      // 413: the instance was created and marked as failed - say which one
+      const failedInstance = data?.id ? ` - process instance ${data.id} marked as failed` : '';
+      return { success: false, message: `Start failed (HTTP ${response.status}): ${data?.message || response.statusText}${failedInstance}`, details: data };
     } catch (error) {
       return {
         success: false,

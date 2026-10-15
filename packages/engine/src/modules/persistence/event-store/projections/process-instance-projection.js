@@ -18,6 +18,10 @@ export class ProcessInstanceProjection {
             Logger.trace("Complete process instance")
             await this.repo.completeProcessInstance(event.data.id);
         }
+        if (event.type === EventTypes.FAIL_PROCESS_INSTANCE) {
+            Logger.trace("Fail process instance")
+            await this.repo.failProcessInstance(event.data.id);
+        }
         if (event.type === EventTypes.CREATE_PROCESS_INSTANCE) {
             Logger.trace("creating new process instance")
 

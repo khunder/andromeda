@@ -17,6 +17,7 @@ import {TaskProjection} from "./event-store/projections/task-projection.js";
 import {TaskRepository} from "./event-store/repositories/task.repository.js";
 import {EngineTimerRepository} from "./event-store/repositories/engine-timer.repository.js";
 import {ContainerRegistrationRepository} from "./event-store/repositories/container-registration.repository.js";
+import {FileContentRepository} from "./event-store/repositories/file-content.repository.js";
 
 export class PersistenceGateway {
 
@@ -52,6 +53,27 @@ export class PersistenceGateway {
         )
     };
 
+
+    /**
+     * Marks a process instance as failed (status Error). The reason is kept
+     * in the event log only.
+     * @param {string} processInstanceId
+     * @param {string} [reason]
+     */
+    static async failProcessInstance({processInstanceId, reason}) {
+        await EventStore.apply(
+            {
+                id: v4(),
+                streamId: StreamIds.PROCESS_INSTANCE,
+                type: EventTypes.FAIL_PROCESS_INSTANCE,
+                data: {
+                    id: processInstanceId,
+                    ...(reason ? {reason: String(reason)} : {})
+                },
+                timestamp: new Date().toISOString()
+            }
+        )
+    }
 
     static async createFlowEvent({processInstanceId, flowId, status}) {
         await EventStore.apply(
@@ -346,6 +368,31 @@ export class PersistenceGateway {
         return new VariableRepository().findVariables({deploymentId, processInstanceId, processDef, name});
     }
 
+    /**
+     * Small files' content (plain store, not event-sourced - the event log
+     * only gets a file variable's metadata and sha256). See FileContentRepository.
+     * @param {string} key - object key, <deploymentId>/<version>/<processInstanceId>/<nodeId>/<fileName>
+     * @param {{data: string, contentType: string, size: number, sha256: string, metadata?: object}} content - data base64
+     */
+    static async putFileContent(key, content) {
+        return new FileContentRepository().put(key, content);
+    }
+
+    /**
+     * @param {string} key
+     * @returns {Promise<{data: string, contentType: string, size: number, sha256: string, metadata: object|null}|null>}
+     */
+    static async getFileContent(key) {
+        return new FileContentRepository().get(key);
+    }
+
+    /**
+     * @param {string} key
+     */
+    static async deleteFileContent(key) {
+        return new FileContentRepository().delete(key);
+    }
+
     static async init() {
         PersistenceGateway.registerStreams()
         // continue stream numbering from the persisted log after a restart
@@ -360,6 +407,7 @@ export class PersistenceGateway {
         const processInstanceProjection = new ProcessInstanceProjection();
         this.registerProjections(stream, stream.eventsRegistry.CREATE_PROCESS_INSTANCE, processInstanceProjection);
         this.registerProjections(stream, stream.eventsRegistry.CLOSE_PROCESS_INSTANCE, processInstanceProjection);
+        this.registerProjections(stream, stream.eventsRegistry.FAIL_PROCESS_INSTANCE, processInstanceProjection);
         stream.snapshotHandler = processInstanceProjection;
         stream.snapshotFrequency = PersistenceGateway.SNAPSHOT_FREQUENCY;
 

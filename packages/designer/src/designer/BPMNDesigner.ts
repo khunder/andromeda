@@ -863,6 +863,7 @@ export class BPMNDesigner {
             <option value="boolean">boolean</option>
             <option value="object">object</option>
             <option value="Date">Date</option>
+            <option value="file">file</option>
           </select>
           <button id="bpmn-var-add" class="xml-btn" type="button">Add</button>
         </div>

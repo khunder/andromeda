@@ -49,6 +49,15 @@ export class SqliteConnection {
             SqliteConnection.db = new SqliteConnection.SQL.Database(buffer);
             SqliteConnection.lastLoadedMtimeMs = fs.statSync(SqliteConnection.filePath).mtimeMs;
             Logger.info(`sqlite: loaded existing database from ${SqliteConnection.filePath}`);
+            // a file created by an older build lacks tables added since
+            // (e.g. FileContent) - create just those
+            const existing = new Set(SqliteConnection.db.exec(`SELECT name FROM sqlite_master WHERE type = 'table'`)[0]?.values.flat() ?? []);
+            const missing = Object.values(TABLE_DEFINITIONS).filter((table) => !existing.has(table.name));
+            if (missing.length > 0) {
+                missing.forEach((table) => SqliteConnection.db.run(table.ddl));
+                SqliteConnection.persist();
+                Logger.info(`sqlite: added missing table(s) ${missing.map((table) => table.name).join(', ')}`);
+            }
         } else {
             SqliteConnection.db = new SqliteConnection.SQL.Database();
             SqliteConnection.createTables();
