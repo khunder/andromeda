@@ -658,3 +658,54 @@ body {
 .djs-popup .entry:hover {
     background: rgba(255, 255, 255, 0.6) !important;
 }
+
+/* ---------- iform (src/iform) - fields reuse .property-group / .property-hint ---------- */
+
+.iform-inline > label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.iform-inline > label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.iform-required {
+    color: #d14343;
+}
+
+.iform-error {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #d14343;
+}
+
+.iform-invalid input,
+.iform-invalid textarea,
+.iform-invalid select {
+    box-shadow: 0 0 0 2px rgba(209, 67, 67, 0.35);
+}
+
+.iform-panel {
+    margin: 0 0 18px;
+    padding: 12px 14px 0;
+    border: var(--glass-control-border);
+    border-radius: 12px;
+}
+
+.iform-panel > legend {
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.iform input:disabled,
+.iform textarea:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
