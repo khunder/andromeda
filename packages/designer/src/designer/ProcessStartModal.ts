@@ -7,6 +7,7 @@
 
 import { DeploymentService, type StartFile } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
+import { showToast } from './Toast';
 
 type FileSource = 'upload' | 'url' | 'path' | 'base64';
 
@@ -26,6 +27,8 @@ const DEFAULT_VARIABLES = `{
 export class ProcessStartModal {
   private modal: HTMLDivElement | null = null;
   private editor: any = null;
+  /** Called with the new instance's id once one is created - the dialog then closes. */
+  onStarted: ((processInstanceId: string) => void) | null = null;
 
   constructor(private deploymentService: DeploymentService) {}
 
@@ -231,6 +234,14 @@ export class ProcessStartModal {
       const state = !result.success ? 'error' : result.warnings?.length ? 'warning' : 'success';
       resultDiv.className = `start-params-result ${state}`;
       resultDiv.textContent = result.message;
+    }
+    // created (even if then marked failed, e.g. a file too large): show it on
+    // its diagram right away; a plain error keeps the dialog open to fix the input
+    const processInstanceId = result.details?.id;
+    if (processInstanceId && this.onStarted) {
+      showToast(result.message, !result.success ? 'error' : result.warnings?.length ? 'warning' : 'success');
+      this.hide();
+      this.onStarted(String(processInstanceId));
     }
   }
 

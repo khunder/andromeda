@@ -9,7 +9,7 @@ import {
   type IContentRenderer,
 } from 'dockview-core';
 import type { BPMNDesigner } from '../designer';
-import { GalaxyPanel, type OpenInstancesDetail, type OpenLogsDetail, type OpenTasksDetail } from '../designer/GalaxyPanel';
+import { GalaxyPanel, type OpenInstanceDetail, type OpenInstancesDetail, type OpenLogsDetail, type OpenTasksDetail } from '../designer/GalaxyPanel';
 import { TasksView } from '../designer/TasksView';
 import { LogViewer } from '../designer/LogViewer';
 import { ProcessInstancesView } from '../designer/ProcessInstancesView';
@@ -172,6 +172,8 @@ export class Workspace {
   // custom element registration - isn't elided as a type-only import
   private galaxyPanel = new GalaxyPanel();
   private galaxyTimer: number | null = null;
+  /** shows a process instance on its diagram - see the `open-instance` listener */
+  private instanceViewer = new InstanceViewerModal();
   // attached after init(): bpmn-js must be created on a canvas the dock has
   // already laid out, or its first fit-to-viewport measures a hidden element
   private designer: BPMNDesigner | null = null;
@@ -265,6 +267,10 @@ export class Workspace {
     });
     this.galaxyPanel.addEventListener('open-instances', (event) => {
       this.openInstances((event as CustomEvent<OpenInstancesDetail>).detail);
+    });
+    this.galaxyPanel.addEventListener('open-instance', (event) => {
+      const { galaxyUrl, processInstanceId } = (event as CustomEvent<OpenInstanceDetail>).detail;
+      void this.instanceViewer.open({ galaxyUrl, processInstanceId, authHeaders: () => this.designer?.getAuthHeaders() ?? {} });
     });
     this.galaxyPanel.addEventListener('open-tasks', (event) => {
       this.openTasks((event as CustomEvent<OpenTasksDetail>).detail);

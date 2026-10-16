@@ -4,7 +4,8 @@
  * grey, the nodes it waits at highlighted and failures in red - from Galaxy's
  * GET /galaxy/process-instances/:id/trace, refreshed every few seconds.
  *
- * Clicking a node shows its state; when the instance waits there:
+ * Under the diagram: the selected node's state and the instance's variables.
+ * Clicking a node it waits at opens a separate dialog over the viewer:
  * - human task: its form (iform), Accept resumes the process;
  * - catch event: variables as JSON (Monaco) + the process's file
  *   variables, Send resumes it.
@@ -48,8 +49,14 @@ export class InstanceViewerModal {
   private editor: any = null;
   private timer: number | null = null;
   private busy = false;
+  /** the form / event dialog of a waiting node, opened over the viewer */
+  private taskModal: HTMLDivElement | null = null;
+  private taskModalNodeId: string | null = null;
   private readonly onKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') this.close();
+    if (event.key !== 'Escape') return;
+    // the form dialog first, then the viewer
+    if (this.taskModal) this.closeTaskModal();
+    else this.close();
   };
 
   async open(options: InstanceViewerOptions): Promise<void> {
@@ -75,10 +82,10 @@ export class InstanceViewerModal {
         </header>
         <div class="iv-body">
           <div class="iv-canvas"><div class="iv-message" hidden></div></div>
-          <aside class="iv-side">
-            <section class="iv-node"></section>
-            <section class="iv-vars"></section>
-          </aside>
+          <section class="iv-bottom">
+            <div class="iv-node"></div>
+            <div class="iv-vars"></div>
+          </section>
         </div>
       </div>
     `;
@@ -92,7 +99,8 @@ export class InstanceViewerModal {
       container: this.root.querySelector('.iv-canvas') as HTMLElement,
       moddleExtensions: { andromeda: ANDROMEDA_MODDLE },
     });
-    this.viewer.get('eventBus').on('element.click', (event: any) => this.select(event.element));
+    // clicking a waiting node opens its form / event dialog straight away
+    this.viewer.get('eventBus').on('element.click', (event: any) => this.select(event.element, true));
 
     await this.refresh();
     // open on what needs attention
@@ -107,7 +115,7 @@ export class InstanceViewerModal {
     if (this.timer !== null) window.clearInterval(this.timer);
     this.timer = null;
     document.removeEventListener('keydown', this.onKey);
-    this.disposePanel();
+    this.closeTaskModal();
     this.viewer?.destroy();
     this.viewer = null;
     this.root?.remove();
@@ -151,6 +159,11 @@ export class InstanceViewerModal {
     this.applyHighlights();
     this.renderVariables();
     this.renderPanel(); // no-op unless the selected node's state changed
+    // the node was completed meanwhile (elsewhere) - its form is stale
+    if (this.taskModalNodeId && !pendingTaskAt(trace, this.taskModalNodeId)) {
+      this.closeTaskModal();
+      showToast('That step is no longer waiting - it was completed meanwhile.', 'info');
+    }
   }
 
   private client(): ContainerClient | null {
@@ -198,7 +211,7 @@ export class InstanceViewerModal {
     this.select(element ?? null);
   }
 
-  private select(element: any): void {
+  private select(element: any, openTask = false): void {
     if (!this.viewer) return;
     const canvas = this.viewer.get('canvas');
     if (this.selectedId) canvas.removeMarker(this.selectedId, MARKERS.selected);
@@ -207,9 +220,12 @@ export class InstanceViewerModal {
     if (this.selectedId) canvas.addMarker(this.selectedId, MARKERS.selected);
     this.panelKey = '';
     this.renderPanel();
+    if (openTask && this.selectedId && this.trace && pendingTaskAt(this.trace, this.selectedId) && this.client()) {
+      this.openTaskModal(this.selectedId);
+    }
   }
 
-  // ---- side panel -----------------------------------------------------------
+  // ---- under the diagram: selected node + variables ---------------------------
 
   private renderHeader(): void {
     const trace = this.trace!;
@@ -228,20 +244,33 @@ export class InstanceViewerModal {
     const section = this.root!.querySelector('.iv-vars') as HTMLElement;
     const heading = document.createElement('h3');
     heading.textContent = `Variables (${this.trace!.variables.length})`;
-    const list = document.createElement('dl');
-    list.className = 'iv-var-list';
-    for (const variable of this.trace!.variables) {
-      const dt = document.createElement('dt');
-      dt.textContent = variable.name;
-      const type = document.createElement('span');
-      type.className = 'iv-type';
-      type.textContent = variable.type;
-      dt.append(' ', type);
-      const dd = document.createElement('dd');
-      dd.textContent = typeof variable.value === 'string' ? variable.value : JSON.stringify(variable.value);
-      list.append(dt, dd);
+    if (this.trace!.variables.length === 0) {
+      section.replaceChildren(heading, this.hint('No variables set yet.'));
+      return;
     }
-    section.replaceChildren(heading, list);
+    const table = document.createElement('table');
+    table.className = 'iv-var-table';
+    table.innerHTML = '<thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Updated</th></tr></thead>';
+    const body = document.createElement('tbody');
+    for (const variable of this.trace!.variables) {
+      const row = document.createElement('tr');
+      const value = typeof variable.value === 'string' ? variable.value : JSON.stringify(variable.value);
+      for (const [text, className] of [
+        [variable.name, 'iv-var-name'],
+        [variable.type, 'iv-type'],
+        [value, 'iv-var-value'],
+        [variable.updatedAt ? new Date(variable.updatedAt).toLocaleTimeString() : '', 'iv-var-time'],
+      ]) {
+        const cell = document.createElement('td');
+        cell.className = className;
+        cell.textContent = text;
+        if (className === 'iv-var-value') cell.title = text;
+        row.append(cell);
+      }
+      body.append(row);
+    }
+    table.append(body);
+    section.replaceChildren(heading, table);
   }
 
   private renderPanel(): void {
@@ -250,9 +279,8 @@ export class InstanceViewerModal {
     const pending = id ? pendingTaskAt(this.trace, id) : undefined;
     const state = id ? this.stateOf(id) : 'instance';
     const key = `${id}:${state}:${pending?.type ?? ''}`;
-    if (key === this.panelKey) return; // unchanged - keep what the user is filling in
+    if (key === this.panelKey) return; // unchanged
     this.panelKey = key;
-    this.disposePanel();
 
     const section = this.root.querySelector('.iv-node') as HTMLElement;
     section.replaceChildren();
@@ -275,15 +303,65 @@ export class InstanceViewerModal {
     section.append(title, meta);
 
     if (!pending) return;
-    const host = document.createElement('div');
-    host.className = 'iv-pending';
-    section.append(host);
     if (!this.client()) {
-      host.append(this.hint(`No running container for ${this.trace.instance.deploymentId} - start it to complete this step.`));
+      section.append(this.hint(`No running container for ${this.trace.instance.deploymentId} - start it to complete this step.`));
       return;
     }
+    const nodeId = id;
+    section.append(this.actions([{
+      label: pending.type === 'HumanTask' ? 'Open form' : 'Send event',
+      primary: true,
+      title: pending.type === 'HumanTask' ? 'Complete this human task' : 'Resume the instance waiting at this event',
+      run: () => this.openTaskModal(nodeId),
+    }]));
+  }
+
+  // ---- the form / event dialog, over the viewer -------------------------------
+
+  private openTaskModal(nodeId: string): void {
+    const pending = this.trace ? pendingTaskAt(this.trace, nodeId) : undefined;
+    if (!pending || !this.viewer) return;
+    this.closeTaskModal();
+    const bo = this.viewer.get('elementRegistry').get(nodeId)?.businessObject;
+    const modal = document.createElement('div');
+    modal.className = 'iv-task-modal';
+    modal.innerHTML = `
+      <div class="iv-task-overlay"></div>
+      <div class="iv-task-dialog" role="dialog" aria-modal="true">
+        <header class="iv-task-header">
+          <div>
+            <h2></h2>
+            <div class="iv-node-meta"></div>
+          </div>
+          <button class="iv-close" title="Close" aria-label="Close">×</button>
+        </header>
+        <div class="iv-task-body"></div>
+      </div>
+    `;
+    const title = bo?.name || nodeId;
+    modal.querySelector('h2')!.textContent = title;
+    modal.querySelector('[role="dialog"]')!.setAttribute('aria-label', title);
+    (modal.querySelector('.iv-node-meta') as HTMLElement).textContent =
+      `${pending.type === 'HumanTask' ? 'Human task' : 'Catch event'} · ${this.trace!.instance.processDef} · ${this.trace!.instance.id}`;
+    modal.querySelector('.iv-task-overlay')!.addEventListener('click', () => this.closeTaskModal());
+    modal.querySelector('.iv-close')!.addEventListener('click', () => this.closeTaskModal());
+    document.body.appendChild(modal);
+    this.taskModal = modal;
+    this.taskModalNodeId = nodeId;
+
+    const host = modal.querySelector('.iv-task-body') as HTMLElement;
     if (pending.type === 'HumanTask') void this.renderHumanTask(host, pending);
     else this.renderCatchEvent(host, pending, bo);
+  }
+
+  private closeTaskModal(): void {
+    this.form?.destroy();
+    this.form = null;
+    this.editor?.dispose();
+    this.editor = null;
+    this.taskModal?.remove();
+    this.taskModal = null;
+    this.taskModalNodeId = null;
   }
 
   private async renderHumanTask(host: HTMLElement, task: TraceTask): Promise<void> {
@@ -301,7 +379,7 @@ export class InstanceViewerModal {
     formHost.className = 'iv-form';
     const note = this.hint(`May change: ${detail.editableVariables.join(', ') || 'every variable'}${detail.roles.length ? ` · roles: ${detail.roles.join(', ')}` : ''}`);
     const actions = this.actions([
-      { label: 'Close', title: 'Dismiss the form - nothing is sent', run: () => this.select(null) },
+      { label: 'Close', title: 'Dismiss the form - nothing is sent', run: () => this.closeTaskModal() },
       { label: 'Accept', primary: true, title: 'Submit the form - the process continues', run: async () => {
         let data;
         try {
@@ -370,7 +448,7 @@ export class InstanceViewerModal {
     }
 
     const actions = this.actions([
-      { label: 'Close', title: 'Dismiss - nothing is sent', run: () => this.select(null) },
+      { label: 'Close', title: 'Dismiss - nothing is sent', run: () => this.closeTaskModal() },
       { label: 'Send', primary: true, title: 'Resume the instance with these variables and files', run: async () => {
         let variables: Record<string, unknown>;
         try {
@@ -400,7 +478,7 @@ export class InstanceViewerModal {
       const result = await client.signal(this.trace.instance.processDef, { processInstanceId: this.trace.instance.id, nodeId: task.nodeId, ...body });
       const label = task.nodeName || task.nodeId;
       showToast(result.warnings?.length ? `${label}: resumed - ${result.warnings.join('; ')}` : `${label}: resumed - the process continues`, result.warnings?.length ? 'warning' : 'success');
-      this.select(null);
+      this.closeTaskModal();
       // the container moves on asynchronously - look again shortly
       await new Promise((resolve) => window.setTimeout(resolve, 600));
       await this.refresh();
@@ -415,13 +493,6 @@ export class InstanceViewerModal {
   private processElement(): any {
     const definitions = this.viewer?.getDefinitions?.();
     return (definitions?.rootElements || []).find((element: any) => element.$type === 'bpmn:Process');
-  }
-
-  private disposePanel(): void {
-    this.form?.destroy();
-    this.form = null;
-    this.editor?.dispose();
-    this.editor = null;
   }
 
   // ---- small builders -------------------------------------------------------

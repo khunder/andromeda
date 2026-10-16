@@ -26,12 +26,21 @@ export interface OpenInstancesDetail {
     galaxyUrl: string;
 }
 
+/** `open-instance` event detail: a process instance to show on its diagram. */
+export interface OpenInstanceDetail {
+    processInstanceId: string;
+    /** Galaxy base URL serving /galaxy/process-instances/:id/trace */
+    galaxyUrl: string;
+}
+
 /**
  * Galaxy registry view: the containers registered with Galaxy and their
  * actions (open API, stream logs, start a process instance, stop). Lives in a
  * dock panel opened from the left menu (see Workspace), replacing the old
- * modal. "Logs" fires an `open-logs` event, and a click on a card fires
- * `open-instances`; Workspace turns them into log / process instance panels.
+ * modal. "Logs" fires an `open-logs` event, a click on a card fires
+ * `open-instances`, and starting an instance (▶ / ▶⚙) fires `open-instance`
+ * with the new instance; Workspace turns them into log / process instance
+ * panels and the instance viewer.
  */
 export class GalaxyPanel extends HTMLElement {
     private shadow: ShadowRoot;
@@ -65,6 +74,13 @@ export class GalaxyPanel extends HTMLElement {
         if (this.deploymentService === deploymentService) return;
         this.deploymentService = deploymentService;
         this.processStartModal = new ProcessStartModal(deploymentService);
+        this.processStartModal.onStarted = (processInstanceId) => this.openInstance(processInstanceId);
+    }
+
+    /** Shows a just-started instance on its diagram (Workspace opens the viewer). */
+    private openInstance(processInstanceId: string) {
+        const detail: OpenInstanceDetail = { processInstanceId, galaxyUrl: this.galaxyUrl };
+        this.dispatchEvent(new CustomEvent<OpenInstanceDetail>('open-instance', { detail, bubbles: true, composed: true }));
     }
 
     async load() {
@@ -228,6 +244,9 @@ export class GalaxyPanel extends HTMLElement {
 
         const result = await this.deploymentService.startProcessInstance(this.getContainerHost(), port, deploymentId, processDefs[0] || '', {});
         showToast(result.message, result.success ? 'success' : 'error');
+        // straight to the new instance - also when it was created but marked failed
+        const processInstanceId = result.details?.id;
+        if (processInstanceId) this.openInstance(String(processInstanceId));
     }
 
     /**

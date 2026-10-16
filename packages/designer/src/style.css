@@ -1103,11 +1103,12 @@ body {
     cursor: pointer;
 }
 
+/* the diagram, with the selected node + variables underneath */
 .iv-body {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .iv-canvas {
@@ -1129,20 +1130,119 @@ body {
     font-size: 13px;
 }
 
-.iv-side {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-    overflow: auto;
-    padding: 16px;
-    border-left: 1px solid var(--glass-divider, #e0e0e0);
+.iv-bottom {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 20px;
+    max-height: 34vh;
+    min-height: 120px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--glass-divider, #e0e0e0);
+    background: rgba(255, 255, 255, 0.7);
 }
 
-.iv-side h3 {
+.iv-bottom > div {
+    min-height: 0;
+    overflow: auto;
+}
+
+.iv-bottom h3,
+.iv-task-header h2 {
     margin: 0 0 4px;
     font-size: 15px;
     color: var(--text);
+}
+
+.iv-var-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.iv-var-table th {
+    position: sticky;
+    top: 0;
+    padding: 4px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid var(--glass-divider, #e0e0e0);
+}
+
+.iv-var-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    vertical-align: top;
+}
+
+.iv-var-name {
+    font-family: ui-monospace, monospace;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.iv-var-value {
+    max-width: 0;
+    width: 100%;
+    color: var(--text-muted);
+    font-family: ui-monospace, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iv-var-time {
+    white-space: nowrap;
+    color: var(--text-subtle);
+}
+
+/* the form / event dialog of a waiting node - over the viewer */
+.iv-task-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.iv-task-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.iv-task-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(560px, 94vw);
+    max-height: 86vh;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 18px;
+    box-shadow: 0 24px 70px rgba(31, 35, 64, 0.3);
+    overflow: hidden;
+}
+
+.iv-task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px 10px;
+    border-bottom: 1px solid var(--glass-divider, #e0e0e0);
+}
+
+.iv-task-header h2 {
+    font-size: 17px;
+}
+
+.iv-task-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px 20px 18px;
 }
 
 .iv-node-meta {
@@ -1161,9 +1261,6 @@ body {
 .iv-state-executed { color: #6b6b78; }
 .iv-state-failed { background: rgba(209, 67, 67, 0.14); color: #d14343; }
 
-.iv-pending {
-    margin-top: 12px;
-}
 
 .iv-hint {
     margin: 6px 0;
@@ -1239,24 +1336,8 @@ body {
 
 .iv-btn-primary:hover { background: #4a4ae0; }
 
-.iv-var-list {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 4px 10px;
-    margin: 6px 0 0;
-    font-size: 12px;
-}
 
-.iv-var-list dt {
-    font-family: ui-monospace, monospace;
-    color: var(--text);
-}
 
-.iv-var-list dd {
-    margin: 0;
-    color: var(--text-muted);
-    word-break: break-all;
-}
 
 .iv-type {
     font-size: 10px;
