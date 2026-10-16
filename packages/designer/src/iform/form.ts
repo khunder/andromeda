@@ -64,12 +64,16 @@ export class IForm {
 
   private renderComponents(components: IFormComponent[], pane: RootPane): void {
     for (const component of components || []) {
-      const input = this.env.registry.resolve(component?.type);
-      if (!input) {
+      const resolved = component && this.env.registry.resolveComponent(component);
+      if (!resolved) {
         console.warn(`[iform] no input registered for type "${component?.type}" - skipped`, component);
         continue;
       }
-      const ctx = this.context(component);
+      const { input, valueType, uiHint } = resolved;
+      if (component.ui_hint && !uiHint) {
+        console.warn(`[iform] ui_hint "${component.ui_hint}" can't edit a ${valueType} ("${component.key}") - using the default control`);
+      }
+      const ctx = this.context(component, valueType, uiHint);
       const generator = this.options.generator ?? this.env.generator;
       const handle = input.render ? input.render(ctx, generator) : generator(input, ctx);
       pane.append(handle.element);
@@ -81,11 +85,13 @@ export class IForm {
     }
   }
 
-  private context(component: IFormComponent): InputContext {
+  private context(component: IFormComponent, valueType: string, uiHint: string | undefined): InputContext {
     const prefix = this.env.i18nPrefix;
     const name = component.key ?? component.type;
     return {
       component,
+      valueType,
+      uiHint,
       id: `${this.idPrefix}-${(component.key ?? component.type).replace(/[^\w-]/g, '_')}-${++this.fieldCounter}`,
       classes: this.env.classes,
       t: this.t,

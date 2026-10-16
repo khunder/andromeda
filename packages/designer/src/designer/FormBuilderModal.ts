@@ -67,8 +67,12 @@ export class FormBuilderModal {
         return;
       }
       current = parsed;
-      status.textContent = `${iform.formFieldKeys(parsed).length} field(s)`;
-      status.classList.remove('error');
+      // a ui_hint that can't edit its field's type falls back to the default control
+      const unusable = [...iform.formComponents(parsed).values()]
+        .filter((component) => component.ui_hint && !iform.registry.resolveComponent(component)?.uiHint)
+        .map((component) => `${component.key}: ui_hint "${component.ui_hint}" (use ${iform.uiHintsFor(iform.registry.resolveComponent(component)?.valueType ?? 'string').join(' / ')})`);
+      status.textContent = `${iform.formFieldKeys(parsed).length} field(s)${unusable.length ? ` - ignored: ${unusable.join('; ')}` : ''}`;
+      status.classList.toggle('error', unusable.length > 0);
       saveButton.disabled = false;
       renderHost.replaceChildren();
       this.forms.push(iform.create(renderHost, parsed));
@@ -162,11 +166,11 @@ export class FormBuilderModal {
   pickVariables(title: string, variables: FormVariable[], current: FormVariable[]): Promise<FormVariable[] | null> {
     this.close();
     const modal = this.openModal('form-picker', `Generate form · ${title}`,
-      "One field per selected variable, its type inferred from the variable's type. Editable fields set the variable when the task is accepted; read-only ones only show its value.", `
+      "One field per selected variable, typed by the variable's type; Control picks how it's entered (ui_hint) - radio / select choices are then edited in the form JSON. Editable fields set the variable when the task is accepted; read-only ones only show its value.", `
         <table class="form-picker-table">
           <thead><tr>
             <th><input type="checkbox" class="pick-all" aria-label="Select all"></th>
-            <th>Variable</th><th>Type</th><th>Read-only</th>
+            <th>Variable</th><th>Type</th><th>Control</th><th>Read-only</th>
           </tr></thead>
           <tbody></tbody>
         </table>`, [
@@ -191,8 +195,20 @@ export class FormBuilderModal {
       include.setAttribute('aria-label', `Include ${variable.name}`);
       const readOnly = Object.assign(document.createElement('input'), { type: 'checkbox', className: 'pick-readonly', checked: !!selected.get(variable.name)?.readOnly, disabled: !include.checked });
       readOnly.setAttribute('aria-label', `${variable.name} read-only`);
-      include.addEventListener('change', () => { readOnly.disabled = !include.checked; syncAll(); });
-      for (const content of [include, variable.name, variable.type, readOnly]) {
+      // ui_hint: the controls that can edit this type, its default first
+      const control = document.createElement('select');
+      control.className = 'pick-control';
+      control.setAttribute('aria-label', `${variable.name} control`);
+      const hints = iform.uiHintsFor(variable.type);
+      hints.forEach((hint, index) => control.append(new Option(index === 0 ? `${hint} (default)` : hint, index === 0 ? '' : hint)));
+      control.value = hints.indexOf(selected.get(variable.name)?.uiHint ?? '') > 0 ? selected.get(variable.name)!.uiHint! : '';
+      control.disabled = !include.checked || hints.length < 2;
+      include.addEventListener('change', () => {
+        readOnly.disabled = !include.checked;
+        control.disabled = !include.checked || hints.length < 2;
+        syncAll();
+      });
+      for (const content of [include, variable.name, variable.type, control, readOnly]) {
         const cell = document.createElement('td');
         if (typeof content === 'string') cell.textContent = content;
         else cell.appendChild(content);
@@ -214,6 +230,7 @@ export class FormBuilderModal {
         .map((row) => ({
           ...variables.find((variable) => variable.name === row.dataset.name)!,
           readOnly: (row.querySelector('.pick-readonly') as HTMLInputElement).checked,
+          uiHint: (row.querySelector('.pick-control') as HTMLSelectElement).value || undefined,
         })), resolve);
     });
   }
@@ -484,6 +501,14 @@ export class FormBuilderModal {
       .form-picker-table td {
         padding: 6px 8px;
         border-bottom: 1px solid var(--glass-divider, #eee);
+      }
+      .pick-control {
+        padding: 3px 6px;
+        border-radius: 8px;
+        border: var(--glass-control-border, 1px solid #ddd);
+        background: var(--glass-control-bg, white);
+        font: inherit;
+        font-size: 12px;
       }
       .form-picker-table td:nth-child(3) {
         font-family: ui-monospace, monospace;

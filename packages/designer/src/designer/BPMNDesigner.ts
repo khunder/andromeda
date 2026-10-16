@@ -841,7 +841,7 @@ export class BPMNDesigner {
       const current: FormVariable[] = [];
       for (const component of formComponents(this.getUserTaskForm(businessObject)).values()) {
         const variable = variables.find((candidate) => candidate.name === component.key);
-        if (variable) current.push({ ...variable, readOnly: !!component.disabled });
+        if (variable) current.push({ ...variable, readOnly: !!component.disabled, uiHint: component.ui_hint });
       }
       const picked = await this.formBuilder.pickVariables(title, variables, current);
       if (!picked) return;

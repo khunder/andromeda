@@ -11,7 +11,11 @@ export interface FormVariable {
   type: string;
   /** shown for context only - disabled field, never submitted as a change */
   readOnly?: boolean;
+  /** the control to use (ui_hint) - the type's default when absent */
+  uiHint?: string;
 }
+
+const CHOICE_HINTS = ['radio', 'select'];
 
 export const VARIABLE_TYPES = ['string', 'number', 'boolean', 'Date', 'object', 'file'];
 
@@ -25,12 +29,20 @@ export function labelFor(name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export function componentForVariable({ name, type, readOnly = false }: FormVariable): IFormComponent {
+export function componentForVariable({ name, type, readOnly = false, uiHint }: FormVariable): IFormComponent {
+  const valueType = VARIABLE_TYPES.includes(type) ? type : 'string';
   const component: IFormComponent = {
-    type: VARIABLE_TYPES.includes(type) ? type : 'string',
+    type: valueType,
     key: name,
     label: labelFor(name),
   };
+  if (uiHint) component.ui_hint = uiHint;
+  // choices to edit in the form JSON (a boolean gets Yes / No by default)
+  if (uiHint && CHOICE_HINTS.includes(uiHint) && valueType !== 'boolean') {
+    component.values = valueType === 'number'
+      ? [{ label: 'One', value: 1 }, { label: 'Two', value: 2 }]
+      : [{ label: 'Option A', value: 'A' }, { label: 'Option B', value: 'B' }];
+  }
   if (readOnly) component.disabled = true;
   if (type === 'object') component.label = `${component.label} (JSON)`;
   return component;

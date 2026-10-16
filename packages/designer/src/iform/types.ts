@@ -36,13 +36,27 @@ export interface IFormComponent {
   validate?: IFormValidate;
   /** layout types (panel): nested components */
   components?: IFormComponent[];
-  /** string: render a multi-line text area */
+  /**
+   * Which control edits the value - the type says what the value is, the
+   * hint how it's entered: input, textarea, checkbox, switch, radio, select,
+   * date, datetime... (see iform.uiHintsFor(type)). Unknown or unsupported
+   * for the type: the type's default control.
+   */
+  ui_hint?: string;
+  /** choices of radio / select: [{ label, value }] or plain values */
+  values?: Array<IFormChoice | string | number | boolean>;
+  /** string: render a multi-line text area (same as ui_hint "textarea") */
   multiline?: boolean;
   rows?: number;
   /** form.io's input flag - false on layout components; ignored otherwise */
   input?: boolean;
   /** anything else an input type understands */
   [option: string]: unknown;
+}
+
+export interface IFormChoice {
+  label: string;
+  value: string | number | boolean;
 }
 
 export interface IFormDefinition {
@@ -108,12 +122,16 @@ export interface InputControl {
 
 export interface InputContext {
   component: IFormComponent;
+  /** the value's type (string, number, boolean, Date, object, file) - type aliases resolved */
+  valueType: string;
+  /** the ui_hint this control was picked for, if any */
+  uiHint: string | undefined;
   /** unique DOM id for the control */
   id: string;
   classes: IFormClasses;
   t: Translate;
-  /** the component's own text, translated: key <i18nPrefix><component key>.<part> */
-  text(part: 'label' | 'placeholder' | 'description', fallback: string | undefined): string;
+  /** the component's own text, translated: key <i18nPrefix><component key>.<part> (label, placeholder, description, values.<value>) */
+  text(part: string, fallback: string | undefined): string;
   /** call on every user edit */
   changed(): void;
   /** layout inputs: render nested components into a pane */
@@ -134,6 +152,16 @@ export interface InputDefinition {
   aliases?: string[];
   /** layout component: no value of its own, renders children */
   layout?: boolean;
+  /**
+   * ui_hint values this definition renders. A type's own definition lists
+   * the hints it handles itself (e.g. string: input, textarea); a hint-only
+   * definition (radio, select...) is picked by ui_hint for the types in forTypes.
+   */
+  uiHints?: string[];
+  /** the value types a hint definition can edit - only its own value type when absent */
+  forTypes?: string[];
+  /** the value type when this definition is used as a component type (radio -> string) */
+  valueType?: string;
   /** label after the control (checkboxes) */
   inlineLabel?: boolean;
   /** build the control - the generator wraps it with label, help and error */

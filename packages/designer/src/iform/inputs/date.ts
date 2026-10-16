@@ -14,14 +14,18 @@ function toLocalInput(value: unknown, withTime: boolean): string {
 
 /**
  * Date - the browser's own date/time picker (no library). The value is an
- * ISO 8601 instant (UTC); with `enableTime: false`, a "YYYY-MM-DD" day.
+ * ISO 8601 instant (UTC); a "YYYY-MM-DD" day with ui_hint "date" (or
+ * `enableTime: false`).
  */
 export default defineInput({
   type: 'Date',
   aliases: ['date', 'datetime'],
+  uiHints: ['input', 'datetime', 'date'],
   create(ctx) {
     const { component } = ctx;
-    const withTime = component.enableTime !== false && component.type !== 'date';
+    const withTime = ctx.uiHint === 'date' ? false
+      : ctx.uiHint === 'datetime' ? true
+        : component.enableTime !== false && component.type !== 'date';
     const input = el('input', ctx.classes.control);
     input.id = ctx.id;
     input.name = component.key ?? '';

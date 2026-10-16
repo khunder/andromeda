@@ -9,6 +9,9 @@
  * - Forms are JSON shaped like form.io's ({ components: [...] }); component
  *   types are the process variable types (string, number, boolean, Date,
  *   object, file) + panel, form.io names accepted as aliases.
+ * - `ui_hint` picks the control: input, textarea, checkbox, switch, radio,
+ *   select, date, datetime (iform.uiHintsFor(type) lists what fits a type;
+ *   radio / select take `values`).
  * - Input types live in ./inputs and register themselves (defineInput);
  *   iform.config.ts picks them and maps the markup onto the host's CSS.
  * - Every field is built by a generator (./generator.ts): replace it per
@@ -39,6 +42,8 @@ export interface IFormRoot {
   generator: FieldGenerator;
   create(host: HTMLElement | RootPane, definition: IFormDefinition, options?: IFormOptions): IForm;
   register(definition: InputDefinition): void;
+  /** ui_hint values usable for a value type, the default first */
+  uiHintsFor(valueType: string): string[];
   generateForm: typeof generateForm;
   componentForVariable: typeof componentForVariable;
   formComponents: typeof formComponents;
@@ -64,6 +69,7 @@ export function createIForm(config: IFormConfig = defaultConfig): IFormRoot {
       }, options);
     },
     register: (definition) => registry.register(definition),
+    uiHintsFor: (valueType) => registry.hintsFor(valueType),
     generateForm,
     componentForVariable,
     formComponents,

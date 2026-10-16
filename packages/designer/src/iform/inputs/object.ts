@@ -10,6 +10,7 @@ export class InvalidJson {
 export default defineInput({
   type: 'object',
   aliases: ['json'],
+  uiHints: ['textarea'],
   create(ctx) {
     const { component } = ctx;
     const input = el('textarea', ctx.classes.control);

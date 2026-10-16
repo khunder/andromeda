@@ -15,9 +15,11 @@ import dateInput from './inputs/date';
 import objectInput from './inputs/object';
 import fileInput from './inputs/file';
 import panelInput from './inputs/panel';
+import { radioInput, selectInput } from './inputs/choice';
 
 const config: IFormConfig = {
-  inputs: [stringInput, numberInput, booleanInput, dateInput, objectInput, fileInput, panelInput],
+  // ui_hint controls (radio, select) register like any input - by their hints
+  inputs: [stringInput, numberInput, booleanInput, dateInput, objectInput, fileInput, panelInput, radioInput, selectInput],
   classes: {
     root: 'iform',
     field: 'property-group iform-field',

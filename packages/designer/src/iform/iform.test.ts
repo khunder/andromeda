@@ -67,6 +67,86 @@ describe('iform rendering and data', () => {
   });
 });
 
+describe('ui_hint', () => {
+  it('lists the controls that fit each type, the default first', () => {
+    const iform = createIForm();
+    expect(iform.uiHintsFor('string')).toEqual(['input', 'textarea', 'radio', 'select']);
+    expect(iform.uiHintsFor('number')).toEqual(['input', 'radio', 'select']);
+    expect(iform.uiHintsFor('boolean')).toEqual(['checkbox', 'switch', 'radio', 'select']);
+    expect(iform.uiHintsFor('Date')).toEqual(['input', 'datetime', 'date']);
+    expect(iform.uiHintsFor('file')).toEqual(['input']);
+  });
+
+  it('renders radio and select, keeping the value type', () => {
+    const form = createIForm().create(host, {
+      components: [
+        { type: 'string', key: 'level', ui_hint: 'radio', values: [{ label: 'Low', value: 'low' }, { label: 'High', value: 'high' }] },
+        { type: 'number', key: 'priority', ui_hint: 'select', values: [1, 2, 3] },
+        { type: 'boolean', key: 'urgent', ui_hint: 'radio' },
+      ],
+    }, { data: { level: 'high', priority: 2, urgent: false } });
+    expect(host.querySelectorAll('input[type=radio]')).toHaveLength(4); // 2 levels + yes/no
+    expect(host.querySelector('select')!.options).toHaveLength(4); // "—" + 3
+    expect(form.data).toEqual({ level: 'high', priority: 2, urgent: false });
+
+    const low = host.querySelector<HTMLInputElement>('[data-iform-key="level"] input[value="0"]')!;
+    low.checked = true;
+    low.dispatchEvent(new Event('change'));
+    const select = host.querySelector('select')!;
+    select.value = '2';
+    expect(form.data).toMatchObject({ level: 'low', priority: 3 });
+    expect(typeof form.data.priority).toBe('number');
+  });
+
+  it('switch, textarea and date-only hints change the control', () => {
+    const form = createIForm().create(host, {
+      components: [
+        { type: 'boolean', key: 'on', ui_hint: 'switch' },
+        { type: 'string', key: 'note', ui_hint: 'textarea' },
+        { type: 'Date', key: 'day', ui_hint: 'date' },
+      ],
+    }, { data: { day: '2026-11-01' } });
+    expect(host.querySelector('input[role=switch]')).not.toBeNull();
+    expect(host.querySelector('textarea')).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>('input[type=date]')!.value).toBe('2026-11-01');
+    expect(form.data.day).toBe('2026-11-01');
+  });
+
+  it('falls back to the default control for a hint that does not fit the type', () => {
+    createIForm().create(host, { components: [{ type: 'file', key: 'scan', ui_hint: 'radio' }] });
+    expect(host.querySelector('input[type=file]')).not.toBeNull();
+    expect(host.querySelector('input[type=radio]')).toBeNull();
+  });
+
+  it('validates a required choice', () => {
+    const form = createIForm().create(host, { components: [{ type: 'string', key: 'pick', ui_hint: 'select', values: ['a'], validate: { required: true } }] });
+    expect(form.validate()).toHaveLength(1);
+  });
+
+  it('is set by the variable picker and gets placeholder choices', () => {
+    const [field] = generateForm([{ name: 'level', type: 'string', uiHint: 'radio' }]).components;
+    expect(field).toMatchObject({ type: 'string', ui_hint: 'radio' });
+    expect(field.values).toHaveLength(2);
+    expect(generateForm([{ name: 'ok', type: 'boolean', uiHint: 'radio' }]).components[0].values).toBeUndefined();
+  });
+
+  it('lets a custom input add a hint for a type', () => {
+    const iform = createIForm();
+    iform.register({
+      type: 'stars', uiHints: ['stars'], forTypes: ['number'],
+      create: (ctx) => {
+        const span = document.createElement('span');
+        span.id = ctx.id;
+        let value: unknown = null;
+        return { element: span, getValue: () => value, setValue: (next) => { value = next; span.textContent = '★'.repeat(Number(next) || 0); }, setDisabled: () => {} };
+      },
+    });
+    expect(iform.uiHintsFor('number')).toContain('stars');
+    iform.create(host, { components: [{ type: 'number', key: 'rating', ui_hint: 'stars' }] }, { data: { rating: 3 } });
+    expect(host.textContent).toContain('★★★');
+  });
+});
+
 describe('iform validation', () => {
   const definition: IFormDefinition = {
     components: [

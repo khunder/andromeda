@@ -33,6 +33,7 @@ const formatSize = (bytes: number) =>
  */
 export default defineInput({
   type: 'file',
+  uiHints: ['input'],
   create(ctx) {
     const { component } = ctx;
     const wrapper = el('div', 'iform-file');

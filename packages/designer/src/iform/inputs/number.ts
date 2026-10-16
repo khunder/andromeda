@@ -5,6 +5,7 @@ import { defineInput } from '../registry';
 export default defineInput({
   type: 'number',
   aliases: ['integer', 'currency'],
+  uiHints: ['input'],
   create(ctx) {
     const { component } = ctx;
     const input = el('input', ctx.classes.control);

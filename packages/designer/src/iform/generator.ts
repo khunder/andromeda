@@ -2,7 +2,7 @@
  * The default field generator: wraps an input's control with its label,
  * help text and error message, using the configured class names.
  *
- *   <div class="{field}">                    ({fieldInline} for checkboxes)
+ *   <div class="{field}" data-iform-key data-iform-type data-iform-hint>   ({fieldInline} for checkboxes)
  *     <label class="{label}" for="id">Label <span class="{required}">*</span></label>
  *     ...control...
  *     <small class="{description}">help</small>
@@ -30,7 +30,8 @@ export const defaultGenerator: FieldGenerator = (input, ctx) => {
 
   const field = el('div', input.inlineLabel ? `${classes.field} ${classes.fieldInline}` : classes.field);
   field.dataset.iformKey = component.key ?? '';
-  field.dataset.iformType = input.type;
+  field.dataset.iformType = ctx.valueType;
+  if (ctx.uiHint) field.dataset.iformHint = ctx.uiHint;
   if (component.hidden) field.hidden = true;
 
   const labelText = ctx.text('label', component.label);
