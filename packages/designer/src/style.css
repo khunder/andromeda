@@ -218,10 +218,13 @@ body {
     filter: brightness(1.08);
 }
 
-.toolbar .btn-compile,
-.diagram-toolbar .btn-compile { background: var(--tint-compile); }
 .toolbar .btn-deploy,
 .diagram-toolbar .btn-deploy { background: var(--tint-deploy); }
+/* compiling + starting */
+.diagram-toolbar .btn-deploy.busy {
+    opacity: 0.7;
+    cursor: progress;
+}
 .toolbar .btn-register,
 .diagram-toolbar .btn-register { background: var(--tint-register); }
 

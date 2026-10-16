@@ -78,7 +78,9 @@ export class ContainerService{
             id: ContainerService.deploymentId,
             deploymentId: process.env.deploymentId,
             version: ContainerService.version,
-            processDefs: ContainerService.processDefs
+            processDefs: ContainerService.processDefs,
+            // lets the engine confirm a pid file is this process before stopping it
+            pid: process.pid
         };
     }
 

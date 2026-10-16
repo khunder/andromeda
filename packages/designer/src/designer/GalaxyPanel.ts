@@ -155,6 +155,7 @@ export class GalaxyPanel extends HTMLElement {
             showToast(result.message, 'error');
             return;
         }
+        showToast(result.message, 'success');
         if (this.galaxyUrl) {
             try {
                 await fetch(`${this.galaxyUrl.replace(/\/$/, '')}/galaxy/remove`, {

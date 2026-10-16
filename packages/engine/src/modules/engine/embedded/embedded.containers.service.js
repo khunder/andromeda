@@ -267,7 +267,14 @@ export class EmbeddedContainerService {
         // ports) - stop only the one on this port. The port arrives as a
         // string from HTTP and is stored as allocated (a number), so compare as text.
         const isTarget = (e) => e.model.deploymentId === deploymentId && String(e.model.port) === String(port);
-        EmbeddedContainerService.containers.filter(isTarget).forEach(e=>{
+        const tracked = EmbeddedContainerService.containers.filter(isTarget);
+        if (tracked.length === 0) {
+            // not started by this engine (it outlived the engine that started it)
+            const stopped = await EmbeddedContainerService.stopUntrackedContainer(deploymentId, port);
+            if (stopped) EmbeddedContainerService.releasePort(port);
+            return stopped;
+        }
+        tracked.forEach(e=>{
             Logger.debug(`stopEmbeddedContainer :: with pid ${e.model.pid}`)
             EmbeddedContainerService.deleteEmbeddedContainerPidFile(deploymentId, port);
             forever.kill(e.model.pid)
@@ -281,5 +288,46 @@ export class EmbeddedContainerService {
         EmbeddedContainerService.containers = EmbeddedContainerService.containers.filter(e => !isTarget(e));
         // free for the next container (allocation re-checks it's really unbound)
         EmbeddedContainerService.releasePort(port);
+        return true;
+    }
+
+    /**
+     * Stops a container this engine has no record of - one started by an
+     * earlier engine run that's still alive (an engine restart doesn't stop
+     * its containers when the dev sidecar daemon isn't watching them). Its
+     * pid comes from the pid file the container writes in its deployment
+     * folder (.pid_<port>); before killing, the container on that port is
+     * asked which deployment it is (GET /api/containers), and - when it
+     * reports it - its pid must be the file's, so a stale file never kills
+     * an unrelated process.
+     * @returns {Promise<boolean>} whether a container was stopped
+     */
+    static async stopUntrackedContainer(deploymentId, port) {
+        if (!/^[\w.-]+$/.test(String(deploymentId)) || !/^\d+$/.test(String(port))) {
+            return false;
+        }
+        let pid;
+        try {
+            pid = parseInt(fs.readFileSync(path.join(process.cwd(), "deployments", deploymentId, `.pid_${port}`), 'utf8').trim(), 10);
+        } catch {
+            Logger.info(`stopEmbeddedContainer :: no container ${deploymentId} known on port ${port}`);
+            return false;
+        }
+        let info = null;
+        try {
+            const response = await fetch(`http://127.0.0.1:${port}/api/containers`, {signal: AbortSignal.timeout(3000)});
+            info = response.ok ? await response.json() : null;
+        } catch {
+            // not running - nothing to stop
+        }
+        const samePid = info?.pid === undefined || Number(info.pid) === pid;
+        if (!Number.isInteger(pid) || info?.deploymentId !== deploymentId || !samePid) {
+            Logger.warn(`stopEmbeddedContainer :: not stopping pid ${pid}: port ${port} serves ${info?.deploymentId ?? 'nothing'}${info?.pid ? ` (pid ${info.pid})` : ''}, not ${deploymentId}`);
+            return false;
+        }
+        Logger.info(`stopEmbeddedContainer :: stopping ${deploymentId} on port ${port} (pid ${pid}), started by another engine run`);
+        forever.kill(pid);
+        EmbeddedContainerService.deleteEmbeddedContainerPidFile(deploymentId, port);
+        return true;
     }
 }

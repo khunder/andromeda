@@ -39,8 +39,9 @@ class EmbeddedServerController {
         const deploymentId = req.body.deploymentId
         const port = req.body.port
         try {
-            await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, port);
-            return {};
+            // false: no container of that deployment runs on that port
+            const stopped = await EmbeddedContainerService.stopEmbeddedContainer(deploymentId, port);
+            return {stopped};
         } catch (err) {
             const returnError = new Error();
             returnError.statusCode = 500;

@@ -129,19 +129,18 @@ function setupToolbar(designer: BPMNDesigner, workspace: Workspace) {
     });
   }
   
-  // Compile button - compiles the BPMN diagram into a generated container
-  const btnCompile = document.getElementById('btn-compile');
-  if (btnCompile) {
-    btnCompile.addEventListener('click', async () => {
-      await (designer as any).handleDeploy();
-    });
-  }
-
-  // Run Embedded button
-  const btnRun = document.getElementById('btn-run-embedded');
-  if (btnRun) {
-    btnRun.addEventListener('click', async () => {
-      await (designer as any).runEmbedded();
+  // Deploy button - compiles the diagram into a container, then starts it
+  const btnDeploy = document.getElementById('btn-deploy') as HTMLButtonElement | null;
+  if (btnDeploy) {
+    btnDeploy.addEventListener('click', async () => {
+      btnDeploy.disabled = true;
+      btnDeploy.classList.add('busy');
+      try {
+        await designer.compileAndDeploy();
+      } finally {
+        btnDeploy.disabled = false;
+        btnDeploy.classList.remove('busy');
+      }
     });
   }
 

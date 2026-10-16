@@ -556,31 +556,32 @@ export class BPMNDesigner {
     return this.zoom;
   }
 
-  public async handleDeploy(): Promise<void> {
-    try {
-      const xml = await this.getXML();
-      const result = await this.deploymentService.deploy(xml);
+  private deploying = false;
 
-      showToast(result.message, result.success ? 'success' : 'error');
+  /**
+   * Deploy: compiles the diagram into a container (POST /api/compile), then
+   * starts it embedded (POST /api/run-embedded) - the second step only when
+   * the first succeeded, with the versioned id the compile resolved.
+   */
+  public async compileAndDeploy(): Promise<void> {
+    if (this.deploying) return; // a second click while one runs
+    this.deploying = true;
+    try {
+      showToast('Compiling…', 'info');
+      const compiled = await this.deploymentService.deploy(await this.getXML());
+      if (!compiled.success) {
+        showToast(compiled.message, 'error');
+        return;
+      }
+      const deploymentId = this.getActiveDeploymentId();
+      showToast(`Compiled - starting ${deploymentId}…`, 'info');
+      const started = await this.deploymentService.runEmbedded(deploymentId);
+      showToast(started.success ? `Deployed ${deploymentId}` : started.message, started.success ? 'success' : 'error');
     } catch (error) {
       console.error('Deployment failed:', error);
       showToast('Deployment failed. Check the console for details.', 'error');
-    }
-  }
-
-  public async runEmbedded(): Promise<void> {
-    try {
-      const deploymentId = this.getActiveDeploymentId();
-      const result = await this.deploymentService.runEmbedded(deploymentId);
-
-      if (result.success) {
-        showToast(`Run embedded started for ${deploymentId}`, 'success');
-      } else {
-        showToast(result.message, 'error');
-      }
-    } catch (error) {
-      console.error('Run embedded failed:', error);
-      showToast('Run embedded failed. Check the console for details.', 'error');
+    } finally {
+      this.deploying = false;
     }
   }
 

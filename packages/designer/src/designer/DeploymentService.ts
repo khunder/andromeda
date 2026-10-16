@@ -81,7 +81,11 @@ export class DeploymentService {
       });
 
       if (response.ok) {
-        return { success: true, message: `Stopped ${deploymentId}` };
+        // stopped: false - the engine found no container of it on that port (already gone)
+        const body = await response.json().catch(() => ({}));
+        return body?.stopped === false
+          ? { success: true, message: `${deploymentId} wasn't running on port ${port} - removed from the list` }
+          : { success: true, message: `Stopped ${deploymentId}` };
       } else {
         const errorText = await response.text();
         return { success: false, message: `Stop failed (HTTP ${response.status}): ${errorText}` };
