@@ -87,6 +87,8 @@ class WorkflowBuilder {
 
         await this.generateTimerModelClass(normalizedProcessDef,bpmnModel,containerParsingContext,workflowCodegenContext)
 
+        await this.generateHumanTaskModelClass(normalizedProcessDef,containerParsingContext,workflowCodegenContext)
+
         processesInBpmnFile.forEach(process => {
             this.generateProcess(process, workflowCodegenContext, containerParsingContext);
 
@@ -498,6 +500,8 @@ class WorkflowBuilder {
                 }
             },
             "400": {"description": "Missing processInstanceId/nodeId, or invalid variables or files"},
+            "401": {"description": "Human task, OIDC enabled, and no valid bearer token was sent"},
+            "403": {"description": "Human task the caller has none of the roles for"},
             "404": {"description": "Process instance not found/active, or nodeId is not a known node in this workflow"},
             "409": {"description": "Process instance is not currently waiting at that node"},
             "413": {"description": "A file exceeds FILE_MAX_BYTES (or FILE_FORCED_MAX_BYTES when forced) - nothing is resumed, the instance keeps waiting"},
@@ -514,6 +518,7 @@ class WorkflowBuilder {
                             "processInstanceId": {"type": "string"},
                             "nodeId": {"type": "string"},
                             "variables": {"type": "string", "description": "JSON-encoded process variables object"},
+                            "formData": {"type": "string", "description": "JSON-encoded form data, as in the JSON body"},
                             "files": {"type": "string", "description": "JSON-encoded `files` object (base64/url/path sources), as in the JSON body"},
                             "forceFileSize": {"type": "string", "enum": ["true", "false"], "description": forceSchema.description},
                             ...multipartParts
@@ -527,6 +532,7 @@ class WorkflowBuilder {
                         "properties": {
                             "processInstanceId": {"type": "string", "description": "The id returned by POST /start"},
                             "nodeId": {"type": "string", "description": "The id of the intermediate catch event or human task node to resume"},
+                            "formData": {"type": "object", "description": "Human task: the form data - fields named like a process variable set it, if the task may change it"},
                             "variables": variablesSchema,
                             "files": filesSchema,
                             "forceFileSize": forceSchema
@@ -552,15 +558,50 @@ class WorkflowBuilder {
                                 "properties": {
                                     "processInstanceId": {"type": "string"},
                                     "nodeId": {"type": "string", "description": "Pass this as nodeId to POST /signal to complete the task"},
-                                    "nodeName": {"type": "string"}
+                                    "nodeName": {"type": "string"},
+                                    "roles": {"type": "array", "items": {"type": "string"}, "description": "Roles allowed to complete it (OIDC_ADMIN_ROLE always is); empty = any authenticated user"},
+                                    "hasForm": {"type": "boolean"}
                                 }
                             }
                         }
                     }
                 }
-            }
+            },
+            "401": {"description": "OIDC is enabled and no valid bearer token was sent"}
         })
+        openApiCodegen.addPathDescription(tasksPath, "get", "List the human tasks waiting to be completed that the caller may complete (all of them when OIDC is off), across every process instance of this workflow in this container")
         workflowCodegenContext.routes.push({verb: "GET", path: tasksPath, method: "tasks"})
+
+        // one task, with its form and the instance's current variables
+        const taskPath = `${tasksPath}/{processInstanceId}/{nodeId}`;
+        openApiCodegen.addPath(taskPath, "get")
+        openApiCodegen.addPathDescription(taskPath, "get", "A pending human task: its form, the variables completing it may change, and the process instance's current variable values")
+        openApiCodegen.addPathTags(taskPath, "get", ["Process Instance"])
+        openApiCodegen.addResponse(taskPath, "get", {
+            "200": {
+                "description": "The task",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "processInstanceId": {"type": "string"},
+                                "nodeId": {"type": "string"},
+                                "nodeName": {"type": "string"},
+                                "roles": {"type": "array", "items": {"type": "string"}},
+                                "editableVariables": {"type": "array", "items": {"type": "string"}},
+                                "form": {"type": "object", "nullable": true, "description": "form definition (iform JSON: { components: [...] })"},
+                                "variables": variablesSchema
+                            }
+                        }
+                    }
+                }
+            },
+            "401": {"description": "OIDC is enabled and no valid bearer token was sent"},
+            "403": {"description": "The caller has none of the task's roles"},
+            "404": {"description": "Not a human task, or the instance is not waiting at it"}
+        })
+        workflowCodegenContext.routes.push({verb: "GET", path: `${tasksPath}/:processInstanceId/:nodeId`, method: "task"})
 
 
         let serviceFilePath = `./deployments/${containerParsingContext.deploymentId}/src/controllers/${controllerName}.js`
@@ -611,6 +652,28 @@ class WorkflowBuilder {
 
         workflowCodegenContext.workflowModelClass = workflowCodegenContext.workflowModelFile.getClassOrThrow("WorkflowModel");
 
+    }
+
+    /**
+     * Same pattern as generateTimerModelClass, for human tasks: an initially
+     * empty HumanTaskModel class that human-task.node.processor.js fills with
+     * one static property per userTask (roles, editable variables, form).
+     * @param {string} normalizedProcessDef
+     * @param {ContainerParsingContext} containerParsingContext
+     * @param {WorkflowCodegenContext} workflowCodegenContext
+     */
+    async generateHumanTaskModelClass(normalizedProcessDef, containerParsingContext, workflowCodegenContext) {
+        const modelPath = `./deployments/${containerParsingContext.deploymentId}/src/modules/container/${normalizedProcessDef.toLowerCase()}.human-task-model.js`
+        const template = fs.readFileSync(
+            path.join(__dirname, './builder/templates/src/modules/container/human-task-model.js'),
+        ).toString()
+
+        workflowCodegenContext.humanTaskModelFile = workflowCodegenContext.project.createSourceFile(
+            modelPath,
+            template,
+            {overwrite: true},
+        );
+        workflowCodegenContext.humanTaskModelClass = workflowCodegenContext.humanTaskModelFile.getClassOrThrow("HumanTaskModel");
     }
 
     /**

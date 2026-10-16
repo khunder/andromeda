@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example: roles, a human task form and editable variables.
+  - roles are declared like variables (bpmn:resource); the "Approve expense" human
+    task may be completed by an `approver` (or `process-admin`, who may do anything)
+  - completing it may only change `approved` and `comment` (andromeda:editableVariable)
+  - its form (andromeda:form, an iform definition - see the designer's src/iform) shows `amount` read-only and
+    edits `approved` / `comment` - form fields named like a process variable set it
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:andromeda="http://andromeda.dev/schema/bpmn/1.0"
+                  id="ExpenseApproval" version="1.0.0" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:itemDefinition id="ItemDefinition_amount" structureRef="number" />
+  <bpmn:itemDefinition id="ItemDefinition_approved" structureRef="boolean" />
+  <bpmn:itemDefinition id="ItemDefinition_comment" structureRef="string" />
+  <bpmn:itemDefinition id="ItemDefinition_decision" structureRef="string" />
+  <bpmn:resource id="Role_approver" name="approver" />
+  <bpmn:resource id="Role_clerk" name="clerk" />
+  <bpmn:process id="Process_ExpenseApproval" isExecutable="true">
+    <bpmn:property id="Property_amount" itemSubjectRef="ItemDefinition_amount" name="amount" />
+    <bpmn:property id="Property_approved" itemSubjectRef="ItemDefinition_approved" name="approved" />
+    <bpmn:property id="Property_comment" itemSubjectRef="ItemDefinition_comment" name="comment" />
+    <bpmn:property id="Property_decision" itemSubjectRef="ItemDefinition_decision" name="decision" />
+    <bpmn:startEvent id="StartEvent_Submitted" name="Expense submitted">
+      <bpmn:outgoing>Flow_ToApprove</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="ApproveExpense" name="Approve expense">
+      <bpmn:extensionElements>
+        <andromeda:editableVariable name="approved" />
+        <andromeda:editableVariable name="comment" />
+        <andromeda:form><![CDATA[{
+  "display": "form",
+  "components": [
+    {"type": "number", "key": "amount", "label": "Amount", "disabled": true},
+    {"type": "boolean", "key": "approved", "label": "Approve this expense"},
+    {"type": "string", "key": "comment", "label": "Comment", "multiline": true, "rows": 3}
+  ]
+}]]></andromeda:form>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToApprove</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRecord</bpmn:outgoing>
+      <bpmn:potentialOwner id="PotentialOwner_approver">
+        <bpmn:resourceRef>Role_approver</bpmn:resourceRef>
+      </bpmn:potentialOwner>
+    </bpmn:userTask>
+    <bpmn:scriptTask id="RecordDecision" name="Record decision">
+      <bpmn:incoming>Flow_ToRecord</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+      <bpmn:script>this.variables.decision = `${this.variables.approved ? "approved" : "refused"}: ${this.variables.amount} (${this.variables.comment || "no comment"})`;</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="EndEvent_Done" name="Done">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ToApprove" sourceRef="StartEvent_Submitted" targetRef="ApproveExpense" />
+    <bpmn:sequenceFlow id="Flow_ToRecord" sourceRef="ApproveExpense" targetRef="RecordDecision" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="RecordDecision" targetRef="EndEvent_Done" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_ExpenseApproval">
+      <bpmndi:BPMNShape id="StartEvent_Submitted_di" bpmnElement="StartEvent_Submitted">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ApproveExpense_di" bpmnElement="ApproveExpense">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RecordDecision_di" bpmnElement="RecordDecision">
+        <dc:Bounds x="400" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Done_di" bpmnElement="EndEvent_Done">
+        <dc:Bounds x="562" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToApprove_di" bpmnElement="Flow_ToApprove">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRecord_di" bpmnElement="Flow_ToRecord">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="400" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToEnd_di" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="500" y="120" />
+        <di:waypoint x="562" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

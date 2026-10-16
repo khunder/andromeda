@@ -56,6 +56,14 @@ export class Config {
         this.fileMaxBytes = bytesFromEnv('FILE_MAX_BYTES', 10 * 1024 * 1024);
         this.fileForcedMaxBytes = bytesFromEnv('FILE_FORCED_MAX_BYTES', 100 * 1024 * 1024);
         this.fileUrlTimeoutMs = bytesFromEnv('FILE_URL_TIMEOUT_MS', 30_000);
+        // optional OIDC for containers' human tasks - handed to embedded
+        // containers as-is; see the container's src/modules/auth
+        this.oidcEnabled = process.env.OIDC_ENABLED || '';
+        this.oidcIssuer = process.env.OIDC_ISSUER || '';
+        this.oidcAudience = process.env.OIDC_AUDIENCE || '';
+        this.oidcJwksUri = process.env.OIDC_JWKS_URI || '';
+        this.oidcRolesClaim = process.env.OIDC_ROLES_CLAIM || '';
+        this.oidcAdminRole = process.env.OIDC_ADMIN_ROLE || '';
     }
 }
 

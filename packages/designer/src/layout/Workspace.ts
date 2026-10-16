@@ -9,7 +9,8 @@ import {
   type IContentRenderer,
 } from 'dockview-core';
 import type { BPMNDesigner } from '../designer';
-import { GalaxyPanel, type OpenInstancesDetail, type OpenLogsDetail } from '../designer/GalaxyPanel';
+import { GalaxyPanel, type OpenInstancesDetail, type OpenLogsDetail, type OpenTasksDetail } from '../designer/GalaxyPanel';
+import { TasksView } from '../designer/TasksView';
 import { LogViewer } from '../designer/LogViewer';
 import { ProcessInstancesView } from '../designer/ProcessInstancesView';
 
@@ -85,8 +86,32 @@ interface LogPanelParams {
 
 const LOGS_COMPONENT = 'logs';
 const INSTANCES_COMPONENT = 'instances';
-// per-container panels (logs, process instances) share one group under the diagram
-const BOTTOM_PANEL_PREFIXES = ['logs:', 'instances:'];
+const TASKS_COMPONENT = 'tasks';
+// per-container panels (logs, process instances, tasks) share one group under the diagram
+const BOTTOM_PANEL_PREFIXES = ['logs:', 'instances:', 'tasks:'];
+
+/** params of a `tasks` panel - also what a saved layout reopens it with */
+type TasksPanelParams = OpenTasksDetail;
+
+/** A container's human task worklist - see TasksView. */
+class TasksPanelRenderer implements IContentRenderer {
+  readonly element = document.createElement('div');
+  private view = new TasksView();
+
+  constructor(private authHeaders: () => Record<string, string>) {
+    this.element.className = 'dock-panel dock-panel-tasks';
+    this.element.appendChild(this.view);
+  }
+
+  init(params: GroupPanelPartInitParameters): void {
+    const { host, port, deploymentId, processDefs } = params.params as unknown as TasksPanelParams;
+    this.view.open({ host, port, deploymentId, processDefs, authHeaders: this.authHeaders });
+  }
+
+  dispose(): void {
+    this.view.stop();
+  }
+}
 const BOTTOM_PANEL_HEIGHT = 300;
 
 /** params of an `instances` panel - also what a saved layout reopens it with */
@@ -204,6 +229,9 @@ export class Workspace {
         if (name === INSTANCES_COMPONENT) {
           return new InstancesPanelRenderer();
         }
+        if (name === TASKS_COMPONENT) {
+          return new TasksPanelRenderer(() => this.designer?.getAuthHeaders() ?? {});
+        }
         const spec = this.specs[name as PanelId];
         if (!spec) throw new Error(`workspace: unknown panel "${name}"`);
         return new BorrowedElementRenderer(name as PanelId, spec, this.holder);
@@ -231,6 +259,9 @@ export class Workspace {
     });
     this.galaxyPanel.addEventListener('open-instances', (event) => {
       this.openInstances((event as CustomEvent<OpenInstancesDetail>).detail);
+    });
+    this.galaxyPanel.addEventListener('open-tasks', (event) => {
+      this.openTasks((event as CustomEvent<OpenTasksDetail>).detail);
     });
     this.updateMenu();
   }
@@ -272,6 +303,24 @@ export class Workspace {
       id,
       component: INSTANCES_COMPONENT,
       title: `Instances · ${deploymentId}`,
+      params,
+      ...this.bottomPanelPosition(),
+    } as AddPanelOptions);
+  }
+
+  /** Opens (or brings to front) the human task worklist of one container. */
+  openTasks(detail: OpenTasksDetail): void {
+    const id = `tasks:${detail.deploymentId}:${detail.port}`;
+    const existing = this.api.getPanel(id);
+    if (existing) {
+      existing.api.setActive();
+      return;
+    }
+    const params: TasksPanelParams = { ...detail };
+    this.api.addPanel({
+      id,
+      component: TASKS_COMPONENT,
+      title: `Tasks · ${detail.deploymentId}`,
       params,
       ...this.bottomPanelPosition(),
     } as AddPanelOptions);

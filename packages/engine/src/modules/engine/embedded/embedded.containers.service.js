@@ -127,7 +127,14 @@ export class EmbeddedContainerService {
                     FILE_INLINE_MAX_BYTES: String(Config.getInstance().fileInlineMaxBytes),
                     FILE_MAX_BYTES: String(Config.getInstance().fileMaxBytes),
                     FILE_FORCED_MAX_BYTES: String(Config.getInstance().fileForcedMaxBytes),
-                    FILE_URL_TIMEOUT_MS: String(Config.getInstance().fileUrlTimeoutMs)
+                    FILE_URL_TIMEOUT_MS: String(Config.getInstance().fileUrlTimeoutMs),
+                    // optional OIDC for human tasks (empty = container defaults)
+                    OIDC_ENABLED: Config.getInstance().oidcEnabled,
+                    OIDC_ISSUER: Config.getInstance().oidcIssuer,
+                    OIDC_AUDIENCE: Config.getInstance().oidcAudience,
+                    OIDC_JWKS_URI: Config.getInstance().oidcJwksUri,
+                    OIDC_ROLES_CLAIM: Config.getInstance().oidcRolesClaim,
+                    OIDC_ADMIN_ROLE: Config.getInstance().oidcAdminRole
                 },
                 cwd: deploymentPath,
                 args: args

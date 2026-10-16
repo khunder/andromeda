@@ -5,10 +5,64 @@ import {PersistenceGateway} from "../modules/persistence/persistence-gateway.js"
 import {Config} from "../config/config.js";
 import { {{ ProcessDef }}ProcessInstanceContext} from "../services/{{ ProcessDef.toLowerCase() }}.process-instance-context.js";
 import {collectFileInputs, FileTooLargeError, fileVariableNames, getFileService, isForced} from "../modules/files/files.js";
+import {HumanTaskModel} from "../modules/container/{{ ProcessDef.toLowerCase() }}.human-task-model.js";
+import {authenticate} from "../modules/auth/oidc.js";
+import {canExecute} from "../modules/auth/roles.js";
 const Logger = new AndromedaLogger();
 
 // names of this workflow's `file` variables (see src/modules/files)
 const FILE_VARIABLES = fileVariableNames(new {{ ProcessDef }}ProcessInstanceContext(null));
+
+// every declared process variable
+const PROCESS_VARIABLES = new {{ ProcessDef }}ProcessInstanceContext(null).__variablesRef.map((variable) => variable.name);
+
+/**
+ * The caller, who must be allowed to complete `task` (see src/modules/auth):
+ * 401 without a valid token when OIDC is on, 403 without one of its roles.
+ */
+async function authorizeTask(req, task) {
+    const principal = await authenticate(req);
+    if (!canExecute(principal, task.roles)) {
+        throw Object.assign(
+            new Error(`human task ${task.id} needs one of the roles [${task.roles.join(', ')}] (or ${Config.getInstance().oidcAdminRole})`),
+            {statusCode: 403},
+        );
+    }
+    return principal;
+}
+
+/**
+ * What completing a human task may change: its editable variables, or -
+ * when it declares none - every process variable (as before tasks had any
+ * configuration). Form fields named like a process variable set it.
+ * @param {object} task - HumanTaskModel entry
+ * @param {object} values - variable values from `variables`, `formData` and files
+ * @returns {object} `allowed` (name -> value) and `ignored` (names) - not
+ *   written as a JSDoc object type: double braces are Nunjucks syntax here
+ */
+function editableChanges(task, values) {
+    const editable = task.editableVariables.length > 0 ? task.editableVariables : PROCESS_VARIABLES;
+    const allowed = {};
+    const ignored = [];
+    for (const [name, value] of Object.entries(values)) {
+        if (!PROCESS_VARIABLES.includes(name)) continue; // a form field that isn't a process variable
+        if (editable.includes(name)) allowed[name] = value;
+        else ignored.push(name);
+    }
+    return {allowed, ignored};
+}
+
+/** A live process instance, or one reconstructed from persistence (e.g. after a restart). */
+async function findProcessInstance(processInstanceId) {
+    let processInstance = ContainerService.getInstance().processInstances[processInstanceId];
+    if (!processInstance) {
+        processInstance = await {{ startMethod.name }}ProcessInstanceService.restoreInstance(processInstanceId);
+    }
+    if (!processInstance) {
+        throw Object.assign(new Error(`process instance ${processInstanceId} was not found or is no longer active`), {statusCode: 404});
+    }
+    return processInstance;
+}
 
 // the start event files given to /start are recorded against
 const START_NODE_ID = Object.values(WorkflowModel).find((flow) => flow.source && flow.source.$type === 'StartEvent')?.source.id || 'start';
@@ -120,19 +174,16 @@ class {{ ControllerClassName }} {
                 throw err;
             }
 
+            // a human task may only be completed by someone with one of its
+            // roles - checked before anything is read or stored
+            const humanTask = HumanTaskModel[nodeId];
+            const principal = humanTask ? await authorizeTask(req, humanTask) : null;
+
             // usually still live in this container process's memory; if not
             // (e.g. the container restarted since the instance paused),
             // reconstruct it from persistence instead of giving up - see
             // {{ startMethod.name }}ProcessInstanceService.restoreInstance()
-            let processInstance = ContainerService.getInstance().processInstances[processInstanceId];
-            if (!processInstance) {
-                processInstance = await {{ startMethod.name }}ProcessInstanceService.restoreInstance(processInstanceId);
-            }
-            if (!processInstance) {
-                const err = new Error(`process instance ${processInstanceId} was not found or is no longer active`);
-                err.statusCode = 404;
-                throw err;
-            }
+            const processInstance = await findProcessInstance(processInstanceId);
 
             // the incoming flow into this node - WorkflowModel is also how we
             // know nodeId genuinely names a node in this workflow at all.
@@ -163,10 +214,30 @@ class {{ ControllerClassName }} {
             // the node is claimed below, so a bad or oversized file is
             // rejected while the instance keeps waiting for a valid signal
             const fileService = getFileService();
-            const loadedFiles = await fileService.loadAll(requestFileInputs(req), {force: isForced(body)});
+            let fileInputs = requestFileInputs(req);
+            const skippedFiles = [];
+            if (humanTask) {
+                // a file for a variable the task may not change is never even read
+                const {allowed} = editableChanges(humanTask, Object.fromEntries(fileInputs.map((input) => [input.variable, true])));
+                skippedFiles.push(...fileInputs.filter((input) => !(input.variable in allowed)).map((input) => input.variable));
+                fileInputs = fileInputs.filter((input) => input.variable in allowed);
+            }
+            const loadedFiles = await fileService.loadAll(fileInputs, {force: isForced(body)});
             const {refs, warnings} = await fileService.storeAll(loadedFiles, fileLocation(processInstanceId, nodeId));
+            if (skippedFiles.length > 0) {
+                warnings.push(`files for variables not editable in human task ${nodeId}, ignored: ${skippedFiles.join(', ')}`);
+            }
 
-            const variables = {...parseVariables(body.variables), ...refs};
+            // form data: fields named like a process variable set it
+            let variables = {...parseVariables(body.variables), ...parseVariables(body.formData), ...refs};
+            if (humanTask) {
+                const {allowed, ignored} = editableChanges(humanTask, variables);
+                if (ignored.length > 0) {
+                    warnings.push(`not editable in human task ${nodeId}, ignored: ${ignored.join(', ')}`);
+                }
+                variables = allowed;
+                Logger.info(`human task ${nodeId} of process instance ${processInstanceId} completed by ${principal.anonymous ? 'an anonymous caller (OIDC off)' : principal.name || principal.subject}`);
+            }
             Object.keys(variables).forEach((key) => {
                 if (key in processInstance.variables) {
                     processInstance.variables[key] = variables[key];
@@ -213,18 +284,60 @@ class {{ ControllerClassName }} {
     // /signal. Only HumanTask-typed Task records - a pending catch event is
     // deliberately excluded, it's not something a human "completes" (see
     // GET /tasks vs POST /signal).
+    // Only the tasks the caller may complete (see src/modules/auth) - every
+    // one when OIDC is off.
     static tasks = async (req, res) => {
         try {
+            const principal = await authenticate(req);
             const activeTasks = await PersistenceGateway.findAllActiveTasks('HumanTask', '{{ ProcessDef }}');
-            return activeTasks.map((task) => ({
-                processInstanceId: task.processInstance,
-                nodeId: task.nodeId,
-                nodeName: task.nodeName || task.nodeId,
-            }));
+            return activeTasks
+                .filter((task) => canExecute(principal, HumanTaskModel[task.nodeId]?.roles || []))
+                .map((task) => ({
+                    processInstanceId: task.processInstance,
+                    nodeId: task.nodeId,
+                    nodeName: task.nodeName || task.nodeId,
+                    roles: HumanTaskModel[task.nodeId]?.roles || [],
+                    hasForm: !!HumanTaskModel[task.nodeId]?.form,
+                }));
         } catch (err) {
             Logger.error(err);
             const returnError = new Error();
-            returnError.statusCode = 500;
+            returnError.statusCode = err.statusCode || 500;
+            returnError.message = err.message || err;
+            returnError.stack = err.stack || err;
+            throw returnError;
+        }
+    }
+
+    // One pending human task, with what's needed to complete it: its
+    // form, the variables it may change, and the instance's current variable
+    // values (to prefill the form).
+    static task = async (req, res) => {
+        try {
+            const {processInstanceId, nodeId} = req.params;
+            const humanTask = HumanTaskModel[nodeId];
+            if (!humanTask) {
+                throw Object.assign(new Error(`${nodeId} is not a human task of this workflow`), {statusCode: 404});
+            }
+            await authorizeTask(req, humanTask);
+            const pending = await PersistenceGateway.findActiveTask({processInstanceId, nodeId});
+            if (!pending) {
+                throw Object.assign(new Error(`process instance ${processInstanceId} is not waiting at human task ${nodeId}`), {statusCode: 404});
+            }
+            const processInstance = await findProcessInstance(processInstanceId);
+            return {
+                processInstanceId,
+                nodeId,
+                nodeName: humanTask.name,
+                roles: humanTask.roles,
+                editableVariables: humanTask.editableVariables.length > 0 ? humanTask.editableVariables : PROCESS_VARIABLES,
+                form: humanTask.form,
+                variables: processInstance.variables.toPlainObject(),
+            };
+        } catch (err) {
+            Logger.error(err);
+            const returnError = new Error();
+            returnError.statusCode = err.statusCode || 500;
             returnError.message = err.message || err;
             returnError.stack = err.stack || err;
             throw returnError;

@@ -194,6 +194,30 @@ export class EngineService {
                 }
             })
         // served by the web module's log-stream.routes.js, copied into every container
+        // see the probe.routes.js.snjk template and the container's src/modules/auth
+        containerCodegenContext.openApiCodegen.addPath("/api/auth/me", "get")
+            .addPathDescription("/api/auth/me", "get", "Validates the bearer token (OIDC, when OIDC_ENABLED) and returns the caller and their roles. With OIDC off every caller acts as OIDC_ADMIN_ROLE.")
+            .addPathTags("/api/auth/me", "get", ["engine"])
+            .addResponse("/api/auth/me", "get", {
+                "200": {
+                    "description": "The caller",
+                    "content": {"application/json": {"schema": {
+                        "type": "object",
+                        "properties": {
+                            "oidcEnabled": {"type": "boolean"},
+                            "adminRole": {"type": "string"},
+                            "authenticated": {"type": "boolean"},
+                            "anonymous": {"type": "boolean"},
+                            "subject": {"type": "string", "nullable": true},
+                            "name": {"type": "string", "nullable": true},
+                            "roles": {"type": "array", "items": {"type": "string"}},
+                            "admin": {"type": "boolean"}
+                        }
+                    }}}
+                },
+                "401": {"description": "OIDC is enabled and the token is missing or invalid"},
+                "503": {"description": "The OIDC provider (discovery / JWKS) could not be reached"}
+            })
         containerCodegenContext.openApiCodegen.addPath("/api/logs/stream", "get")
             .addPathDescription("/api/logs/stream", "get", "Live log feed (Server-Sent Events). Query: level=trace|debug|info|warn|error|fatal (minimum level, default trace), since=<event id> (replay buffered events after it, default 0 = whole backlog; Last-Event-ID takes precedence)")
             .addPathTags("/api/logs/stream", "get", ["engine"])

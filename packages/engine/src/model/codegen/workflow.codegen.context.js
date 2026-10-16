@@ -42,6 +42,16 @@ class WorkflowCodegenContext {
      */
     timerModelFile
 
+    /**
+     * @type {tsMorph.ClassDeclaration}
+     */
+    humanTaskModelClass
+
+    /**
+     * @type {tsMorph.SourceFile}
+     */
+    humanTaskModelFile
+
 
     /**
      * @type {tsMorph.SourceFile}

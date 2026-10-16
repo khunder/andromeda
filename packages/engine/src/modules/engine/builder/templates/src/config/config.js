@@ -58,6 +58,17 @@ export class Config {
         // absolute cap for forced files (also the multipart upload limit)
         this.fileForcedMaxBytes = bytesFromEnv('FILE_FORCED_MAX_BYTES', 100 * 1024 * 1024);
         this.fileUrlTimeoutMs = bytesFromEnv('FILE_URL_TIMEOUT_MS', 30_000);
+        // optional OIDC (see src/modules/auth): off = every caller acts as the admin
+        this.oidcEnabled = /^(true|1|yes|on)$/i.test(process.env.OIDC_ENABLED || '');
+        this.oidcIssuer = process.env.OIDC_ISSUER || '';
+        // when set, the token's `aud` must contain it
+        this.oidcAudience = process.env.OIDC_AUDIENCE || '';
+        // skips discovery when set
+        this.oidcJwksUri = process.env.OIDC_JWKS_URI || '';
+        // comma-separated claim paths roles are read from
+        this.oidcRolesClaims = (process.env.OIDC_ROLES_CLAIM || 'roles,realm_access.roles').split(',').map((claim) => claim.trim()).filter(Boolean);
+        // may complete any task
+        this.oidcAdminRole = process.env.OIDC_ADMIN_ROLE || 'process-admin';
     }
 }
 

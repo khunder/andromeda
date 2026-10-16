@@ -38,6 +38,14 @@ class HumanTaskNodeProcessor {
 
         const nodeName = currentNode.name || currentNode.id;
 
+        // who may complete it, what it may change, and its form - read at
+        // runtime from the generated HumanTaskModel (see controller.njk)
+        workflowCodegenContext.humanTaskModelClass?.addProperty({
+            isStatic: true,
+            name: JSON.stringify(currentNode.id),
+            initializer: JSON.stringify(HumanTaskNodeProcessor.taskConfig(currentNode, nodeName)),
+        });
+
         /**
          * @type {NodeContext}
          */
@@ -65,6 +73,46 @@ class HumanTaskNodeProcessor {
 
         return nodeContext;
 
+    }
+
+    /**
+     * A userTask's runtime configuration:
+     * - roles: names of the bpmn:Resource elements its bpmn:potentialOwner /
+     *   bpmn:performer refer to (process-admin may always complete it; no
+     *   roles = any authenticated user)
+     * - editableVariables: <andromeda:editableVariable name="..."/> - the
+     *   process variables completing the task may change
+     * - form: <andromeda:form> body, an iform form definition (JSON, shaped like form.io's)
+     * @returns {{id: string, name: string, roles: string[], editableVariables: string[], form: object|null}}
+     */
+    static taskConfig(currentNode, nodeName) {
+        const roles = (currentNode.resources || [])
+            .filter((resource) => resource.$type === 'bpmn:PotentialOwner' || resource.$type === 'bpmn:Performer')
+            .map((resource) => resource.resourceRef?.name || resource.resourceRef?.id)
+            .filter(Boolean);
+
+        const extensions = currentNode.extensionElements?.values || [];
+        const editableVariables = extensions
+            .filter((element) => element.$type === 'andromeda:EditableVariable' && element.name)
+            .map((element) => element.name);
+
+        let form = null;
+        const formElement = extensions.find((element) => element.$type === 'andromeda:Form');
+        if (formElement?.body && formElement.body.trim()) {
+            try {
+                form = JSON.parse(formElement.body);
+            } catch (error) {
+                throw new Error(`human task ${currentNode.id}: <andromeda:form> is not valid JSON (${error.message})`);
+            }
+        }
+
+        return {
+            id: currentNode.id,
+            name: nodeName,
+            roles: [...new Set(roles)],
+            editableVariables: [...new Set(editableVariables)],
+            form,
+        };
     }
 }
 

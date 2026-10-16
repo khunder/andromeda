@@ -10,6 +10,15 @@ export interface OpenLogsDetail {
     url: string;
 }
 
+/** `open-tasks` event detail: whose human task worklist to open. */
+export interface OpenTasksDetail {
+    deploymentId: string;
+    host: string;
+    port: string;
+    /** the container's workflows - each has its own /{processDef}/tasks */
+    processDefs: string[];
+}
+
 /** `open-instances` event detail: which deployment's process instances to list. */
 export interface OpenInstancesDetail {
     deploymentId: string;
@@ -101,6 +110,7 @@ export class GalaxyPanel extends HTMLElement {
                             <button class="btn btn-play-params" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance with Parameters">▶⚙</button>
                             <button class="btn btn-api" data-port="${i.port}" title="Open the container's API (Swagger)">API</button>
                             <button class="btn btn-logs" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Stream the container's logs">Logs</button>
+                            <button class="btn btn-tasks" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Human tasks waiting to be completed">Tasks</button>
                             <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
                         </div>
                     </div>
@@ -158,6 +168,11 @@ export class GalaxyPanel extends HTMLElement {
             } else if (target.classList.contains('btn-api')) {
                 const port = target.getAttribute('data-port') || '';
                 window.open(`http://${this.getContainerHost()}:${port}/api`, '_blank');
+            } else if (target.classList.contains('btn-tasks')) {
+                const deploymentId = target.getAttribute('data-deployment-id') || '';
+                const port = target.getAttribute('data-port') || '';
+                const detail: OpenTasksDetail = { deploymentId, port, host: this.getContainerHost(), processDefs: this.getProcessDefs(deploymentId, port) };
+                this.dispatchEvent(new CustomEvent<OpenTasksDetail>('open-tasks', { detail, bubbles: true, composed: true }));
             } else if (target.classList.contains('btn-logs')) {
                 // the panel itself doesn't know about the dock - Workspace listens for this
                 const detail: OpenLogsDetail = {
@@ -367,6 +382,16 @@ export class GalaxyPanel extends HTMLElement {
                 .btn-api:hover {
                     background: rgba(227, 242, 253, 0.75);
                     border-color: #1565c0;
+                }
+
+                .btn-tasks {
+                    color: #b26a00;
+                    border-color: #f5d9a8;
+                }
+
+                .btn-tasks:hover {
+                    background: rgba(245, 165, 36, 0.12);
+                    border-color: #b26a00;
                 }
 
                 .btn-logs {

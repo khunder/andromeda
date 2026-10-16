@@ -5,6 +5,16 @@ import { ConfigurationPanel } from './ConfigurationPanel';
 import { DeploymentService } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
 import { showToast } from './Toast';
+import { FormBuilderModal } from './FormBuilderModal';
+import { formComponents, formFieldKeys, generateForm, type FormVariable, type IFormDefinition as FormDefinition } from '../iform';
+// the engine's BPMN extension (human task form + editable variables) - one
+// descriptor shared by the designer and the engine's parser
+import andromedaModdleSource from '../../../engine/src/modules/engine/builder/andromeda.moddle.json?raw';
+
+const ANDROMEDA_MODDLE = JSON.parse(andromedaModdleSource);
+
+/** May complete any human task - built in, never declared in the diagram. */
+export const ADMIN_ROLE = 'process-admin';
 
 declare const monaco: any;
 
@@ -302,6 +312,10 @@ export class BPMNDesigner {
   private elementRegistry = new ElementRegistry();
   private configManager = new ConfigurationManager();
   private configPanel = new ConfigurationPanel(this.configManager);
+  private formBuilder = new FormBuilderModal();
+  /** Monaco editor of the selected script task's script (see mountScriptEditor) */
+  private scriptEditor: { editor: any; save: () => void } | null = null;
+  private scriptEditorGeneration = 0;
   private deploymentService = new DeploymentService(this.configManager);
   private xmlEditorContainer: HTMLElement | null = null;
   private xmlEditor: any = null;
@@ -321,6 +335,7 @@ export class BPMNDesigner {
     this.modeler = new Modeler({
       container,
       keyboard: { bindTo: document },
+      moddleExtensions: { andromeda: ANDROMEDA_MODDLE },
       additionalModules: [
         restrictedPaletteModule,
         restrictedContextPadModule
@@ -582,6 +597,11 @@ export class BPMNDesigner {
     return this.configManager.getGalaxyUrl();
   }
 
+  /** Authorization header for container calls (OIDC access token), read fresh on every use. */
+  public getAuthHeaders(): Record<string, string> {
+    return this.configManager.getAuthHeaders();
+  }
+
   public getDeploymentService(): DeploymentService {
     return this.deploymentService;
   }
@@ -617,6 +637,7 @@ export class BPMNDesigner {
     }
 
     panel.classList.add('visible');
+    this.disposeScriptEditor();
 
     if (!element?.businessObject || element.type === 'label') {
       this.renderDeploymentConfigPanel(content);
@@ -625,6 +646,7 @@ export class BPMNDesigner {
 
     const businessObject = element.businessObject;
     const isScriptTask = businessObject.$type === 'bpmn:ScriptTask';
+    const isUserTask = businessObject.$type === 'bpmn:UserTask';
     const isSequenceFlow = businessObject.$type === 'bpmn:SequenceFlow';
     const eventDefinition = (businessObject.eventDefinitions || [])[0];
     const isTimerStartEvent = businessObject.$type === 'bpmn:StartEvent'
@@ -658,6 +680,7 @@ export class BPMNDesigner {
           <textarea id="bpmn-prop-script" placeholder="Enter script">${this.escapeHtml(businessObject.script || '')}</textarea>
         </div>
       ` : ''}
+      ${isUserTask ? this.renderUserTaskSections(businessObject) : ''}
       ${isSequenceFlow ? `
         <div class="property-group">
           <label>Condition (script)</label>
@@ -699,6 +722,11 @@ export class BPMNDesigner {
     if (isScriptTask) {
       this.bindPropertyInput('bpmn-prop-script-format', element, 'scriptFormat');
       this.bindPropertyInput('bpmn-prop-script', element, 'script');
+      this.mountScriptEditor(element);
+    }
+
+    if (isUserTask) {
+      this.bindUserTaskInputs(element);
     }
 
     if (isSequenceFlow) {
@@ -716,6 +744,178 @@ export class BPMNDesigner {
     if (isTimerCatchEvent) {
       this.bindTimerCatchInputs(element, eventDefinition, isTimerCatchDateMode);
     }
+  }
+
+  // ---- human tasks: roles, editable variables, form ------------------------
+  // Stored as <bpmn:potentialOwner> references to declared roles, and
+  // <andromeda:editableVariable> / <andromeda:form> extension elements - read
+  // by the engine's human-task.node.processor.js.
+
+  private getUserTaskRoleIds(businessObject: any): Set<string> {
+    return new Set(
+      (businessObject.resources || [])
+        .filter((owner: any) => owner.$type === 'bpmn:PotentialOwner' && owner.resourceRef)
+        .map((owner: any) => owner.resourceRef.id)
+    );
+  }
+
+  private getEditableVariables(businessObject: any): string[] {
+    return (businessObject.extensionElements?.values || [])
+      .filter((value: any) => value.$type === 'andromeda:EditableVariable' && value.name)
+      .map((value: any) => value.name);
+  }
+
+  private getUserTaskForm(businessObject: any): FormDefinition | null {
+    const formElement = (businessObject.extensionElements?.values || []).find((value: any) => value.$type === 'andromeda:Form');
+    if (!formElement?.body) return null;
+    try {
+      return JSON.parse(formElement.body);
+    } catch {
+      return null;
+    }
+  }
+
+  private renderUserTaskSections(businessObject: any): string {
+    const roles = this.getRoles();
+    const assigned = this.getUserTaskRoleIds(businessObject);
+    const variables = this.getFormVariables().map((variable) => variable.name);
+    const editable = new Set(this.getEditableVariables(businessObject));
+    const form = this.getUserTaskForm(businessObject);
+    const fields = formFieldKeys(form);
+
+    const roleRows = roles.length > 0
+      ? roles.map((role) => `
+          <label class="check-row">
+            <input type="checkbox" class="task-role" data-role-id="${this.escapeHtml(role.id)}" ${assigned.has(role.id) ? 'checked' : ''}>
+            ${this.escapeHtml(role.name || role.id)}
+          </label>`).join('')
+      : `<p class="property-hint">No roles declared yet - add them in the process panel (click the canvas background).</p>`;
+
+    const fieldChip = (key: string) => {
+      const bound = variables.includes(key);
+      const note = !bound ? 'not a variable' : editable.has(key) ? 'editable' : 'read-only';
+      return `<code class="${bound && editable.has(key) ? 'bound' : ''}" title="${note}">${this.escapeHtml(key)}${bound && !editable.has(key) ? ' 🔒' : ''}</code>`;
+    };
+    const formSummary = form
+      ? `<p class="property-hint">${fields.length} field(s): ${fields.map(fieldChip).join(' ') || '<em>none</em>'}</p>
+         <p class="property-hint">Highlighted fields set the process variable of the same name when the task is accepted; 🔒 fields only show it.</p>`
+      : `<p class="property-hint">No form yet - generate one from the process variables, or design it by hand.</p>`;
+
+    return `
+      <div class="property-group">
+        <label>Roles allowed to complete it</label>
+        <label class="check-row check-row-fixed"><input type="checkbox" checked disabled> ${ADMIN_ROLE} <span class="check-note">always</span></label>
+        ${roleRows}
+        <p class="property-hint">None checked: any authenticated user (when OIDC is on).</p>
+      </div>
+      <div class="property-group">
+        <label>Form</label>
+        ${formSummary}
+        <div class="variable-add-row">
+          <button id="task-form-generate" class="xml-btn" type="button" ${variables.length === 0 ? 'disabled title="Declare process variables first"' : ''}>Generate form</button>
+          ${form ? '<button id="task-form-preview" class="xml-btn" type="button">Preview</button>' : ''}
+          <button id="task-form-design" class="xml-btn" type="button">${form ? 'Edit form' : 'Design form'}</button>
+          ${form ? '<button id="task-form-remove" class="xml-btn" type="button">Remove form</button>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  private bindUserTaskInputs(element: any): void {
+    const businessObject = element.businessObject;
+
+    document.querySelectorAll<HTMLInputElement>('.task-role').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const ids = Array.from(document.querySelectorAll<HTMLInputElement>('.task-role'))
+          .filter((box) => box.checked)
+          .map((box) => box.dataset.roleId as string);
+        this.setUserTaskRoles(element, ids);
+      });
+    });
+
+    const title = businessObject.name || businessObject.id;
+
+    document.getElementById('task-form-generate')?.addEventListener('click', async () => {
+      const variables = this.getFormVariables();
+      // preselect what the current form already shows
+      const current: FormVariable[] = [];
+      for (const component of formComponents(this.getUserTaskForm(businessObject)).values()) {
+        const variable = variables.find((candidate) => candidate.name === component.key);
+        if (variable) current.push({ ...variable, readOnly: !!component.disabled });
+      }
+      const picked = await this.formBuilder.pickVariables(title, variables, current);
+      if (!picked) return;
+      this.saveUserTaskForm(element, picked.length > 0 ? generateForm(picked) : null);
+    });
+
+    document.getElementById('task-form-preview')?.addEventListener('click', () => {
+      const form = this.getUserTaskForm(businessObject);
+      if (form) this.formBuilder.preview(title, form);
+    });
+
+    document.getElementById('task-form-design')?.addEventListener('click', async () => {
+      const variables = this.getFormVariables();
+      const form = await this.formBuilder.edit(title, this.getUserTaskForm(businessObject), variables);
+      if (form) this.saveUserTaskForm(element, form);
+    });
+
+    document.getElementById('task-form-remove')?.addEventListener('click', () => {
+      this.saveUserTaskForm(element, null);
+    });
+  }
+
+  /** Process variables with their declared type, for form generation. */
+  private getFormVariables(): FormVariable[] {
+    return (this.getProcessElement()?.properties || [])
+      .filter((variable: any) => variable.name)
+      .map((variable: any) => ({ name: variable.name, type: variable.itemSubjectRef?.structureRef || 'string' }));
+  }
+
+  /**
+   * Stores the task's form; the variables it may change follow from it: the
+   * enabled fields named like a process variable (disabled ones only show a
+   * value). No form: no editable list.
+   */
+  private saveUserTaskForm(element: any, form: FormDefinition | null): void {
+    const variables = this.getFormVariables().map((variable) => variable.name);
+    const editable = formFieldKeys(form, { editableOnly: true }).filter((key) => variables.includes(key));
+    this.setUserTaskExtensions(element, { form, editable });
+    if (form) showToast(editable.length > 0 ? `Form saved - the task may change: ${editable.join(', ')}` : 'Form saved - the task changes no variables', 'success');
+    this.renderPropertiesPanel(element);
+  }
+
+  private setUserTaskRoles(element: any, roleIds: string[]): void {
+    const modeling = this.modeler.get('modeling' as never) as any;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+    const roles = this.getRoles();
+    const others = (element.businessObject.resources || []).filter((owner: any) => owner.$type !== 'bpmn:PotentialOwner');
+    const owners = roleIds
+      .map((id) => roles.find((role) => role.id === id))
+      .filter(Boolean)
+      .map((role) => bpmnFactory.create('bpmn:PotentialOwner', { resourceRef: role }));
+    owners.forEach((owner: any) => { owner.$parent = element.businessObject; });
+    modeling.updateProperties(element, { resources: [...others, ...owners] });
+  }
+
+  /** Replaces the task's andromeda:* extension elements, keeping any others. */
+  private setUserTaskExtensions(element: any, changes: { editable?: string[]; form?: FormDefinition | null }): void {
+    const modeling = this.modeler.get('modeling' as never) as any;
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+    const businessObject = element.businessObject;
+    const current: any[] = businessObject.extensionElements?.values || [];
+
+    const editable = changes.editable ?? this.getEditableVariables(businessObject);
+    const form = changes.form !== undefined ? changes.form : this.getUserTaskForm(businessObject);
+
+    const values = [
+      ...current.filter((value) => value.$type !== 'andromeda:EditableVariable' && value.$type !== 'andromeda:Form'),
+      ...editable.map((name) => bpmnFactory.create('andromeda:EditableVariable', { name })),
+      ...(form ? [bpmnFactory.create('andromeda:Form', { body: JSON.stringify(form, null, 2) })] : []),
+    ];
+    const extensionElements = bpmnFactory.create('bpmn:ExtensionElements', { values });
+    values.forEach((value) => { value.$parent = extensionElements; });
+    extensionElements.$parent = businessObject;
+    modeling.updateProperties(element, { extensionElements: values.length > 0 ? extensionElements : undefined });
   }
 
   private bindConditionInput(inputId: string, element: any): void {
@@ -853,6 +1053,11 @@ export class BPMNDesigner {
         <input id="bpmn-cfg-galaxy-url" type="text" placeholder="http://127.0.0.1:5001" value="${this.escapeHtml(this.configManager.getGalaxyUrl())}">
       </div>
       <div class="property-group">
+        <label>Access token (OIDC)</label>
+        <input id="bpmn-cfg-access-token" type="password" autocomplete="off" placeholder="only when containers run with OIDC_ENABLED" value="${this.escapeHtml(this.configManager.getAccessToken())}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Sent as a bearer token to containers' human tasks; kept for this browser tab only. Without OIDC the designer acts as ${ADMIN_ROLE}.</small>
+      </div>
+      <div class="property-group">
         <label>Process Variables</label>
         ${this.renderProcessVariablesList()}
         <div class="variable-add-row">
@@ -868,6 +1073,15 @@ export class BPMNDesigner {
           <button id="bpmn-var-add" class="xml-btn" type="button">Add</button>
         </div>
       </div>
+      <div class="property-group">
+        <label>Roles</label>
+        ${this.renderRolesList()}
+        <div class="variable-add-row">
+          <input id="bpmn-role-name" type="text" placeholder="role, e.g. approver">
+          <button id="bpmn-role-add" class="xml-btn" type="button">Add</button>
+        </div>
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Read from the OIDC token's roles. Assign them to human tasks; ${ADMIN_ROLE} may complete any task.</small>
+      </div>
     `;
 
     this.bindConfigInput('bpmn-cfg-engine-url', (value) => this.configManager.setEngineUrl(value));
@@ -880,7 +1094,97 @@ export class BPMNDesigner {
       this.setDefinitionsVersion(value);
     });
     this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
+    this.bindConfigInput('bpmn-cfg-access-token', (value) => this.configManager.setAccessToken(value));
     this.bindProcessVariablesForm();
+    this.bindRolesForm();
+  }
+
+  // Roles are <bpmn:resource name="..."> root elements - declared like
+  // variables, referenced by human tasks' <bpmn:potentialOwner> (see
+  // human-task.node.processor.js). process-admin is built in, never declared.
+  private getRoles(): any[] {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    return (definitions?.rootElements || []).filter((element: any) => element.$type === 'bpmn:Resource');
+  }
+
+  private renderRolesList(): string {
+    const roles = this.getRoles();
+    return `
+      <ul class="variable-list">
+        <li class="variable-list-item">
+          <span class="variable-name">${ADMIN_ROLE}</span>
+          <span class="variable-type">built in</span>
+        </li>
+        ${roles.map((role) => `
+          <li class="variable-list-item">
+            <span class="variable-name">${this.escapeHtml(role.name || role.id)}</span>
+            <span class="variable-type">${this.countTasksWithRole(role)} task(s)</span>
+            <button class="xml-btn role-remove" type="button" data-role-id="${this.escapeHtml(role.id)}">Remove</button>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  }
+
+  private countTasksWithRole(role: any): number {
+    const process = this.getProcessElement();
+    return (process?.flowElements || []).filter((element: any) =>
+      element.$type === 'bpmn:UserTask' && (element.resources || []).some((owner: any) => owner.resourceRef === role)
+    ).length;
+  }
+
+  private bindRolesForm(): void {
+    const input = document.getElementById('bpmn-role-name') as HTMLInputElement | null;
+    const add = () => {
+      const name = input?.value.trim();
+      if (name) this.addRole(name);
+    };
+    document.getElementById('bpmn-role-add')?.addEventListener('click', add);
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') add();
+    });
+    document.querySelectorAll('.role-remove').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = (button as HTMLElement).dataset.roleId;
+        if (id) this.removeRole(id);
+      });
+    });
+  }
+
+  private addRole(name: string): void {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    if (!definitions) return;
+    if (name === ADMIN_ROLE) {
+      showToast(`${ADMIN_ROLE} is built in - no need to declare it`, 'info');
+      return;
+    }
+    if (!/^[\w.:-]+$/.test(name)) {
+      showToast('A role name may only contain letters, digits, _ . : and -', 'error');
+      return;
+    }
+    if (this.getRoles().some((role) => role.name === name)) {
+      showToast(`A role named "${name}" already exists`, 'error');
+      return;
+    }
+    const bpmnFactory = this.modeler.get('bpmnFactory' as never) as any;
+    const resource = bpmnFactory.create('bpmn:Resource', { name });
+    resource.$parent = definitions;
+    definitions.rootElements = [...(definitions.rootElements || []), resource];
+    this.renderPropertiesPanel(null);
+  }
+
+  private removeRole(id: string): void {
+    const definitions = this.modeler.getDefinitions() as { rootElements?: any[] } | undefined;
+    const role = this.getRoles().find((candidate) => candidate.id === id);
+    if (!definitions || !role) return;
+    // drop the tasks' references first, so no potentialOwner dangles
+    for (const element of this.getProcessElement()?.flowElements || []) {
+      if (element.$type === 'bpmn:UserTask' && element.resources) {
+        element.resources = element.resources.filter((owner: any) => owner.resourceRef !== role);
+      }
+    }
+    definitions.rootElements = (definitions.rootElements || []).filter((element: any) => element !== role);
+    this.renderPropertiesPanel(null);
   }
 
   // <bpmn:property> declarations on the process element, each paired with an
@@ -1014,6 +1318,60 @@ export class BPMNDesigner {
   private bindConfigInput(inputId: string, apply: (value: string) => void): void {
     const input = document.getElementById(inputId) as HTMLInputElement | null;
     input?.addEventListener('change', () => apply(input.value));
+  }
+
+  /**
+   * Swaps the script task's textarea for a Monaco editor once Monaco is
+   * loaded (the textarea stays if it can't be). The script is saved when the
+   * editor loses focus - like the textarea's change event - since every save
+   * re-renders this panel.
+   */
+  private mountScriptEditor(element: any): void {
+    const generation = ++this.scriptEditorGeneration;
+    loadMonaco().then(() => {
+      const textarea = document.getElementById('bpmn-prop-script') as HTMLTextAreaElement | null;
+      // the panel was re-rendered (or another element selected) meanwhile
+      if (!textarea || generation !== this.scriptEditorGeneration) return;
+
+      const host = document.createElement('div');
+      host.className = 'script-monaco';
+      textarea.replaceWith(host);
+      const editor = monaco.editor.create(host, {
+        value: textarea.value,
+        language: 'javascript',
+        theme: 'vs',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        lineNumbers: 'on',
+        lineNumbersMinChars: 3,
+        folding: false,
+        fontSize: 12,
+        wordWrap: 'on',
+        tabSize: 2,
+        insertSpaces: true,
+        fixedOverflowWidgets: true,
+      });
+      const save = () => {
+        if (this.scriptEditor?.editor !== editor) return; // disposed
+        const script = editor.getValue();
+        if (script !== (element.businessObject.script || '')) {
+          (this.modeler.get('modeling' as never) as any).updateProperties(element, { script });
+        }
+      };
+      editor.onDidBlurEditorText(save);
+      this.scriptEditor = { editor, save };
+    }).catch(() => {
+      // Monaco unavailable (offline?) - the plain textarea keeps working
+    });
+  }
+
+  private disposeScriptEditor(): void {
+    this.scriptEditorGeneration++;
+    if (!this.scriptEditor) return;
+    const { editor } = this.scriptEditor;
+    this.scriptEditor = null;
+    editor.dispose();
   }
 
   private bindPropertyInput(inputId: string, element: any, propertyName: string): void {

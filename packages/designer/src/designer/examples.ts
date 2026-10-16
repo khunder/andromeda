@@ -24,6 +24,7 @@ const files = import.meta.glob([
   '../../../engine/test/resources/exclusive-gateway-conditional-flow.bpmn',
   '../../../engine/test/resources/double-variable-assignment.bpmn',
   '../../../engine/test/resources/document-intake.bpmn',
+  '../../../engine/test/resources/expense-approval.bpmn',
 ], {
   query: '?raw',
   import: 'default',

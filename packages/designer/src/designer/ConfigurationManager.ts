@@ -17,6 +17,7 @@ export class ConfigurationManager {
   private static readonly DEFAULT_ENGINE_URL = 'http://127.0.0.1:5000';
   private static readonly DEFAULT_GALAXY_URL = 'http://127.0.0.1:5001';
   private static readonly DEFAULT_VERSION = '1.0.0';
+  private static readonly TOKEN_KEY = 'andromeda.accessToken';
   
   private config: EngineConfiguration;
   
@@ -152,6 +153,36 @@ export class ConfigurationManager {
       resolvedDeploymentId: ''
     };
     this.saveConfiguration();
+  }
+
+  /**
+   * OIDC access token sent to containers (human tasks, /api/auth/me) when
+   * they run with OIDC on. Kept in sessionStorage, not with the rest of the
+   * configuration, so it doesn't outlive the browser tab.
+   */
+  getAccessToken(): string {
+    try {
+      return sessionStorage.getItem(ConfigurationManager.TOKEN_KEY) || '';
+    } catch {
+      return '';
+    }
+  }
+  setAccessToken(token: string): void {
+    try {
+      if (token) {
+        sessionStorage.setItem(ConfigurationManager.TOKEN_KEY, token.trim().replace(/^Bearer\s+/i, ''));
+      } else {
+        sessionStorage.removeItem(ConfigurationManager.TOKEN_KEY);
+      }
+    } catch {
+      // storage unavailable - the token just isn't remembered
+    }
+  }
+
+  /** Authorization header for container calls, empty without a token. */
+  getAuthHeaders(): Record<string, string> {
+    const token = this.getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   getGalaxyUrl(): string {

@@ -8,6 +8,14 @@ const Logger = new AndromedaLogger();
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {config as LoadDotEnvConfig} from "dotenv"
+import fs from 'fs';
+
+// Andromeda's BPMN extension (human task form + editable variables), shared
+// with the designer - see builder/andromeda.moddle.json
+const ANDROMEDA_MODDLE = JSON.parse(fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), '../modules/engine/builder/andromeda.moddle.json'),
+    'utf8',
+));
 
 export class Utils{
     static moduleIsActive(module) {
@@ -49,7 +57,7 @@ export class Utils{
         for(let index in filesContent){
             const workflowParsingContext = new WorkflowParsingContext()
             workflowParsingContext.bpmnContent = filesContent[index]
-            workflowParsingContext.model = await new BPMNModdle().fromXML(workflowParsingContext.bpmnContent);
+            workflowParsingContext.model = await new BPMNModdle({andromeda: ANDROMEDA_MODDLE}).fromXML(workflowParsingContext.bpmnContent);
             workflowParsingContext.processPrefix= this.upperFirstChar(this.normalizeProcessPrefixWithoutVersion(workflowParsingContext.model.rootElement.id))
             // <bpmn:definitions version="..."> - a plain unrecognized attribute, bpmn-moddle
             // parses it into $attrs rather than a first-class property
