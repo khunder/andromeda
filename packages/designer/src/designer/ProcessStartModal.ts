@@ -7,6 +7,7 @@
 
 import { DeploymentService, type StartFile } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
+import { fileVariables } from './processVariables';
 import { showToast } from './Toast';
 
 type FileSource = 'upload' | 'url' | 'path' | 'base64';
@@ -32,10 +33,53 @@ export class ProcessStartModal {
 
   constructor(private deploymentService: DeploymentService) {}
 
+  /**
+   * The selected process's `file` variables, from the container's BPMN -
+   * null when it can't tell (container compiled before GET /api/bpmn): the
+   * file rows then take a typed variable name.
+   */
+  private fileVariables: string[] | null = null;
+
   async show(host: string, port: string | number, deploymentId: string, processDefs: string[] = []): Promise<void> {
     this.createModal(host, port, deploymentId, processDefs);
+    const picker = this.modal?.querySelector('#start-params-process-def') as HTMLSelectElement | null;
+    const selectedProcessDef = () => picker?.value ?? (processDefs.length === 1 ? processDefs[0] : '');
+    // other process, other file variables - the rows start over
+    picker?.addEventListener('change', () => void this.loadFileVariables(host, port, selectedProcessDef(), true));
+    void this.loadFileVariables(host, port, selectedProcessDef(), false);
     await loadMonaco();
     this.createEditor();
+  }
+
+  private async loadFileVariables(host: string, port: string | number, processDef: string, resetRows: boolean): Promise<void> {
+    const modal = this.modal;
+    const addButton = modal?.querySelector('#btn-add-file') as HTMLButtonElement | null;
+    const hint = modal?.querySelector('.start-files-hint') as HTMLElement | null;
+    if (!modal || !addButton || !hint) return;
+    if (resetRows) modal.querySelector('#start-files-rows')?.replaceChildren();
+    addButton.disabled = true;
+    let variables: string[] | null = null;
+    if (processDef) {
+      try {
+        const response = await fetch(`http://${host}:${port}/api/bpmn/${encodeURIComponent(processDef)}`);
+        if (response.ok) variables = fileVariables(await response.text());
+      } catch {
+        // unreachable / older container - typed names below
+      }
+    }
+    if (this.modal !== modal) return; // closed or reopened meanwhile
+    this.fileVariables = variables;
+    if (variables && variables.length === 0) {
+      addButton.disabled = true;
+      addButton.title = 'This process declares no file variables';
+      hint.textContent = 'This process declares no file variables - add one (type file) in the designer to start it with files.';
+      return;
+    }
+    addButton.disabled = false;
+    addButton.title = '';
+    hint.innerHTML = variables
+      ? `For the process's file variables: ${variables.map((name) => `<code>${this.escapeHtml(name)}</code>`).join(', ')}. Small files are kept in the database, bigger ones in object storage.`
+      : 'For the process\'s <code>file</code> variables. Small files are kept in the database, bigger ones in object storage.';
   }
 
   hide(): void {
@@ -43,6 +87,7 @@ export class ProcessStartModal {
     this.editor = null;
     this.modal?.remove();
     this.modal = null;
+    this.fileVariables = null;
   }
 
   private createModal(host: string, port: string | number, deploymentId: string, processDefs: string[]): void {
@@ -121,10 +166,20 @@ export class ProcessStartModal {
     const row = document.createElement('div');
     row.className = 'start-file-row';
 
-    const variable = document.createElement('input');
+    // the process's file variables to pick from - the next one not used yet
+    // preselected; a typed name when they aren't known
+    let variable: HTMLInputElement | HTMLSelectElement;
+    if (this.fileVariables) {
+      const used = new Set(Array.from(rows.querySelectorAll<HTMLSelectElement>('.start-file-variable')).map((field) => field.value));
+      variable = document.createElement('select');
+      for (const name of this.fileVariables) variable.append(new Option(name, name));
+      variable.value = this.fileVariables.find((name) => !used.has(name)) ?? this.fileVariables[0];
+    } else {
+      variable = document.createElement('input');
+      variable.placeholder = 'file variable';
+    }
     variable.className = 'start-file-variable';
-    variable.placeholder = 'file variable';
-    variable.setAttribute('aria-label', 'File variable name');
+    variable.setAttribute('aria-label', 'File variable');
 
     const source = document.createElement('select');
     source.className = 'start-file-source';
@@ -177,7 +232,7 @@ export class ProcessStartModal {
     const files: StartFile[] = [];
     const seen = new Set<string>();
     for (const row of Array.from(this.modal?.querySelectorAll('.start-file-row') ?? [])) {
-      const variable = (row.querySelector('.start-file-variable') as HTMLInputElement).value.trim();
+      const variable = (row.querySelector('.start-file-variable') as HTMLInputElement | HTMLSelectElement).value.trim();
       const kind = (row.querySelector('.start-file-source') as HTMLSelectElement).value as FileSource;
       const input = row.querySelector('.start-file-input') as HTMLInputElement | HTMLTextAreaElement;
       const file = kind === 'upload' ? (input as HTMLInputElement).files?.[0] : undefined;
