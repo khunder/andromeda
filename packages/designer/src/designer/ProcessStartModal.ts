@@ -21,9 +21,13 @@ const SOURCE_LABELS: Record<FileSource, string> = {
 
 declare const monaco: any;
 
+// empty - the process's own defaults apply unless a value is given here
 const DEFAULT_VARIABLES = `{
-  "age": 20
+
 }`;
+
+const formatSize = (bytes: number) =>
+  bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : bytes >= 1024 ? `${Math.round(bytes / 1024)} KB` : `${bytes} B`;
 
 export class ProcessStartModal {
   private modal: HTMLDivElement | null = null;
@@ -33,31 +37,31 @@ export class ProcessStartModal {
 
   constructor(private deploymentService: DeploymentService) {}
 
-  /**
-   * The selected process's `file` variables, from the container's BPMN -
-   * null when it can't tell (container compiled before GET /api/bpmn): the
-   * file rows then take a typed variable name.
-   */
-  private fileVariables: string[] | null = null;
-
   async show(host: string, port: string | number, deploymentId: string, processDefs: string[] = []): Promise<void> {
     this.createModal(host, port, deploymentId, processDefs);
     const picker = this.modal?.querySelector('#start-params-process-def') as HTMLSelectElement | null;
     const selectedProcessDef = () => picker?.value ?? (processDefs.length === 1 ? processDefs[0] : '');
     // other process, other file variables - the rows start over
-    picker?.addEventListener('change', () => void this.loadFileVariables(host, port, selectedProcessDef(), true));
-    void this.loadFileVariables(host, port, selectedProcessDef(), false);
+    picker?.addEventListener('change', () => void this.loadFileVariables(host, port, selectedProcessDef()));
+    void this.loadFileVariables(host, port, selectedProcessDef());
     await loadMonaco();
     this.createEditor();
   }
 
-  private async loadFileVariables(host: string, port: string | number, processDef: string, resetRows: boolean): Promise<void> {
+  /**
+   * One row per `file` variable of the process, ready to fill (an empty row
+   * is simply not sent). A process without file variables: no Files section.
+   * When they can't be read (container compiled before GET /api/bpmn): one
+   * row with a typed variable name.
+   */
+  private async loadFileVariables(host: string, port: string | number, processDef: string): Promise<void> {
     const modal = this.modal;
-    const addButton = modal?.querySelector('#btn-add-file') as HTMLButtonElement | null;
+    const section = modal?.querySelector('.start-files') as HTMLElement | null;
+    const rows = modal?.querySelector('#start-files-rows') as HTMLElement | null;
     const hint = modal?.querySelector('.start-files-hint') as HTMLElement | null;
-    if (!modal || !addButton || !hint) return;
-    if (resetRows) modal.querySelector('#start-files-rows')?.replaceChildren();
-    addButton.disabled = true;
+    if (!modal || !section || !rows || !hint) return;
+    rows.replaceChildren();
+    hint.textContent = 'Loading the process\'s file variables…';
     let variables: string[] | null = null;
     if (processDef) {
       try {
@@ -68,18 +72,13 @@ export class ProcessStartModal {
       }
     }
     if (this.modal !== modal) return; // closed or reopened meanwhile
-    this.fileVariables = variables;
-    if (variables && variables.length === 0) {
-      addButton.disabled = true;
-      addButton.title = 'This process declares no file variables';
-      hint.textContent = 'This process declares no file variables - add one (type file) in the designer to start it with files.';
-      return;
+    section.hidden = !!variables && variables.length === 0;
+    if (variables) {
+      variables.forEach((name) => this.addFileRow(name));
+    } else {
+      this.addFileRow(null);
     }
-    addButton.disabled = false;
-    addButton.title = '';
-    hint.innerHTML = variables
-      ? `For the process's file variables: ${variables.map((name) => `<code>${this.escapeHtml(name)}</code>`).join(', ')}. Small files are kept in the database, bigger ones in object storage.`
-      : 'For the process\'s <code>file</code> variables. Small files are kept in the database, bigger ones in object storage.';
+    hint.textContent = 'Give a file for the variables you want set - empty ones are left out. Small files are kept in the database, bigger ones in object storage.';
   }
 
   hide(): void {
@@ -87,7 +86,6 @@ export class ProcessStartModal {
     this.editor = null;
     this.modal?.remove();
     this.modal = null;
-    this.fileVariables = null;
   }
 
   private createModal(host: string, port: string | number, deploymentId: string, processDefs: string[]): void {
@@ -118,21 +116,17 @@ export class ProcessStartModal {
           <button class="start-params-close" title="Close">×</button>
         </div>
         <div class="start-params-body">
-          <p class="start-params-hint">Variables (JSON) for <strong>${this.escapeHtml(deploymentId)}</strong> , this object <em>is</em> your variables, e.g. <code>{"age": 20}</code>. Do not wrap it in a <code>variables</code> key, that's added automatically.</p>
+          <p class="start-params-hint">Variables (JSON) for <strong>${this.escapeHtml(deploymentId)}</strong> , this object <em>is</em> your variables, e.g. <code>{"amount": 120}</code>. Do not wrap it in a <code>variables</code> key, that's added automatically.</p>
           ${processDefPicker}
           <div id="start-params-editor" class="start-params-editor"></div>
 
           <div class="start-files">
-            <div class="start-files-header">
-              <span class="start-params-label">Files</span>
-              <button type="button" class="btn-secondary start-files-add" id="btn-add-file">+ Add file</button>
-            </div>
-            <p class="start-params-hint start-files-hint">For the process's <code>file</code> variables. Small files are kept in the database, bigger ones in object storage.</p>
+            <span class="start-params-label">Files</span>
+            <p class="start-params-hint start-files-hint"></p>
             <div id="start-files-rows" class="start-files-rows"></div>
             <label class="start-files-force">
               <input type="checkbox" id="start-files-force">
-              Accept files above the size limit
-              <span class="start-files-force-warning">not recommended - the container stores them anyway and logs a warning</span>
+              <span>Accept files above the size limit <em>- not recommended, the container stores them anyway and logs a warning</em></span>
             </label>
           </div>
         </div>
@@ -155,95 +149,155 @@ export class ProcessStartModal {
     this.modal.querySelector('.start-params-overlay')?.addEventListener('click', () => this.hide());
     this.modal.querySelector('#btn-cancel-start')?.addEventListener('click', () => this.hide());
     this.modal.querySelector('#btn-confirm-start')?.addEventListener('click', () => void this.confirmStart(host, port, deploymentId, singleProcessDef));
-    this.modal.querySelector('#btn-add-file')?.addEventListener('click', () => this.addFileRow());
   }
 
-  /** One file row: variable name, source kind, and the source's input. */
-  private addFileRow(): void {
+  /**
+   * One file variable, as a card: its name and a clear button, the source
+   * (upload / URL / container path / base64) as a segmented control, and
+   * the source's input underneath. `name` null: the variable is typed.
+   */
+  private addFileRow(name: string | null): void {
     const rows = this.modal?.querySelector('#start-files-rows');
     if (!rows) return;
 
     const row = document.createElement('div');
     row.className = 'start-file-row';
+    const top = document.createElement('div');
+    top.className = 'start-file-top';
 
-    // the process's file variables to pick from - the next one not used yet
-    // preselected; a typed name when they aren't known
-    let variable: HTMLInputElement | HTMLSelectElement;
-    if (this.fileVariables) {
-      const used = new Set(Array.from(rows.querySelectorAll<HTMLSelectElement>('.start-file-variable')).map((field) => field.value));
-      variable = document.createElement('select');
-      for (const name of this.fileVariables) variable.append(new Option(name, name));
-      variable.value = this.fileVariables.find((name) => !used.has(name)) ?? this.fileVariables[0];
-    } else {
-      variable = document.createElement('input');
-      variable.placeholder = 'file variable';
-    }
+    const variable = document.createElement('input');
     variable.className = 'start-file-variable';
-    variable.setAttribute('aria-label', 'File variable');
+    if (name) {
+      variable.type = 'hidden';
+      variable.value = name;
+      const label = document.createElement('span');
+      label.className = 'start-file-name';
+      label.textContent = name;
+      top.append(label);
+    } else {
+      variable.placeholder = 'file variable name';
+      variable.setAttribute('aria-label', 'File variable');
+    }
 
-    const source = document.createElement('select');
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'start-file-remove';
+    clear.title = 'Clear - this variable is then left out';
+    clear.setAttribute('aria-label', `Clear the file for ${name ?? 'this variable'}`);
+    clear.textContent = '×';
+    top.append(variable, clear);
+
+    // the source: a segmented control; its value is kept in a hidden field
+    const source = document.createElement('input');
+    source.type = 'hidden';
     source.className = 'start-file-source';
-    source.setAttribute('aria-label', 'File source');
-    (Object.keys(SOURCE_LABELS) as FileSource[]).forEach((key) => {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = SOURCE_LABELS[key];
-      source.appendChild(option);
-    });
+    source.value = 'upload';
+    const segments = document.createElement('div');
+    segments.className = 'start-file-sources';
+    segments.setAttribute('role', 'radiogroup');
+    segments.setAttribute('aria-label', 'File source');
 
     const valueSlot = document.createElement('div');
     valueSlot.className = 'start-file-value';
 
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'start-file-remove';
-    remove.title = 'Remove';
-    remove.textContent = '×';
-    remove.addEventListener('click', () => row.remove());
-
-    const renderValueInput = () => {
+    const renderValueInput = (focus = false) => {
       const kind = source.value as FileSource;
-      let input: HTMLInputElement | HTMLTextAreaElement;
+      segments.querySelectorAll<HTMLButtonElement>('button').forEach((button) => {
+        const selected = button.dataset.source === kind;
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-checked', String(selected));
+      });
       if (kind === 'upload') {
-        input = document.createElement('input');
-        input.type = 'file';
-      } else if (kind === 'base64') {
+        valueSlot.replaceChildren(this.uploadZone());
+        return;
+      }
+      let input: HTMLInputElement | HTMLTextAreaElement;
+      if (kind === 'base64') {
         input = document.createElement('textarea');
-        input.rows = 2;
-        input.placeholder = 'base64 or data:...;base64,...';
+        input.rows = 3;
+        input.placeholder = 'base64, or a data:<type>;base64,... URL';
       } else {
         input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = kind === 'url' ? 'https://example.org/file.pdf' : 'relative to FILE_INPUT_DIR';
+        input.placeholder = kind === 'url' ? 'https://example.org/invoice.pdf' : 'path inside FILE_INPUT_DIR, e.g. inbox/invoice.pdf';
       }
       input.className = 'start-file-input';
       valueSlot.replaceChildren(input);
+      if (focus) input.focus();
     };
-    source.addEventListener('change', renderValueInput);
+    (Object.keys(SOURCE_LABELS) as FileSource[]).forEach((key) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.source = key;
+      button.setAttribute('role', 'radio');
+      button.textContent = SOURCE_LABELS[key];
+      button.addEventListener('click', () => {
+        source.value = key;
+        renderValueInput(true);
+      });
+      segments.append(button);
+    });
     renderValueInput();
+    // back to an empty upload
+    clear.addEventListener('click', () => {
+      source.value = 'upload';
+      renderValueInput();
+    });
 
-    row.append(variable, source, valueSlot, remove);
+    row.append(top, segments, source, valueSlot);
     rows.appendChild(row);
-    variable.focus();
   }
 
-  /** The file rows as StartFile entries, or an error message for an incomplete row. */
+  /** "Choose or drop a file" - a hidden file input behind a styled zone that shows the pick. */
+  private uploadZone(): HTMLElement {
+    const zone = document.createElement('label');
+    zone.className = 'start-file-drop';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.className = 'start-file-input';
+    const text = document.createElement('span');
+    text.className = 'start-file-drop-text';
+    const show = () => {
+      const file = input.files?.[0];
+      zone.classList.toggle('has-file', !!file);
+      text.textContent = file
+        ? `${file.name} · ${formatSize(file.size)}`
+        : 'Choose a file or drop it here';
+    };
+    input.addEventListener('change', show);
+    zone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      zone.classList.add('dragging');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragging'));
+    zone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      zone.classList.remove('dragging');
+      if (event.dataTransfer?.files.length) {
+        input.files = event.dataTransfer.files;
+        show();
+      }
+    });
+    show();
+    zone.append(input, text);
+    return zone;
+  }
+
+  /** The filled file rows as StartFile entries (empty ones are left out), or an error message. */
   private collectFiles(): { files: StartFile[] } | { error: string } {
     const files: StartFile[] = [];
     const seen = new Set<string>();
     for (const row of Array.from(this.modal?.querySelectorAll('.start-file-row') ?? [])) {
-      const variable = (row.querySelector('.start-file-variable') as HTMLInputElement | HTMLSelectElement).value.trim();
-      const kind = (row.querySelector('.start-file-source') as HTMLSelectElement).value as FileSource;
+      const variable = (row.querySelector('.start-file-variable') as HTMLInputElement).value.trim();
+      const kind = (row.querySelector('.start-file-source') as HTMLInputElement).value as FileSource;
       const input = row.querySelector('.start-file-input') as HTMLInputElement | HTMLTextAreaElement;
       const file = kind === 'upload' ? (input as HTMLInputElement).files?.[0] : undefined;
       const text = kind === 'upload' ? '' : input.value.trim();
 
-      if (!variable && !file && !text) continue; // untouched row
+      if (!file && !text) continue; // nothing given for this variable
       if (!variable) return { error: 'Every file needs the name of the file variable it is for' };
       if (seen.has(variable)) return { error: `More than one file for "${variable}"` };
       seen.add(variable);
-      if (kind === 'upload' && !file) return { error: `Choose a file for "${variable}"` };
-      if (kind !== 'upload' && !text) return { error: `Enter the ${SOURCE_LABELS[kind].toLowerCase()} for "${variable}"` };
 
       files.push(kind === 'upload' ? { variable, file } : { variable, [kind]: text });
     }
@@ -416,52 +470,66 @@ export class ProcessStartModal {
         border-top: 1px solid var(--glass-divider);
       }
 
-      .start-files-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 4px;
-      }
-
-      .start-files-header .start-params-label {
-        margin: 0;
-      }
-
-      .start-files-add {
-        padding: 4px 10px !important;
-        font-size: 12px !important;
-      }
-
       .start-files-hint {
         font-size: 12px;
+      }
+
+      .start-files-hint code {
+        padding: 0 5px;
+        border-radius: 5px;
+        background: rgba(91, 91, 247, 0.1);
+        color: var(--accent, #5b5bf7);
       }
 
       .start-files-rows {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         margin-bottom: 10px;
       }
 
       .start-file-row {
-        display: grid;
-        grid-template-columns: minmax(110px, 1fr) 130px minmax(160px, 2fr) 28px;
-        gap: 6px;
-        align-items: start;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+        border: var(--glass-control-border, 1px solid #e2e4ef);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.6);
+      }
+
+      .start-file-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       .start-file-row input,
       .start-file-row select,
       .start-file-row textarea {
         width: 100%;
-        padding: 6px 8px;
+        padding: 7px 10px;
         font: inherit;
         font-size: 13px;
         color: var(--text);
-        background: var(--glass-control-bg);
-        border: var(--glass-control-border);
+        background: var(--glass-control-bg, white);
+        border: var(--glass-control-border, 1px solid #ddd);
         border-radius: 8px;
         box-sizing: border-box;
+      }
+
+      .start-file-name {
+        flex: 1;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .start-file-row .start-file-variable {
+        flex: 1;
+        font-family: ui-monospace, Consolas, monospace;
+        font-weight: 600;
       }
 
       .start-file-row textarea {
@@ -470,11 +538,9 @@ export class ProcessStartModal {
         font-size: 12px;
       }
 
-      .start-file-row input[type="file"] {
-        padding: 4px;
-      }
-
       .start-file-remove {
+        flex: none;
+        width: 30px;
         height: 30px;
         border: none;
         border-radius: 8px;
@@ -485,24 +551,85 @@ export class ProcessStartModal {
       }
 
       .start-file-remove:hover {
-        background: rgba(255, 255, 255, 0.7);
+        background: rgba(198, 40, 40, 0.08);
         color: #c62828;
+      }
+
+      .start-file-sources {
+        display: inline-flex;
+        align-self: flex-start;
+        padding: 3px;
+        gap: 2px;
+        border-radius: 10px;
+        background: rgba(31, 35, 64, 0.06);
+      }
+
+      .start-file-sources button {
+        padding: 4px 10px;
+        border: none;
+        border-radius: 7px;
+        background: transparent;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+
+      .start-file-sources button.selected {
+        background: white;
+        color: var(--text);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(31, 35, 64, 0.15);
+      }
+
+      .start-file-drop {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 8px 12px;
+        border: 1.5px dashed var(--glass-divider, #d0d4e4);
+        border-radius: 10px;
+        font-size: 13px;
+        color: var(--text-subtle, #8a8fab);
+        cursor: pointer;
+        text-align: center;
+      }
+
+      .start-file-drop input {
+        display: none;
+      }
+
+      .start-file-drop:hover,
+      .start-file-drop.dragging {
+        border-color: var(--accent, #5b5bf7);
+        background: rgba(91, 91, 247, 0.05);
+        color: var(--accent, #5b5bf7);
+      }
+
+      .start-file-drop.has-file {
+        border-style: solid;
+        border-color: rgba(46, 125, 50, 0.4);
+        background: rgba(46, 125, 50, 0.05);
+        color: #2e7d32;
+        font-weight: 600;
       }
 
       .start-files-force {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 12px;
         color: var(--text);
         cursor: pointer;
       }
 
-      .start-files-force-warning {
-        flex-basis: 100%;
-        padding-left: 22px;
-        font-size: 11px;
+      .start-files-force input {
+        margin-top: 2px;
+      }
+
+      .start-files-force em {
+        font-style: normal;
         color: #b26a00;
       }
 
