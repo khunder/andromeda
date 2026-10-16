@@ -230,16 +230,22 @@ export class EmbeddedContainerService {
             Logger.error(`to stop embedded container port must not specified `)
             throw new Error(`to stop embedded container port must not specified `)
         }
-        Logger.debug(`stopEmbeddedContainer :: ${deploymentId}`)
-        EmbeddedContainerService.containers.forEach(e=>{
-            if(e.model.deploymentId === deploymentId){
-                Logger.debug(`stopEmbeddedContainer :: with pid ${e.model.pid}`)
-                EmbeddedContainerService.deleteEmbeddedContainerPidFile(deploymentId, port);
-                forever.kill(e.model.pid)
+        Logger.debug(`stopEmbeddedContainer :: ${deploymentId} on port ${port}`)
+        // one deployment can run several containers (same id/version, other
+        // ports) - stop only the one on this port. The port arrives as a
+        // string from HTTP and is stored as allocated (a number), so compare as text.
+        const isTarget = (e) => e.model.deploymentId === deploymentId && String(e.model.port) === String(port);
+        EmbeddedContainerService.containers.filter(isTarget).forEach(e=>{
+            Logger.debug(`stopEmbeddedContainer :: with pid ${e.model.pid}`)
+            EmbeddedContainerService.deleteEmbeddedContainerPidFile(deploymentId, port);
+            forever.kill(e.model.pid)
+            if (Config.getInstance().isLocalMode) {
+                // the dev sidecar daemon kills watched pids when the engine exits
+                import("../embedded/embedded.sidecar.daemon.service.js")
+                    .then((daemon) => daemon.EmbeddedSidecarDaemonService.unwatchContainerPid(e.model.pid))
+                    .catch((error) => Logger.debug(`could not unwatch pid ${e.model.pid}: ${error.message}`));
             }
         });
-        EmbeddedContainerService.containers = EmbeddedContainerService.containers.filter(
-            e => e.model.deploymentId !== deploymentId
-        );
+        EmbeddedContainerService.containers = EmbeddedContainerService.containers.filter(e => !isTarget(e));
     }
 }

@@ -85,9 +85,11 @@ ipc.serve(
             'unwatch_container_pid',
             function(data,socket) {
                 try {
-                    Logger.info(`killing process`, data.message);
+                    // the container was stopped by the engine - stop tracking it
+                    // (so engine shutdown doesn't kill whatever reuses its pid)
+                    Logger.info(`untracking container pid`, data.message);
                     let containerPid = parseInt(data.message);
-                    containers=containers.filter(e=> e === containerPid);
+                    containers=containers.filter(e=> parseInt(e) !== containerPid);
                 }catch (e) {
                     Logger.error(e);
                 }
