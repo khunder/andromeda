@@ -218,6 +218,24 @@ export class EngineService {
                 "401": {"description": "OIDC is enabled and the token is missing or invalid"},
                 "503": {"description": "The OIDC provider (discovery / JWKS) could not be reached"}
             })
+        containerCodegenContext.openApiCodegen.addPath("/api/bpmn", "get")
+            .addPathDescription("/api/bpmn", "get", "What this container runs: deployment, version, compile time and the processes whose BPMN it keeps (GET /api/bpmn/{processDef}).")
+            .addPathTags("/api/bpmn", "get", ["engine"])
+            .addResponse("/api/bpmn", "get", {
+                "200": {
+                    "description": "The deployed version",
+                    "content": {"application/json": {"schema": {
+                        "type": "object",
+                        "properties": {
+                            "deploymentId": {"type": "string"},
+                            "baseDeploymentId": {"type": "string", "nullable": true},
+                            "version": {"type": "string", "nullable": true},
+                            "compiledAt": {"type": "string", "format": "date-time", "nullable": true},
+                            "processDefs": {"type": "array", "items": {"type": "string"}}
+                        }
+                    }}}
+                }
+            })
         containerCodegenContext.openApiCodegen.addPath("/api/bpmn/{processDef}", "get")
             .addPathDescription("/api/bpmn/{processDef}", "get", "The BPMN XML the workflow was generated from (kept at compile time in bpmn/<processDef>.bpmn).")
             .addPathTags("/api/bpmn/{processDef}", "get", ["engine"])
@@ -290,6 +308,8 @@ export class EngineService {
         const metadata = {
             deploymentId: ctx.baseDeploymentId,
             version: ctx.version,
+            // when this version was built - shown with its BPMN (GET /api/bpmn)
+            compiledAt: new Date().toISOString(),
             processDefs,
             // the BPMN each workflow was generated from - served by the
             // container's GET /api/bpmn (runtime views draw instances on it)

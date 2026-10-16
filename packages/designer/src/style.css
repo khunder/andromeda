@@ -1393,3 +1393,162 @@ body {
 @keyframes iv-pulse {
     50% { stroke-opacity: 0.45; }
 }
+
+/* ---------- deployed BPMN, read only (BpmnInspectorModal) - modal styles from .instance-viewer ---------- */
+
+.bi-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+}
+
+.bi-details {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px;
+    border-left: 1px solid var(--glass-divider, #e0e0e0);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.bi-heading h3 {
+    margin: 0 0 2px;
+    font-size: 15px;
+    color: var(--text);
+}
+
+.bi-section {
+    margin-top: 14px;
+}
+
+.bi-section .iv-label {
+    margin: 0 0 6px;
+}
+
+.bi-text {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.bi-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.bi-chips code {
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: rgba(91, 91, 247, 0.1);
+    color: var(--accent);
+}
+
+.bi-code {
+    border: var(--glass-control-border, 1px solid #ddd);
+    border-radius: 10px;
+    overflow: hidden;
+    background: white;
+}
+
+.bi-code pre {
+    margin: 0;
+    padding: 8px 10px;
+    height: 100%;
+    overflow: auto;
+    font: 12px ui-monospace, Consolas, monospace;
+}
+
+.bi-form {
+    padding: 12px;
+    border: 1px dashed rgba(91, 91, 247, 0.35);
+    border-radius: 12px;
+    background: white;
+}
+
+.bi-readonly {
+    padding: 2px 9px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.bi-canvas .djs-element.bi-selected .djs-outline {
+    visibility: visible;
+    stroke: var(--accent, #5b5bf7);
+    stroke-dasharray: 4 3;
+}
+
+.bi-canvas .djs-element {
+    cursor: pointer;
+}
+
+/* "which process?" when a container runs several */
+.bi-chooser {
+    position: fixed;
+    inset: 0;
+    z-index: 9600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bi-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--glass-overlay, rgba(0, 0, 0, 0.4));
+    backdrop-filter: blur(4px);
+}
+
+.bi-chooser-dialog {
+    position: relative;
+    width: min(380px, 92vw);
+    padding: 18px 20px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 20px 60px rgba(31, 35, 64, 0.25);
+}
+
+.bi-chooser-dialog h2 {
+    margin: 0;
+    font-size: 17px;
+    color: var(--text);
+}
+
+.bi-hint {
+    margin: 4px 0 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.bi-chooser-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bi-choice {
+    padding: 10px 12px;
+    text-align: left;
+    border-radius: 10px;
+    border: var(--glass-control-border, 1px solid #ddd);
+    background: var(--glass-control-bg, white);
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.bi-choice:hover,
+.bi-choice:focus-visible {
+    background: rgba(91, 91, 247, 0.1);
+    border-color: var(--accent);
+}
+
+.bi-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+}

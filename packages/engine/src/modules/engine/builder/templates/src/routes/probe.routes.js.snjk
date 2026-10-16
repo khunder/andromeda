@@ -48,21 +48,44 @@ function route (fastify, opts, next) {
         }
     )
 
+    // What this container was built from: the deployment, version, compile
+    // time and the processes whose BPMN it keeps (deployment-metadata.json,
+    // written at compile time) - the designer's BPMN viewer starts here.
+    const deploymentRoot = new URL('../../', import.meta.url);
+    const readMetadata = async () => {
+        try {
+            return JSON.parse(await fs.promises.readFile(new URL('deployment-metadata.json', deploymentRoot), 'utf8'));
+        } catch {
+            return {};
+        }
+    };
+
+    fastify.route(
+        {
+            method: 'GET',
+            url: '/api/bpmn',
+            handler: async () => {
+                const metadata = await readMetadata();
+                return {
+                    deploymentId: process.env.deploymentId,
+                    baseDeploymentId: metadata.deploymentId ?? null,
+                    version: metadata.version ?? null,
+                    compiledAt: metadata.compiledAt ?? null,
+                    processDefs: Object.keys(metadata.bpmn || {}),
+                };
+            }
+        }
+    )
+
     // The BPMN a workflow was generated from (deployment-metadata.json's
-    // `bpmn`, written at compile time) - Galaxy and the designer draw a
-    // process instance's progress on it. 404 for containers compiled before.
+    // `bpmn`) - Galaxy and the designer draw it, and process instances on
+    // it. 404 for containers compiled before.
     fastify.route(
         {
             method: 'GET',
             url: '/api/bpmn/:processDef',
             handler: async (request, reply) => {
-                const deploymentRoot = new URL('../../', import.meta.url);
-                let metadata = {};
-                try {
-                    metadata = JSON.parse(await fs.promises.readFile(new URL('deployment-metadata.json', deploymentRoot), 'utf8'));
-                } catch {
-                    // no metadata - treated as no BPMN below
-                }
+                const metadata = await readMetadata();
                 const file = metadata.bpmn?.[request.params.processDef];
                 if (!file || file.includes('..')) {
                     reply.code(404);

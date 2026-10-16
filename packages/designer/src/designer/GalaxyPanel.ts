@@ -1,4 +1,5 @@
 import { DeploymentService } from './DeploymentService';
+import { BpmnInspectorModal } from './BpmnInspectorModal';
 import { ProcessStartModal } from './ProcessStartModal';
 import { showToast } from './Toast';
 
@@ -47,6 +48,8 @@ export class GalaxyPanel extends HTMLElement {
     private galaxyUrl: string = '';
     private deploymentService: DeploymentService | null = null;
     private processStartModal: ProcessStartModal | null = null;
+    /** the deployed BPMN of a container, read only ("BPMN" button) */
+    private bpmnInspector = new BpmnInspectorModal();
     private items: any[] = [];
     private rendered = false;
 
@@ -125,6 +128,7 @@ export class GalaxyPanel extends HTMLElement {
                             <button class="btn btn-play" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance">▶</button>
                             <button class="btn btn-play-params" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Start Process Instance with Parameters">▶⚙</button>
                             <button class="btn btn-api" data-port="${i.port}" title="Open the container's API (Swagger)">API</button>
+                            <button class="btn btn-bpmn" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="The BPMN this container was built from (read only)">BPMN</button>
                             <button class="btn btn-logs" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Stream the container's logs">Logs</button>
                             <button class="btn btn-tasks" data-deployment-id="${i.deploymentId}" data-port="${i.port}" title="Human tasks waiting to be completed">Tasks</button>
                             <button class="btn btn-stop" data-deployment-id="${i.deploymentId}" data-port="${i.port}">Stop</button>
@@ -190,6 +194,10 @@ export class GalaxyPanel extends HTMLElement {
                 const port = target.getAttribute('data-port') || '';
                 const detail: OpenTasksDetail = { deploymentId, port, host: this.getContainerHost(), processDefs: this.getProcessDefs(deploymentId, port) };
                 this.dispatchEvent(new CustomEvent<OpenTasksDetail>('open-tasks', { detail, bubbles: true, composed: true }));
+            } else if (target.classList.contains('btn-bpmn')) {
+                const deploymentId = target.getAttribute('data-deployment-id') || '';
+                const port = target.getAttribute('data-port') || '';
+                void this.bpmnInspector.open({ host: this.getContainerHost(), port, deploymentId, processDefs: this.getProcessDefs(deploymentId, port) });
             } else if (target.classList.contains('btn-logs')) {
                 // the panel itself doesn't know about the dock - Workspace listens for this
                 const detail: OpenLogsDetail = {
@@ -412,6 +420,16 @@ export class GalaxyPanel extends HTMLElement {
                 .btn-tasks:hover {
                     background: rgba(245, 165, 36, 0.12);
                     border-color: #b26a00;
+                }
+
+                .btn-bpmn {
+                    color: #2e7d6b;
+                    border-color: #c3e4dc;
+                }
+
+                .btn-bpmn:hover {
+                    background: rgba(46, 125, 107, 0.1);
+                    border-color: #2e7d6b;
                 }
 
                 .btn-logs {
