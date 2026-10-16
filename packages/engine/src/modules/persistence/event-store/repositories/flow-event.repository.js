@@ -77,6 +77,16 @@ export class FlowEventRepository {
     }
 
     /**
+     * Every flow event of one process instance, whatever its status - the
+     * sequence flows it has taken (read-only, for runtime views).
+     * @param {string} processInstanceId
+     * @returns {Promise<object[]>}
+     */
+    async findFlowEvents(processInstanceId) {
+        return this.repo.find({processInstance: processInstanceId});
+    }
+
+    /**
      * Atomically closes a flow event only if it's still Active, in one
      * conditional operation - the real claim primitive behind resuming a
      * two-phase node exactly once. Both POST /signal and a timer catch

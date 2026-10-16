@@ -12,6 +12,7 @@ function route (fastify, opts, next) {
     fastify.route({ method: 'POST', url: '/galaxy/remove', handler: GalaxyController.removeContainer })
     // runtime state, read from the persistence store - see GalaxyController
     fastify.route({ method: 'GET', url: '/galaxy/process-instances', handler: GalaxyController.listProcessInstances })
+    fastify.route({ method: 'GET', url: '/galaxy/process-instances/:id/trace', handler: GalaxyController.processInstanceTrace })
     fastify.route({ method: 'GET', url: '/galaxy/variables', handler: GalaxyController.listVariables })
     next();
 }

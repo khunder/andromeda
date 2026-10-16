@@ -1,6 +1,6 @@
 /**
  * Request parsing and response shaping for Galaxy's read-only runtime
- * endpoints, GET /galaxy/process-instances and GET /galaxy/variables (see
+ * endpoints, GET /galaxy/process-instances(/:id/trace) and GET /galaxy/variables (see
  * controllers/galaxy.controller.js). Pure functions - the controller does the
  * PersistenceGateway calls - so this stays unit-testable on its own.
  */
@@ -121,6 +121,26 @@ export function decodeVariableValue(raw, type) {
                 return raw;
             }
     }
+}
+
+/** FlowEventStatus (persistence's flow-event.orm-model.js) by code - same codes as process instances */
+const FLOW_STATUS_NAMES = STATUS_NAMES;
+/** TaskStatus (persistence's task.orm-model.js) by code */
+const TASK_STATUS_NAMES = {0: 'active', 1: 'completed'};
+
+/** @param {object} row - a FlowEvent record: a sequence flow the instance took */
+export function toFlow(row) {
+    return {flowId: row.flowId, status: FLOW_STATUS_NAMES[row.status] ?? String(row.status)};
+}
+
+/** @param {object} row - a Task record: a human task / catch event the instance reached */
+export function toTask(row) {
+    return {
+        nodeId: row.nodeId,
+        nodeName: row.nodeName ?? null,
+        type: row.type,
+        status: TASK_STATUS_NAMES[row.status] ?? String(row.status),
+    };
 }
 
 /** Stable order for paging: by the given keys, compared as strings. */

@@ -13,6 +13,7 @@ import { GalaxyPanel, type OpenInstancesDetail, type OpenLogsDetail, type OpenTa
 import { TasksView } from '../designer/TasksView';
 import { LogViewer } from '../designer/LogViewer';
 import { ProcessInstancesView } from '../designer/ProcessInstancesView';
+import { InstanceViewerModal } from '../designer/InstanceViewerModal';
 
 /**
  * The designer's dockable workspace (dockview-core, framework-free).
@@ -124,8 +125,9 @@ interface InstancesPanelParams {
 class InstancesPanelRenderer implements IContentRenderer {
   readonly element = document.createElement('div');
   private view = new ProcessInstancesView();
+  private viewer = new InstanceViewerModal();
 
-  constructor() {
+  constructor(private readonly authHeaders: () => Record<string, string>) {
     this.element.className = 'dock-panel dock-panel-instances';
     this.element.appendChild(this.view);
   }
@@ -133,6 +135,10 @@ class InstancesPanelRenderer implements IContentRenderer {
   init(params: GroupPanelPartInitParameters): void {
     const { galaxyUrl, deploymentId } = params.params as unknown as InstancesPanelParams;
     this.view.open(galaxyUrl, deploymentId);
+    // a clicked instance opens on its diagram
+    this.view.onOpenInstance = (processInstanceId) => {
+      void this.viewer.open({ galaxyUrl, processInstanceId, authHeaders: this.authHeaders });
+    };
   }
 
   dispose(): void {
@@ -227,7 +233,7 @@ export class Workspace {
           return new LogPanelRenderer();
         }
         if (name === INSTANCES_COMPONENT) {
-          return new InstancesPanelRenderer();
+          return new InstancesPanelRenderer(() => this.designer?.getAuthHeaders() ?? {});
         }
         if (name === TASKS_COMPONENT) {
           return new TasksPanelRenderer(() => this.designer?.getAuthHeaders() ?? {});

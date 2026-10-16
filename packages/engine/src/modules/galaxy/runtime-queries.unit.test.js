@@ -6,11 +6,21 @@ import {
     parsePaging,
     parseStatus,
     sortBy,
+    toFlow,
     toProcessInstance,
+    toTask,
     toVariable,
 } from './runtime-queries.js';
 
 describe('runtime-queries', () => {
+
+    it('names flow and task statuses for the instance trace', () => {
+        expect(toFlow({_id: 'x', flowId: 'Flow_1', processInstance: 'p', status: 0})).toEqual({flowId: 'Flow_1', status: 'active'});
+        expect(toFlow({flowId: 'Flow_2', status: 2}).status).toBe('error');
+        expect(toTask({nodeId: 'Approve', nodeName: 'Approve it', type: 'HumanTask', status: 1}))
+            .toEqual({nodeId: 'Approve', nodeName: 'Approve it', type: 'HumanTask', status: 'completed'});
+        expect(toTask({nodeId: 'Wait', type: 'CatchEvent', status: 0})).toMatchObject({nodeName: null, status: 'active'});
+    });
 
     describe('parsePaging', () => {
         it('defaults to the first 100', () => {

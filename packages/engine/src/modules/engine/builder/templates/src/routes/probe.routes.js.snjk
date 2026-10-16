@@ -2,6 +2,7 @@ import {ServiceRegistry} from "../modules/container/registry.js";
 import ContainerService from "../modules/container/container.service.js";
 import {authenticate} from "../modules/auth/oidc.js";
 import {Config} from "../config/config.js";
+import fs from "fs";
 
 function route (fastify, opts, next) {
     fastify.route(
@@ -44,6 +45,32 @@ function route (fastify, opts, next) {
             method: 'GET',
             url: '/api/containers',
             handler: () => ContainerService.getInfo()
+        }
+    )
+
+    // The BPMN a workflow was generated from (deployment-metadata.json's
+    // `bpmn`, written at compile time) - Galaxy and the designer draw a
+    // process instance's progress on it. 404 for containers compiled before.
+    fastify.route(
+        {
+            method: 'GET',
+            url: '/api/bpmn/:processDef',
+            handler: async (request, reply) => {
+                const deploymentRoot = new URL('../../', import.meta.url);
+                let metadata = {};
+                try {
+                    metadata = JSON.parse(await fs.promises.readFile(new URL('deployment-metadata.json', deploymentRoot), 'utf8'));
+                } catch {
+                    // no metadata - treated as no BPMN below
+                }
+                const file = metadata.bpmn?.[request.params.processDef];
+                if (!file || file.includes('..')) {
+                    reply.code(404);
+                    return {message: `no BPMN kept for ${request.params.processDef} - recompile the container`};
+                }
+                reply.type('application/xml');
+                return fs.promises.readFile(new URL(file, deploymentRoot), 'utf8');
+            }
         }
     )
 

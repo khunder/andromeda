@@ -5,7 +5,7 @@ import {PersistenceGateway} from "../../persistence/persistence-gateway.js";
 import {Config} from "../../../config/config.js";
 import constants from "../../../config/constants.js";
 import Utils from "../../../utils/utils.js";
-import {page, parsePaging, parseStatus, sortBy, toProcessInstance, toVariable} from "../runtime-queries.js";
+import {page, parsePaging, parseStatus, sortBy, toFlow, toProcessInstance, toTask, toVariable} from "../runtime-queries.js";
 
 /**
  * Galaxy reads runtime state straight from the persistence store. sqlite
@@ -110,6 +110,64 @@ class GalaxyController {
             name: query.name,
         });
         return page(sortBy(rows, 'deploymentId', 'processInstance', 'name').map(toVariable), paging);
+    }
+
+    /**
+     * GET /galaxy/process-instances/:id/trace - what's needed to draw one
+     * process instance's progress: the instance, the sequence flows it took
+     * (status active = waiting at the flow's target), the tasks it reached
+     * (human tasks / catch events), its variables, the BPMN it runs (fetched
+     * from its container's GET /api/bpmn/:processDef) and that container's
+     * port - to complete its pending tasks. bpmn / container are null when no
+     * registered container serves the deployment (or it predates /api/bpmn).
+     */
+    static processInstanceTrace = async (req, reply) => {
+        assertStoreReachable();
+        const processInstanceId = req.params.id;
+        const row = await PersistenceGateway.getProcessInstance({processInstanceId});
+        if (!row) {
+            reply.code(404);
+            return {message: `process instance ${processInstanceId} not found`};
+        }
+        const instance = toProcessInstance(row);
+        const [flows, tasks, variables] = await Promise.all([
+            PersistenceGateway.findFlowEvents({processInstanceId}),
+            PersistenceGateway.findTasks({processInstanceId}),
+            PersistenceGateway.findVariables({processInstanceId}),
+        ]);
+
+        let container = null;
+        let bpmn = null;
+        let bpmnError = null;
+        for (const candidate of galaxyRegistry.list().filter((entry) => entry.deploymentId === instance.deploymentId)) {
+            try {
+                const res = await fetch(`http://127.0.0.1:${candidate.port}/api/bpmn/${encodeURIComponent(instance.processDef)}`,
+                    {signal: AbortSignal.timeout(5000)});
+                container = {port: candidate.port};
+                if (res.ok) {
+                    bpmn = await res.text();
+                    break;
+                }
+                bpmnError = res.status === 404
+                    ? 'the container keeps no BPMN for this process - recompile it'
+                    : `the container answered HTTP ${res.status}`;
+            } catch (error) {
+                bpmnError = `container on port ${candidate.port} unreachable`;
+            }
+        }
+        if (!container && !bpmnError) {
+            bpmnError = `no running container registered for ${instance.deploymentId}`;
+        }
+
+        return {
+            instance,
+            container,
+            bpmn,
+            bpmnError: bpmn ? null : bpmnError,
+            flows: flows.map(toFlow),
+            tasks: sortBy(tasks, 'nodeId').map(toTask),
+            variables: sortBy(variables, 'name').map(toVariable),
+        };
     }
 
 

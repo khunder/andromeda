@@ -48,6 +48,8 @@ export class ProcessInstancesView extends HTMLElement {
   private selectedId: string | null = null;
   private refreshTimer: number | null = null;
   private loading = false;
+  /** Called when a row is clicked - opens the instance on its diagram (InstanceViewerModal). */
+  onOpenInstance: ((processInstanceId: string) => void) | null = null;
 
   private list!: HTMLElement;
   private summary!: HTMLElement;
@@ -424,7 +426,9 @@ export class ProcessInstancesView extends HTMLElement {
 
     const pick = (event: Event) => {
       const row = (event.target as HTMLElement).closest<HTMLElement>('tr[data-id]');
-      if (row?.dataset.id) void this.select(row.dataset.id);
+      if (!row?.dataset.id) return;
+      void this.select(row.dataset.id);
+      this.onOpenInstance?.(row.dataset.id);
     };
     this.list.addEventListener('click', pick);
     this.list.addEventListener('keydown', (event) => {

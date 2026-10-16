@@ -11,7 +11,8 @@
  * Rendered in the light DOM, styled under .tasks-view; the form's fields use
  * the application's own styles (see src/iform/iform.config.ts).
  */
-import { iform, isPickedFile, IFormValidationError, type IForm, type IFormDefinition as FormDefinition, type IFormFileValue } from '../iform';
+import { iform, IFormValidationError, type IForm } from '../iform';
+import { ContainerClient, signalPayloadFromForm, taskFormDefinition, type TaskDetail } from './ContainerClient';
 import { showToast } from './Toast';
 
 interface PendingTask {
@@ -21,16 +22,6 @@ interface PendingTask {
   nodeName: string;
   roles: string[];
   hasForm: boolean;
-}
-
-interface TaskDetail {
-  processInstanceId: string;
-  nodeId: string;
-  nodeName: string;
-  roles: string[];
-  editableVariables: string[];
-  form: FormDefinition | null;
-  variables: Record<string, unknown>;
 }
 
 export interface TasksViewOptions {
@@ -46,6 +37,7 @@ const REFRESH_MS = 10_000;
 
 export class TasksView extends HTMLElement {
   private options!: TasksViewOptions;
+  private client!: ContainerClient;
   private tasks: PendingTask[] = [];
   private selected: PendingTask | null = null;
   private form: IForm | null = null;
@@ -98,6 +90,7 @@ export class TasksView extends HTMLElement {
   open(options: TasksViewOptions): void {
     this.ensureRendered();
     this.options = options;
+    this.client = new ContainerClient(options.host, options.port, options.authHeaders);
     (this.querySelector('.tasks-title') as HTMLElement).textContent = options.deploymentId;
     void this.whoAmI();
     void this.refresh();
@@ -114,28 +107,8 @@ export class TasksView extends HTMLElement {
     }
   }
 
-  private base(): string {
-    return `http://${this.options.host}:${this.options.port}`;
-  }
-
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    let response: Response;
-    try {
-      response = await fetch(`${this.base()}${path}`, {
-        ...init,
-        headers: { ...(init.headers || {}), ...this.options.authHeaders() },
-      });
-    } catch {
-      throw new Error(`Cannot reach the container at ${this.base()}`);
-    }
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      const hint = response.status === 401
-        ? ' - set an OIDC access token in the settings panel (click the canvas background)'
-        : '';
-      throw new Error(`${body?.message || `HTTP ${response.status}`}${hint}`);
-    }
-    return body as T;
+  private request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return this.client.request<T>(path, init);
   }
 
   private async whoAmI(): Promise<void> {
@@ -206,7 +179,7 @@ export class TasksView extends HTMLElement {
     this.renderList();
     let detail: TaskDetail;
     try {
-      detail = await this.request<TaskDetail>(`/${task.processDef}/tasks/${encodeURIComponent(task.processInstanceId)}/${encodeURIComponent(task.nodeId)}`);
+      detail = await this.client.taskDetail(task.processDef, task.processInstanceId, task.nodeId);
     } catch (error) {
       this.showError(error instanceof Error ? error.message : String(error));
       return;
@@ -243,26 +216,11 @@ export class TasksView extends HTMLElement {
 
     this.formEl.replaceChildren(header, formHost, actions);
 
-    const definition = detail.form && Array.isArray(detail.form.components)
-      ? detail.form
-      : this.generatedForm(detail);
     // file fields show a stored file variable by name and keep it unless a new file is picked
-    this.form = iform.create(formHost, definition, { data: detail.variables });
+    this.form = iform.create(formHost, taskFormDefinition(detail), { data: detail.variables });
 
     close.addEventListener('click', () => this.closeForm());
     accept.addEventListener('click', () => void this.accept(task, detail, accept));
-  }
-
-  /** A task without a form: fields for the variables it may change, typed by their current value. */
-  private generatedForm(detail: TaskDetail): FormDefinition {
-    return iform.generateForm(detail.editableVariables.map((name) => {
-      const value = detail.variables[name];
-      const type = typeof value === 'boolean' ? 'boolean'
-        : typeof value === 'number' ? 'number'
-          : value && typeof value === 'object' ? 'object'
-            : 'string';
-      return { name, type };
-    }));
   }
 
   private async accept(task: PendingTask, detail: TaskDetail, button: HTMLButtonElement): Promise<void> {
@@ -276,30 +234,12 @@ export class TasksView extends HTMLElement {
         showToast(error instanceof IFormValidationError ? 'Please fix the highlighted fields' : String(error), 'error');
         return;
       }
-      // only what the task may change - read-only fields (e.g. a disabled
-      // amount shown for context) are part of the form data too
-      const editable = new Set(this.form.editableKeys().filter((key) => detail.editableVariables.includes(key)));
-      // a newly picked file goes as the signal's `files`; a stored file
-      // variable left as it is (a reference) isn't sent at all
-      const files: Record<string, Omit<IFormFileValue, 'size'>> = {};
-      const formData: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(data)) {
-        if (!editable.has(key)) continue;
-        if (isPickedFile(value)) {
-          files[key] = { base64: value.base64, fileName: value.fileName, contentType: value.contentType };
-        } else if (!this.isStoredFile(value)) {
-          formData[key] = value;
-        }
-      }
-      const result = await this.request<{ resumed: boolean; warnings?: string[] }>(`/${task.processDef}/signal`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          processInstanceId: task.processInstanceId,
-          nodeId: task.nodeId,
-          formData,
-          ...(Object.keys(files).length > 0 ? { files } : {}),
-        }),
+      const { formData, files } = signalPayloadFromForm(this.form, data, detail.editableVariables);
+      const result = await this.client.signal(task.processDef, {
+        processInstanceId: task.processInstanceId,
+        nodeId: task.nodeId,
+        formData,
+        ...(Object.keys(files).length > 0 ? { files } : {}),
       });
       if (result.warnings?.length) {
         showToast(`${task.nodeName} accepted - ${result.warnings.join('; ')}`, 'warning');
@@ -313,11 +253,6 @@ export class TasksView extends HTMLElement {
     } finally {
       button.disabled = false;
     }
-  }
-
-  /** A file variable's stored value: a reference ({ kind: 'file', key, sha256... }), not content. */
-  private isStoredFile(value: unknown): boolean {
-    return !!value && typeof value === 'object' && (value as { kind?: unknown }).kind === 'file';
   }
 
   private closeForm(): void {

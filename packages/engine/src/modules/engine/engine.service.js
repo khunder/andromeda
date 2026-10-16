@@ -218,6 +218,13 @@ export class EngineService {
                 "401": {"description": "OIDC is enabled and the token is missing or invalid"},
                 "503": {"description": "The OIDC provider (discovery / JWKS) could not be reached"}
             })
+        containerCodegenContext.openApiCodegen.addPath("/api/bpmn/{processDef}", "get")
+            .addPathDescription("/api/bpmn/{processDef}", "get", "The BPMN XML the workflow was generated from (kept at compile time in bpmn/<processDef>.bpmn).")
+            .addPathTags("/api/bpmn/{processDef}", "get", ["engine"])
+            .addResponse("/api/bpmn/{processDef}", "get", {
+                "200": {"description": "BPMN 2.0 XML", "content": {"application/xml": {"schema": {"type": "string"}}}},
+                "404": {"description": "No BPMN kept for this processDef (container compiled before BPMN sources were kept)"}
+            })
         containerCodegenContext.openApiCodegen.addPath("/api/logs/stream", "get")
             .addPathDescription("/api/logs/stream", "get", "Live log feed (Server-Sent Events). Query: level=trace|debug|info|warn|error|fatal (minimum level, default trace), since=<event id> (replay buffered events after it, default 0 = whole backlog; Last-Event-ID takes precedence)")
             .addPathTags("/api/logs/stream", "get", ["engine"])
@@ -279,15 +286,45 @@ export class EngineService {
      * @param containerCodegenContext : ContainerCodegenContext
      */
     writeDeploymentMetadata(ctx, containerCodegenContext) {
+        const processDefs = containerCodegenContext.registryEntries.map((entry) => entry.processDef);
         const metadata = {
             deploymentId: ctx.baseDeploymentId,
             version: ctx.version,
-            processDefs: containerCodegenContext.registryEntries.map((entry) => entry.processDef),
+            processDefs,
+            // the BPMN each workflow was generated from - served by the
+            // container's GET /api/bpmn (runtime views draw instances on it)
+            bpmn: this.writeBpmnSources(ctx, processDefs),
         };
         fs.writeFileSync(
             path.join(Utils.getDeploymentPath(ctx), "deployment-metadata.json"),
             JSON.stringify(metadata, null, 2),
         );
+    }
+
+    /**
+     * Copies each workflow's BPMN into <deployment>/bpmn/<processDef>.bpmn.
+     * Workflows are generated in order, one registry entry each, so the
+     * i-th workflow is the i-th processDef.
+     * @param {ContainerParsingContext} ctx
+     * @param {string[]} processDefs
+     * @returns {Object<string, string>} processDef -> path relative to the deployment
+     */
+    writeBpmnSources(ctx, processDefs) {
+        const workflows = ctx.workflowParsingContext || [];
+        if (workflows.length !== processDefs.length) {
+            Logger.warn(`BPMN sources not kept: ${workflows.length} workflow(s) for ${processDefs.length} processDef(s)`);
+            return {};
+        }
+        const dir = path.join(Utils.getDeploymentPath(ctx), "bpmn");
+        fs.mkdirSync(dir, {recursive: true});
+        const sources = {};
+        workflows.forEach((workflow, index) => {
+            if (typeof workflow.bpmnContent !== 'string') return;
+            const file = `bpmn/${processDefs[index]}.bpmn`;
+            fs.writeFileSync(path.join(Utils.getDeploymentPath(ctx), file), workflow.bpmnContent);
+            sources[processDefs[index]] = file;
+        });
+        return sources;
     }
 
     /**

@@ -369,6 +369,25 @@ export class PersistenceGateway {
     }
 
     /**
+     * Read-only: every flow event (sequence flow taken) of a process instance,
+     * any status - with findTasks(), what Galaxy's instance trace is built from.
+     * @param {string} processInstanceId
+     * @returns {Promise<object[]>}
+     */
+    static async findFlowEvents({processInstanceId}) {
+        return new FlowEventRepository().findFlowEvents(processInstanceId);
+    }
+
+    /**
+     * Read-only: every task (human task / catch event) of a process instance, any status.
+     * @param {string} processInstanceId
+     * @returns {Promise<object[]>}
+     */
+    static async findTasks({processInstanceId}) {
+        return new TaskRepository().findTasks(processInstanceId);
+    }
+
+    /**
      * Small files' content (plain store, not event-sourced - the event log
      * only gets a file variable's metadata and sha256). See FileContentRepository.
      * @param {string} key - object key, <deploymentId>/<version>/<processInstanceId>/<nodeId>/<fileName>

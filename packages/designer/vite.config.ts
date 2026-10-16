@@ -8,7 +8,9 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['monaco-editor'],
+    // NavigatedViewer: the process instance viewer's (InstanceViewerModal) -
+    // listed so it's pre-bundled up front, not discovered on first use
+    include: ['monaco-editor', 'bpmn-js/lib/NavigatedViewer'],
   },
   build: {
     rollupOptions: {

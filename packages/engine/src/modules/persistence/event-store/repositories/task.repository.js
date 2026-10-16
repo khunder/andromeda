@@ -89,6 +89,16 @@ export class TaskRepository {
         return this.repo.find(cond);
     }
 
+    /**
+     * Every task (human task / catch event) of one process instance, whatever
+     * its status (read-only, for runtime views).
+     * @param {string} processInstanceId
+     * @returns {Promise<object[]>}
+     */
+    async findTasks(processInstanceId) {
+        return this.repo.find({processInstance: processInstanceId});
+    }
+
 }
 
 export default TaskRepository;
