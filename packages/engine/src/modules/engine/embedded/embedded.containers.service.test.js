@@ -18,19 +18,22 @@ it('isPortFree', async () => {
             console.log(data.toString());
         });
     });
-    server.listen(5000);
+    await new Promise((resolve) => server.listen(47400, resolve));
 
 
-    let available = await EmbeddedContainerService.isPortFree(5000);
+    let available = await EmbeddedContainerService.isPortFree(47400);
     assert.equal(available, false);
-    await EmbeddedContainerService.AllocatePortInRange(5001);
-    await EmbeddedContainerService.AllocatePortInRange(5001);
-    await EmbeddedContainerService.AllocatePortInRange(10000);
+    await EmbeddedContainerService.AllocatePortInRange(47401);
+    await EmbeddedContainerService.AllocatePortInRange(47401);
+    await EmbeddedContainerService.AllocatePortInRange(47402);
+    EmbeddedContainerService.portOffset = 47410;
     EmbeddedContainerService.maxAttemptsRange = 0;
     const error = await Utils.getError(async () => await EmbeddedContainerService.AllocatePortInRange());
-    assert.deepEqual(error, "cannot allocate port 10000 after 0 attempts")
+    assert.deepEqual(error, "cannot allocate port 47410 after 0 attempts")
     EmbeddedContainerService.maxAttemptsRange = 2;
     await EmbeddedContainerService.AllocatePortInRange();
+    EmbeddedContainerService.portOffset = 10000;
+    EmbeddedContainerService.maxAttemptsRange = 100;
     setTimeout(function () {
         server.close();
     }, 1500)
@@ -48,7 +51,7 @@ it('wait for container to start', async () => {
             console.log(data.toString());
         });
     });
-    server.listen(5005);
+    server.listen(47405);
 
     setTimeout(function () {
         server.close();

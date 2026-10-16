@@ -15,52 +15,85 @@ export class EmbeddedContainerService {
     static portOffset = 10000
     static maxAttemptsRange = 100;
 
+    /**
+     * Ports held by embedded containers (running, or being started) - a port
+     * is reserved when allocated and released when its container is stopped
+     * or fails to start, so a closed container's port is reused: allocation
+     * always takes the lowest free port from portOffset (10000) up.
+     */
     static allocatedPorts = [];
-    static isPortFree = port =>
+
+    /**
+     * Binds briefly on `host` - false when something listens there. Only
+     * "in use" / "denied" count: a host the machine lacks (no IPv6) isn't a taken port.
+     */
+    static canBind = (port, host) =>
         new Promise(resolve => {
-            const server = http
-                .createServer()
-                .listen(port, () => {
-                    server.close()
-                    Logger.trace(`port ${port} is free`);
-                    resolve(true)
-                })
-                .on('error', () => {
-                    Logger.trace(`port ${port} is not free`);
-                    resolve(false)
-                })
+            const server = http.createServer();
+            server.once('error', (error) => resolve(!['EADDRINUSE', 'EACCES'].includes(error.code)));
+            server.listen(port, host, () => server.close(() => resolve(true)));
         });
+
+    /**
+     * Free for a container: bindable on 127.0.0.1 (where containers listen
+     * by default), the IPv4 wildcard and the IPv6 wildcard (node's default
+     * when no host is given). One check isn't enough - on Windows each of
+     * these can bind while another holds the port.
+     */
+    static isPortFree = async port => {
+        let free = true;
+        for (const host of ['127.0.0.1', '0.0.0.0', '::']) {
+            if (!await this.canBind(port, host)) {
+                free = false;
+                break;
+            }
+        }
+        Logger.trace(`port ${port} is ${free ? '' : 'not '}free`);
+        return free;
+    };
+
+    static reservePort(port) {
+        const value = Number(port);
+        if (!this.allocatedPorts.includes(value)) {
+            this.allocatedPorts.push(value);
+        }
+        return value;
+    }
+
+    /** Gives a stopped (or never started) container's port back. */
+    static releasePort(port) {
+        const value = Number(port);
+        this.allocatedPorts = this.allocatedPorts.filter(p => p !== value);
+    }
 
     static async AllocatePortInRange(containerPort) {
         if(containerPort){
-            if(this.allocatedPorts.includes(containerPort)){
+            if(this.allocatedPorts.includes(Number(containerPort))){
                 if(! await this.isPortFree(containerPort)){
                     throw new Error(`cannot allocate port ${containerPort}, already allocated`);
                 }
             }
-            this.allocatedPorts.push(containerPort);
-            return containerPort;
+            return this.reservePort(containerPort);
         }
 
-        let attempts = 0;
-
-
-        let port = EmbeddedContainerService.portOffset;
-        while (attempts < EmbeddedContainerService.maxAttemptsRange ){
-            if(!this.allocatedPorts.includes(attempts+EmbeddedContainerService.portOffset)){
-                port = EmbeddedContainerService.portOffset+ attempts;
-                Logger.debug(`trying to allocate port ${port}`);
-                Logger.debug(`pushing  port ${port} to port list `);
-                this.allocatedPorts.push(port)
-                if(await this.isPortFree(port)){
-                    return parseInt(String(port));
-                }
+        // lowest port first, so ports given back by stopped containers are reused;
+        // a busy port (another program) is skipped but not reserved - it's
+        // retried next time
+        for (let attempt = 0; attempt < EmbeddedContainerService.maxAttemptsRange; attempt++) {
+            const port = EmbeddedContainerService.portOffset + attempt;
+            if (this.allocatedPorts.includes(port)) {
+                continue;
             }
-            attempts++;
+            // reserve before the async check: two deployments started at once
+            // must not both pick this port
+            this.reservePort(port);
+            Logger.debug(`trying to allocate port ${port}`);
+            if (await this.isPortFree(port)) {
+                return port;
+            }
+            this.releasePort(port);
         }
-        if(attempts === EmbeddedContainerService.maxAttemptsRange ){
-            throw `cannot allocate port ${port} after ${(EmbeddedContainerService.maxAttemptsRange)} attempts`;
-        }
+        throw `cannot allocate port ${EmbeddedContainerService.portOffset} after ${(EmbeddedContainerService.maxAttemptsRange)} attempts`;
     }
 
 
@@ -98,6 +131,7 @@ export class EmbeddedContainerService {
         // entry script is missing, the underlying spawn fails asynchronously with no
         // attached error listener, which otherwise crashes the whole engine process.
         if (!fs.existsSync(path.join(process.cwd(), "deployments", deploymentId)) || !fs.existsSync(executor)) {
+            this.releasePort(allocatedPort);
             throw new Error(`cannot start child process: deployment "${deploymentId}" was not found`);
         }
 
@@ -152,6 +186,7 @@ export class EmbeddedContainerService {
 
 
         if (!childProcess || !childProcess.child || !childProcess.child.pid) {
+            this.releasePort(allocatedPort);
             throw new Error(`cannot start child process`);
         }
 
@@ -185,11 +220,8 @@ export class EmbeddedContainerService {
     }
 
     static async allocatePort(options) {
-        if (options && options.port) {
-            return options.port
-        } else {
-            return await EmbeddedContainerService.AllocatePortInRange();
-        }
+        // an explicit port is reserved too, so automatic allocation skips it
+        return await EmbeddedContainerService.AllocatePortInRange(options && options.port);
     }
 
     /**
@@ -247,5 +279,7 @@ export class EmbeddedContainerService {
             }
         });
         EmbeddedContainerService.containers = EmbeddedContainerService.containers.filter(e => !isTarget(e));
+        // free for the next container (allocation re-checks it's really unbound)
+        EmbeddedContainerService.releasePort(port);
     }
 }
