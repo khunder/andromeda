@@ -477,8 +477,8 @@ export class ProcessStartModal {
       .start-files-hint code {
         padding: 0 5px;
         border-radius: 5px;
-        background: rgba(91, 91, 247, 0.1);
-        color: var(--accent, #5b5bf7);
+        background: rgba(22, 163, 74, 0.1);
+        color: var(--accent, #16a34a);
       }
 
       .start-files-rows {
@@ -602,9 +602,9 @@ export class ProcessStartModal {
 
       .start-file-drop:hover,
       .start-file-drop.dragging {
-        border-color: var(--accent, #5b5bf7);
-        background: rgba(91, 91, 247, 0.05);
-        color: var(--accent, #5b5bf7);
+        border-color: var(--accent, #16a34a);
+        background: rgba(22, 163, 74, 0.05);
+        color: var(--accent, #16a34a);
       }
 
       .start-file-drop.has-file {
@@ -715,8 +715,8 @@ export class ProcessStartModal {
       }
 
       .btn-primary:hover {
-        background: #4a4ae0;
-        border-color: #4a4ae0;
+        background: #15803d;
+        border-color: #15803d;
       }
 
       .btn-secondary {

@@ -364,7 +364,7 @@ export class GalaxyPanel extends HTMLElement {
 
                 .item:focus-visible {
                     outline: none;
-                    box-shadow: 0 0 0 3px rgba(91, 91, 247, 0.3);
+                    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3);
                 }
 
                 .item-head {
@@ -433,13 +433,13 @@ export class GalaxyPanel extends HTMLElement {
                 }
 
                 .btn-logs {
-                    color: #5b5bf7;
-                    border-color: #d3d3fd;
+                    color: #16a34a;
+                    border-color: #bbf7d0;
                 }
 
                 .btn-logs:hover {
-                    background: rgba(91, 91, 247, 0.1);
-                    border-color: #5b5bf7;
+                    background: rgba(22, 163, 74, 0.1);
+                    border-color: #16a34a;
                 }
 
                 .btn-play, .btn-play-params {

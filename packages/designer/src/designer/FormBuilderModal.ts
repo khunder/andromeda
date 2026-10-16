@@ -384,7 +384,7 @@ export class FormBuilderModal {
       .form-builder-hint code {
         padding: 0 4px;
         border-radius: 4px;
-        background: rgba(91, 91, 247, 0.1);
+        background: rgba(22, 163, 74, 0.1);
       }
       .form-builder-close {
         border: none;
@@ -427,11 +427,11 @@ export class FormBuilderModal {
       .fb-btn:hover { background: var(--glass-control-bg-hover, #f5f5f5); }
       .fb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
       .fb-btn-primary {
-        background: var(--accent, #5b5bf7);
-        border-color: var(--accent, #5b5bf7);
+        background: var(--accent, #16a34a);
+        border-color: var(--accent, #16a34a);
         color: white;
       }
-      .fb-btn-primary:hover { background: #4a4ae0; }
+      .fb-btn-primary:hover { background: #15803d; }
       .form-editor .form-builder-body { overflow: hidden; }
       .form-editor-split {
         display: grid;

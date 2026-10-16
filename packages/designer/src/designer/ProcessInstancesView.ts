@@ -350,9 +350,9 @@ export class ProcessInstancesView extends HTMLElement {
         td { padding: 6px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.5); vertical-align: top; }
         .instances tbody tr { cursor: pointer; }
         .instances tbody tr:hover { background: rgba(255, 255, 255, 0.55); }
-        .instances tbody tr:focus-visible { outline: 2px solid var(--accent, #5b5bf7); outline-offset: -2px; }
-        .instances tbody tr.selected { background: rgba(91, 91, 247, 0.12); }
-        .instances tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent, #5b5bf7); }
+        .instances tbody tr:focus-visible { outline: 2px solid var(--accent, #16a34a); outline-offset: -2px; }
+        .instances tbody tr.selected { background: rgba(22, 163, 74, 0.12); }
+        .instances tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent, #16a34a); }
         .empty, .placeholder { color: var(--text-subtle, #8a8fab); font-style: italic; padding: 24px 10px; text-align: center; cursor: default; }
         .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; }
         .muted { color: var(--text-muted, #5b6080); }

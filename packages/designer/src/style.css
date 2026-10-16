@@ -7,10 +7,10 @@
 :root {
     /* backdrop the glass blurs */
     --app-bg:
-        radial-gradient(1200px 800px at 8% 0%, rgba(124, 92, 255, 0.35), transparent 60%),
+        radial-gradient(1200px 800px at 8% 0%, rgba(34, 197, 94, 0.30), transparent 60%),
         radial-gradient(1000px 700px at 100% 10%, rgba(0, 194, 255, 0.30), transparent 60%),
-        radial-gradient(900px 700px at 60% 100%, rgba(255, 122, 182, 0.28), transparent 60%),
-        linear-gradient(135deg, #eef1ff 0%, #f5f0ff 50%, #eaf7ff 100%);
+        radial-gradient(900px 700px at 60% 100%, rgba(46, 204, 113, 0.28), transparent 60%),
+        linear-gradient(135deg, #eef1ff 0%, #eefaf3 50%, #eaf7ff 100%);
 
     /* glass surface (the .glass-card recipe) */
     --glass-bg: rgba(255, 255, 255, 0.32);
@@ -44,8 +44,8 @@
     --text: #1f2340;
     --text-muted: #5b6080;
     --text-subtle: #8a8fab;
-    --accent: #5b5bf7;
-    --accent-ring: 0 0 0 3px rgba(91, 91, 247, 0.25);
+    --accent: #16a34a;
+    --accent-ring: 0 0 0 3px rgba(22, 163, 74, 0.25);
 
     --tint-compile: rgba(46, 170, 98, 0.85);
     --tint-deploy: rgba(33, 136, 243, 0.85);
@@ -143,7 +143,7 @@ body {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: 0.2px;
-    background: linear-gradient(90deg, #5b5bf7, #b44ad8);
+    background: linear-gradient(90deg, #16a34a, #0d9488);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -344,9 +344,9 @@ body {
     --dv-inactivegroup-hiddenpanel-tab-color: var(--text-subtle);
     --dv-separator-border: transparent;
     --dv-paneview-header-border-color: var(--glass-divider);
-    --dv-active-sash-color: rgba(91, 91, 247, 0.45);
-    --dv-drag-over-background-color: rgba(91, 91, 247, 0.18);
-    --dv-drag-over-border-color: rgba(91, 91, 247, 0.6);
+    --dv-active-sash-color: rgba(22, 163, 74, 0.45);
+    --dv-drag-over-background-color: rgba(22, 163, 74, 0.18);
+    --dv-drag-over-border-color: rgba(22, 163, 74, 0.6);
     --dv-icon-hover-background-color: rgba(255, 255, 255, 0.6);
     --dv-border-radius: var(--glass-radius);
     --dv-spacing-padding: 0px;
@@ -719,7 +719,7 @@ body {
 }
 
 .property-hint code.bound {
-    background: rgba(91, 91, 247, 0.14);
+    background: rgba(22, 163, 74, 0.14);
     color: var(--accent);
     font-weight: 600;
 }
@@ -917,7 +917,7 @@ body {
 }
 
 .tasks-list li.selected {
-    background: rgba(91, 91, 247, 0.12);
+    background: rgba(22, 163, 74, 0.12);
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
@@ -1065,7 +1065,7 @@ body {
     padding: 1px 8px;
     border-radius: 8px;
     font-weight: 600;
-    background: rgba(91, 91, 247, 0.14);
+    background: rgba(22, 163, 74, 0.14);
     color: var(--accent);
 }
 
@@ -1094,7 +1094,7 @@ body {
 }
 
 .iv-swatch-executed { background: #e4e4ea; border-color: #9a9aa6; }
-.iv-swatch-active { background: #eef0ff; border-color: var(--accent); }
+.iv-swatch-active { background: #e7f7ed; border-color: var(--accent); }
 .iv-swatch-failed { background: #fdeaea; border-color: #d14343; }
 
 .iv-close {
@@ -1260,7 +1260,7 @@ body {
     background: rgba(0, 0, 0, 0.06);
 }
 
-.iv-state-active { background: rgba(91, 91, 247, 0.14); color: var(--accent); }
+.iv-state-active { background: rgba(22, 163, 74, 0.14); color: var(--accent); }
 .iv-state-executed { color: #6b6b78; }
 .iv-state-failed { background: rgba(209, 67, 67, 0.14); color: #d14343; }
 
@@ -1337,7 +1337,7 @@ body {
     color: white;
 }
 
-.iv-btn-primary:hover { background: #4a4ae0; }
+.iv-btn-primary:hover { background: #15803d; }
 
 
 
@@ -1362,8 +1362,8 @@ body {
 }
 
 .iv-canvas .djs-element.iv-active .djs-visual > :first-child {
-    fill: #eef0ff !important;
-    stroke: var(--accent, #5b5bf7) !important;
+    fill: #e7f7ed !important;
+    stroke: var(--accent, #16a34a) !important;
     stroke-width: 4px !important;
     animation: iv-pulse 1.6s ease-in-out infinite;
 }
@@ -1386,7 +1386,7 @@ body {
 
 .iv-canvas .djs-element.iv-selected .djs-outline {
     visibility: visible;
-    stroke: var(--accent, #5b5bf7);
+    stroke: var(--accent, #16a34a);
     stroke-dasharray: 4 3;
 }
 
@@ -1440,7 +1440,7 @@ body {
     padding: 2px 8px;
     border-radius: 8px;
     font-size: 12px;
-    background: rgba(91, 91, 247, 0.1);
+    background: rgba(22, 163, 74, 0.1);
     color: var(--accent);
 }
 
@@ -1461,7 +1461,7 @@ body {
 
 .bi-form {
     padding: 12px;
-    border: 1px dashed rgba(91, 91, 247, 0.35);
+    border: 1px dashed rgba(22, 163, 74, 0.35);
     border-radius: 12px;
     background: white;
 }
@@ -1477,7 +1477,7 @@ body {
 
 .bi-canvas .djs-element.bi-selected .djs-outline {
     visibility: visible;
-    stroke: var(--accent, #5b5bf7);
+    stroke: var(--accent, #16a34a);
     stroke-dasharray: 4 3;
 }
 
@@ -1543,7 +1543,7 @@ body {
 
 .bi-choice:hover,
 .bi-choice:focus-visible {
-    background: rgba(91, 91, 247, 0.1);
+    background: rgba(22, 163, 74, 0.1);
     border-color: var(--accent);
 }
 

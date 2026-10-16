@@ -408,8 +408,8 @@ export class ConfigurationPanel {
       }
       
       .btn-primary:hover {
-        background: #4a4ae0;
-        border-color: #4a4ae0;
+        background: #15803d;
+        border-color: #15803d;
       }
       
       .btn-secondary {

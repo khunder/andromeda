@@ -223,7 +223,7 @@ export class LogViewer extends HTMLElement {
         input { width: 140px; }
         button { cursor: pointer; }
         button:hover, select:hover { background: var(--glass-control-bg-hover, #f5f5f5); }
-        button[aria-pressed="true"] { color: var(--accent, #5b5bf7); border-color: var(--accent, #5b5bf7); }
+        button[aria-pressed="true"] { color: var(--accent, #16a34a); border-color: var(--accent, #16a34a); }
         .body {
           flex: 1;
           overflow: auto;

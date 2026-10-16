@@ -176,7 +176,7 @@ const STYLES = `
   }
 
   .andromeda-toast {
-    --toast-accent: #5b5bf7;
+    --toast-accent: #16a34a;
     position: relative;
     width: 100%;
     display: flex;
@@ -290,7 +290,7 @@ const STYLES = `
 
   .andromeda-toast-close:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(91, 91, 247, 0.3);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3);
   }
 
   /* time left - its animation ending is what dismisses the toast */
