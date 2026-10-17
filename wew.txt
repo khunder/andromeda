@@ -66,5 +66,8 @@ Form generator for BPNM
 - also move engine url, galxy url, access tokn oidc from process to this view.
 - show + button in the andromda panel, same option via context menu to add a process, it open a dialog, new one or from examples
 - instead if diagram xml in te top of the designer, replace it with the process_def and version, we will manage multiple processs, so show only them
-- move diagram/xml to corner bottom left
+- move diagram/xml to corner bottom left, make it in the extreme corner ataached to the border
+- the root node by default call it workflow, and the version 1.0.0
+- the root node icon should looks like a package
+- the worflows sub nodes choose an icon yourself
 

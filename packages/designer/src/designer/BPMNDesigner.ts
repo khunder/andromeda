@@ -6,6 +6,7 @@ import { DeploymentService } from './DeploymentService';
 import { loadMonaco } from './MonacoLoader';
 import { showToast } from './Toast';
 import { FormBuilderModal } from './FormBuilderModal';
+import { withDefinitionsAttrs, type WorkflowModel } from './WorkflowModel';
 import { formComponents, formFieldKeys, generateForm, type FormVariable, type IFormDefinition as FormDefinition } from '../iform';
 // the engine's BPMN extension (human task form + editable variables) - one
 // descriptor shared by the designer and the engine's parser
@@ -329,8 +330,22 @@ export class BPMNDesigner {
   // a diagram was imported while the canvas had no size - fit once it's shown
   private pendingFit = false;
   private zoom = 1;
+  /** the workflow process whose diagram is in the modeler */
+  private loadedProcessId: string | null = null;
+  // set while the modeler switches to another process, so the old process
+  // isn't overwritten with the new one's diagram by a sync racing the import
+  private switching = false;
+  private pendingProcessId: string | null = null;
+  private syncTimer: number | null = null;
+  /** what the properties panel shows when no diagram element is selected */
+  private propertiesView: 'workflow' | 'process' = 'process';
+  private editorMode: 'diagram' | 'xml' = 'diagram';
+  /** something was selected - the workspace makes sure the properties panel is open */
+  public onPropertiesRequested?: () => void;
+  /** the properties panel switched between the workflow, the process and an element */
+  public onPropertiesViewChange?: (view: 'workflow' | 'process' | 'element') => void;
 
-  constructor(private container: HTMLElement, initialXML: string = EMPTY_BPMN) {
+  constructor(private container: HTMLElement, private workflow: WorkflowModel) {
     this.container.classList.add('bpmn-io-canvas');
     this.modeler = new Modeler({
       container,
@@ -342,12 +357,131 @@ export class BPMNDesigner {
       ]
     }) as BpmnModeler;
 
+    // the deployment service reads the container id / version from the configuration
+    this.configManager.setDeploymentId(this.workflow.deploymentId);
+    this.configManager.setVersion(this.workflow.version);
+
     this.setupPropertiesPanel();
     this.renderPropertiesPanel(null);
 
-    this.importFromXML(initialXML).catch((error) => {
+    const active = this.workflow.getActive();
+    this.loadedProcessId = active?.id ?? null;
+    this.importFromXML(active?.xml ?? EMPTY_BPMN).catch((error) => {
       console.error('Failed to initialize BPMN.io modeler:', error);
     });
+  }
+
+  public getWorkflow(): WorkflowModel {
+    return this.workflow;
+  }
+
+  /**
+   * Switches the modeler to another process of the workflow: the current
+   * diagram is saved into its process first. The active process tab calls
+   * this (see Workspace), so does the Andromeda tree.
+   */
+  public async openProcess(processId: string): Promise<void> {
+    const process = this.workflow.get(processId);
+    if (!process) return;
+    if (processId === this.loadedProcessId) {
+      this.workflow.setActive(processId);
+      this.showDesigner();
+      return;
+    }
+    if (this.switching) {
+      // another switch is under way - this one follows it
+      this.pendingProcessId = processId;
+      return;
+    }
+    this.switching = true;
+    try {
+      await this.syncActiveProcess();
+      this.loadedProcessId = processId;
+      this.workflow.setActive(processId);
+      await this.importFromXML(process.xml);
+    } catch (error) {
+      console.error(`Could not open process ${process.processDef}:`, error);
+      showToast(`Could not open process ${process.processDef}`, 'error');
+    } finally {
+      this.switching = false;
+    }
+    this.renderPropertiesPanel(null);
+    const pending = this.pendingProcessId;
+    this.pendingProcessId = null;
+    if (pending && pending !== this.loadedProcessId) {
+      await this.openProcess(pending);
+    }
+  }
+
+  /** Adds a process to the workflow and opens it. */
+  public async addProcess(input: { processDef: string; xml: string }): Promise<void> {
+    const process = this.workflow.addProcess(input);
+    await this.openProcess(process.id);
+  }
+
+  /** Removes a process from the workflow - the workflow keeps at least one. */
+  public async removeProcess(processId: string): Promise<void> {
+    const process = this.workflow.get(processId);
+    if (!process) return;
+    if (this.workflow.processes.length <= 1) {
+      showToast('A workflow needs at least one process.', 'warning');
+      return;
+    }
+    this.workflow.removeProcess(processId);
+    // closing the removed process's tab makes another tab active, and the
+    // workspace is then already switching the diagram to it (see Workspace)
+    if (this.loadedProcessId === processId && !this.switching) {
+      this.loadedProcessId = null;
+      const next = this.workflow.getActive();
+      if (next) await this.openProcess(next.id);
+    }
+    showToast(`Removed process ${process.processDef}`, 'success');
+  }
+
+  /** Writes the modeler's diagram (and its definitions id) into the loaded process. */
+  private async syncActiveProcess(): Promise<void> {
+    if (this.syncTimer !== null) {
+      window.clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+    const processId = this.loadedProcessId;
+    if (!processId || !this.workflow.get(processId)) return;
+    let xml: string;
+    try {
+      xml = await this.getXML();
+    } catch {
+      return; // nothing imported yet
+    }
+    const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
+    const current = this.workflow.get(processId);
+    this.workflow.updateProcess(processId, { xml, processDef: definitions?.id || current?.processDef });
+  }
+
+  /** Diagram edits reach the workflow a moment after the last one. */
+  private scheduleSync(): void {
+    if (this.switching) return;
+    if (this.syncTimer !== null) window.clearTimeout(this.syncTimer);
+    this.syncTimer = window.setTimeout(() => {
+      this.syncTimer = null;
+      if (!this.switching) void this.syncActiveProcess();
+    }, 400);
+  }
+
+  /** Diagram or XML - the switch in the editor's bottom left corner. */
+  public setEditorMode(mode: 'diagram' | 'xml'): void {
+    this.editorMode = mode;
+    const root = this.editorRoot();
+    root.classList.toggle('xml-mode', mode === 'xml');
+    root.querySelectorAll<HTMLElement>('[data-editor-mode]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.editorMode === mode);
+      button.setAttribute('aria-pressed', String(button.dataset.editorMode === mode));
+    });
+    void this.setXMLEditorVisible(mode === 'xml');
+    if (mode === 'diagram') this.showDesigner();
+  }
+
+  public getEditorMode(): 'diagram' | 'xml' {
+    return this.editorMode;
   }
 
   public initXMLEditor(container: HTMLElement): void {
@@ -412,6 +546,19 @@ export class BPMNDesigner {
         void this.refreshXMLEditor();
       }
     });
+    // the editor's bottom-left corner switch
+    this.editorRoot().querySelectorAll<HTMLElement>('[data-editor-mode]').forEach((button) => {
+      button.addEventListener('click', () => this.setEditorMode(button.dataset.editorMode as 'diagram' | 'xml'));
+    });
+    this.setEditorMode(this.editorMode);
+  }
+
+  /**
+   * The editor as a whole (#canvas-container): the bpmn-js canvas this
+   * designer was created on, the XML editor over it and the corner switch.
+   */
+  private editorRoot(): HTMLElement {
+    return this.container.closest<HTMLElement>('#canvas-container') ?? this.container.parentElement ?? this.container;
   }
 
   /** The diagram's dock panel was shown or resized. */
@@ -492,12 +639,16 @@ export class BPMNDesigner {
     await this.modeler.importXML(xml);
     this.pendingFit = true;
     this.fitViewport();
+    this.propertiesView = 'process';
     this.clearPropertiesPanel();
     // e.g. an example loaded, or the first diagram finishing its import after
-    // a restored layout already showed the XML tab
+    // a restored layout already showed the XML editor
     if (this.xmlEditorVisible && !this.xmlEditor?.hasTextFocus()) {
       void this.refreshXMLEditor();
     }
+    // an example / a file replaced the process's diagram (a process switch
+    // syncs before importing - see openProcess)
+    if (!this.switching) void this.syncActiveProcess();
   }
 
   /**
@@ -559,16 +710,30 @@ export class BPMNDesigner {
   private deploying = false;
 
   /**
-   * Deploy: compiles the diagram into a container (POST /api/compile), then
-   * starts it embedded (POST /api/run-embedded) - the second step only when
-   * the first succeeded, with the versioned id the compile resolved.
+   * Deploy: compiles every process of the workflow into one container
+   * (POST /api/compile, one BPMN file per process), then starts it embedded
+   * (POST /api/run-embedded) - the second step only when the first succeeded,
+   * with the versioned id the compile resolved.
    */
   public async compileAndDeploy(): Promise<void> {
     if (this.deploying) return; // a second click while one runs
     this.deploying = true;
     try {
-      showToast('Compiling…', 'info');
-      const compiled = await this.deploymentService.deploy(await this.getXML());
+      await this.syncActiveProcess();
+      const duplicates = this.workflow.processes
+        .map((p) => p.processDef)
+        .filter((processDef, index, all) => all.indexOf(processDef) !== index);
+      if (duplicates.length > 0) {
+        showToast(`Two processes are named "${duplicates[0]}" - give each process a distinct definition id.`, 'error');
+        return;
+      }
+      showToast(`Compiling ${this.workflow.processes.length} process(es)…`, 'info');
+      // the engine builds every file under the folder's version - make sure they agree
+      const files = this.workflow.processes.map((process) => ({
+        name: `${process.processDef}.bpmn`,
+        xml: withDefinitionsAttrs(process.xml, { version: this.workflow.version }),
+      }));
+      const compiled = await this.deploymentService.deploy(files, this.workflow.deploymentId);
       if (!compiled.success) {
         showToast(compiled.message, 'error');
         return;
@@ -585,12 +750,69 @@ export class BPMNDesigner {
     }
   }
 
+  /**
+   * Stop: stops the running container(s) of this workflow - the ones Galaxy
+   * lists under the workflow's deployment id (the engine names the folder
+   * <id>_<version>, so any version of it) - and drops them from the registry.
+   */
+  public async stopDeployment(): Promise<void> {
+    const galaxyUrl = this.configManager.getGalaxyUrl().replace(/\/$/, '');
+    const base = this.workflow.deploymentId;
+    const mine = await this.findRunningContainers();
+    if (mine === null) {
+      showToast(`Cannot reach Galaxy at ${galaxyUrl}`, 'error');
+      return;
+    }
+    if (mine.length === 0) {
+      showToast(`${base} is not running (nothing registered with Galaxy)`, 'info');
+      return;
+    }
+    for (const container of mine) {
+      const id = String(container.deploymentId);
+      const port = String(container.port ?? '');
+      const result = await this.deploymentService.stopEmbedded(id, port);
+      showToast(result.message, result.success ? 'success' : 'error');
+      if (!result.success) continue;
+      try {
+        await fetch(`${galaxyUrl}/galaxy/remove`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deploymentId: id, port }),
+        });
+      } catch {
+        // the Galaxy list will just show it unreachable until it refreshes
+      }
+    }
+  }
+
+  /**
+   * The containers Galaxy lists for this workflow (its deployment id, any
+   * version) - null when Galaxy can't be reached. Stop is offered only while
+   * there is one.
+   */
+  public async findRunningContainers(): Promise<{ deploymentId?: string; port?: string | number }[] | null> {
+    const galaxyUrl = this.configManager.getGalaxyUrl().replace(/\/$/, '');
+    let containers: { deploymentId?: string; port?: string | number }[];
+    try {
+      const response = await fetch(`${galaxyUrl}/galaxy/containers`);
+      containers = await response.json();
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(containers)) return [];
+    const base = this.workflow.deploymentId;
+    const resolved = this.configManager.getResolvedDeploymentId();
+    return containers.filter((container) => {
+      const id = String(container.deploymentId ?? '');
+      return id === base || id === resolved || id.startsWith(`${base}_`);
+    });
+  }
+
   private getActiveDeploymentId(): string {
     // prefer the resolved (versioned) folder id returned by the last successful
     // compile - the engine names the deployment folder <id>_<version>, so Run/Stop
     // Embedded need that exact id, not the raw "Container ID" the user typed
-    const deploymentInput = document.getElementById('deployment-id-input') as HTMLInputElement | null;
-    return this.configManager.getResolvedDeploymentId() || deploymentInput?.value || this.configManager.getDeploymentId() || 'default-deployment';
+    return this.configManager.getResolvedDeploymentId() || this.workflow.deploymentId;
   }
 
   /** Galaxy base URL from Configuration Settings, read fresh on every use. */
@@ -608,7 +830,32 @@ export class BPMNDesigner {
   }
 
   public showConfiguration(): void {
-    this.configPanel.show();
+    this.configPanel.show(() => {
+      // the modal edits the same container id as the workflow's root node
+      this.workflow.setDeploymentId(this.configManager.getDeploymentId());
+      if (this.propertiesView === 'workflow') this.renderPropertiesPanel(null);
+    });
+  }
+
+  /** The properties panel shows the workflow (container id, version, engine…) - the tree's root node. */
+  public showWorkflowProperties(): void {
+    this.propertiesView = 'workflow';
+    this.clearDiagramSelection();
+    this.renderPropertiesPanel(null);
+    this.onPropertiesViewChange?.('workflow');
+  }
+
+  /** The properties panel shows the loaded process (definition id, variables, roles). */
+  public showProcessProperties(): void {
+    this.propertiesView = 'process';
+    this.clearDiagramSelection();
+    this.renderPropertiesPanel(null);
+    this.onPropertiesViewChange?.('process');
+  }
+
+  private clearDiagramSelection(): void {
+    const selection = this.modeler.get('selection' as never) as any;
+    if (selection?.get()?.length) selection.select(null);
   }
 
   private setupPropertiesPanel(): void {
@@ -616,12 +863,30 @@ export class BPMNDesigner {
 
     eventBus.on('selection.changed', (event: any) => {
       const selected = event.newSelection?.[0] || null;
+      // any click in the diagram leaves the workflow view for the process / element
+      if (selected && this.propertiesView === 'workflow') this.propertiesView = 'process';
       this.renderPropertiesPanel(selected);
+      if (selected) this.onPropertiesRequested?.();
+      this.onPropertiesViewChange?.(selected ? 'element' : this.propertiesView);
+    });
+    // a click anywhere on the diagram (an element or the empty canvas) brings
+    // the properties panel back when it was closed, and leaves the workflow
+    // view for the process (a click on the empty canvas changes no selection,
+    // so selection.changed above doesn't see it)
+    eventBus.on('element.click', () => {
+      this.onPropertiesRequested?.();
+      if (this.propertiesView !== 'workflow') return;
+      this.propertiesView = 'process';
+      const selection = this.modeler.get('selection' as never) as any;
+      const selected = selection?.get()?.[0] || null;
+      this.renderPropertiesPanel(selected);
+      this.onPropertiesViewChange?.(selected ? 'element' : 'process');
     });
 
     eventBus.on('commandStack.changed', () => {
       const selection = this.modeler.get('selection' as never) as any;
       this.renderPropertiesPanel(selection.get()?.[0] || null);
+      this.scheduleSync();
     });
   }
 
@@ -641,7 +906,11 @@ export class BPMNDesigner {
     this.disposeScriptEditor();
 
     if (!element?.businessObject || element.type === 'label') {
-      this.renderDeploymentConfigPanel(content);
+      if (this.propertiesView === 'workflow') {
+        this.renderWorkflowPanel(content);
+      } else {
+        this.renderProcessPanel(content);
+      }
       return;
     }
 
@@ -1021,33 +1290,26 @@ export class BPMNDesigner {
     });
   }
 
-  private renderDeploymentConfigPanel(content: HTMLElement): void {
-    const definitions = this.modeler.getDefinitions() as { id?: string; $attrs?: Record<string, string> } | undefined;
-    const defaultContainerId = definitions?.id || this.configManager.getDeploymentId();
-    const currentVersion = definitions?.$attrs?.version || this.configManager.getVersion();
-
-    // keep the stored deployment id in sync with the diagram's definitions id
-    // (e.g. after editing raw XML and clicking Apply) so Configuration Settings
-    // never shows a stale value when opened later
-    if (definitions?.id && definitions.id !== this.configManager.getDeploymentId()) {
-      this.configManager.setDeploymentId(definitions.id);
-    }
-
+  /**
+   * The workflow's properties - the root node of the Andromeda tree: the
+   * container the processes are deployed as, and where the engine / Galaxy are.
+   */
+  private renderWorkflowPanel(content: HTMLElement): void {
     content.innerHTML = `
-      <p style="color: #999; font-size: 12px; margin-bottom: 15px;">Select an element to edit its properties, or set your deployment defaults below.</p>
+      <p class="properties-kind">Workflow</p>
       <div class="property-group">
-        <label>Engine URL</label>
-        <input id="bpmn-cfg-engine-url" type="text" placeholder="http://127.0.0.1:5000" value="${this.escapeHtml(this.configManager.getEngineUrl())}">
-      </div>
-      <div class="property-group">
-        <label>Container ID</label>
-        <input id="bpmn-cfg-container-id" type="text" placeholder="my-container" value="${this.escapeHtml(defaultContainerId)}">
-        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Same as the diagram's definitions id</small>
+        <label>Deployment ID</label>
+        <input id="bpmn-cfg-container-id" type="text" placeholder="workflow" value="${this.escapeHtml(this.workflow.deploymentId)}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">The container every process of this workflow is compiled into</small>
       </div>
       <div class="property-group">
         <label>Version</label>
-        <input id="bpmn-cfg-version" type="text" placeholder="1.0.0" value="${this.escapeHtml(currentVersion)}">
-        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Same as the diagram's definitions version; folded into the deployment folder name</small>
+        <input id="bpmn-cfg-version" type="text" placeholder="1.0.0" value="${this.escapeHtml(this.workflow.version)}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Written into every process's definitions; folded into the deployment folder name</small>
+      </div>
+      <div class="property-group">
+        <label>Engine URL</label>
+        <input id="bpmn-cfg-engine-url" type="text" placeholder="http://127.0.0.1:5000" value="${this.escapeHtml(this.configManager.getEngineUrl())}">
       </div>
       <div class="property-group">
         <label>Galaxy URL</label>
@@ -1057,6 +1319,37 @@ export class BPMNDesigner {
         <label>Access token (OIDC)</label>
         <input id="bpmn-cfg-access-token" type="password" autocomplete="off" placeholder="only when containers run with OIDC_ENABLED" value="${this.escapeHtml(this.configManager.getAccessToken())}">
         <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">Sent as a bearer token to containers' human tasks; kept for this browser tab only. Without OIDC the designer acts as ${ADMIN_ROLE}.</small>
+      </div>
+    `;
+
+    this.bindConfigInput('bpmn-cfg-container-id', (value) => {
+      this.workflow.setDeploymentId(value);
+      this.configManager.setDeploymentId(this.workflow.deploymentId);
+    });
+    this.bindConfigInput('bpmn-cfg-version', (value) => {
+      this.workflow.setVersion(value);
+      this.configManager.setVersion(this.workflow.version);
+      this.setDefinitionsVersion(this.workflow.version);
+      this.scheduleSync();
+    });
+    this.bindConfigInput('bpmn-cfg-engine-url', (value) => this.configManager.setEngineUrl(value));
+    this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
+    this.bindConfigInput('bpmn-cfg-access-token', (value) => this.configManager.setAccessToken(value));
+  }
+
+  /** The loaded process's properties - a process node of the Andromeda tree, or an empty diagram click. */
+  private renderProcessPanel(content: HTMLElement): void {
+    const definitions = this.modeler.getDefinitions() as { id?: string } | undefined;
+    const process = this.workflow.get(this.loadedProcessId);
+    const processDef = definitions?.id || process?.processDef || '';
+
+    content.innerHTML = `
+      <p class="properties-kind">Process</p>
+      <p style="color: #999; font-size: 12px; margin-bottom: 15px;">Select an element to edit its properties.</p>
+      <div class="property-group">
+        <label>Process definition id</label>
+        <input id="bpmn-cfg-process-def" type="text" spellcheck="false" placeholder="my-process" value="${this.escapeHtml(processDef)}">
+        <small style="display: block; margin-top: 4px; color: #999; font-size: 11px;">The diagram's definitions id - the container serves this process under it</small>
       </div>
       <div class="property-group">
         <label>Process Variables</label>
@@ -1085,17 +1378,21 @@ export class BPMNDesigner {
       </div>
     `;
 
-    this.bindConfigInput('bpmn-cfg-engine-url', (value) => this.configManager.setEngineUrl(value));
-    this.bindConfigInput('bpmn-cfg-container-id', (value) => {
-      this.configManager.setDeploymentId(value);
-      this.setDefinitionsId(value);
+    this.bindConfigInput('bpmn-cfg-process-def', (value) => {
+      const processDef = value.trim();
+      if (!processDef) {
+        this.renderPropertiesPanel(null);
+        return;
+      }
+      if (this.loadedProcessId && this.workflow.hasProcessDef(processDef, this.loadedProcessId)) {
+        showToast(`The workflow already has a process "${processDef}"`, 'error');
+        this.renderPropertiesPanel(null);
+        return;
+      }
+      this.setDefinitionsId(processDef);
+      if (this.loadedProcessId) this.workflow.updateProcess(this.loadedProcessId, { processDef });
+      this.scheduleSync();
     });
-    this.bindConfigInput('bpmn-cfg-version', (value) => {
-      this.configManager.setVersion(value);
-      this.setDefinitionsVersion(value);
-    });
-    this.bindConfigInput('bpmn-cfg-galaxy-url', (value) => this.configManager.setGalaxyUrl(value));
-    this.bindConfigInput('bpmn-cfg-access-token', (value) => this.configManager.setAccessToken(value));
     this.bindProcessVariablesForm();
     this.bindRolesForm();
   }
@@ -1172,6 +1469,7 @@ export class BPMNDesigner {
     resource.$parent = definitions;
     definitions.rootElements = [...(definitions.rootElements || []), resource];
     this.renderPropertiesPanel(null);
+    this.scheduleSync();
   }
 
   private removeRole(id: string): void {
@@ -1186,6 +1484,7 @@ export class BPMNDesigner {
     }
     definitions.rootElements = (definitions.rootElements || []).filter((element: any) => element !== role);
     this.renderPropertiesPanel(null);
+    this.scheduleSync();
   }
 
   // <bpmn:property> declarations on the process element, each paired with an
@@ -1264,6 +1563,7 @@ export class BPMNDesigner {
     process.properties = [...(process.properties || []), property];
 
     this.renderPropertiesPanel(null);
+    this.scheduleSync();
   }
 
   private removeProcessVariable(name: string): void {
@@ -1287,6 +1587,7 @@ export class BPMNDesigner {
     }
 
     this.renderPropertiesPanel(null);
+    this.scheduleSync();
   }
 
   private setDefinitionsId(value: string): void {

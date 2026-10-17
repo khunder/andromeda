@@ -218,13 +218,6 @@ body {
     filter: brightness(1.08);
 }
 
-.toolbar .btn-deploy,
-.diagram-toolbar .btn-deploy { background: var(--tint-deploy); }
-/* compiling + starting */
-.diagram-toolbar .btn-deploy.busy {
-    opacity: 0.7;
-    cursor: progress;
-}
 .toolbar .btn-register,
 .diagram-toolbar .btn-register { background: var(--tint-register); }
 
@@ -246,39 +239,37 @@ body {
 
 /* ---------- left menu ---------- */
 
+/* icons only, to leave the room to the editor */
 .side-menu {
     flex: 0 0 auto;
-    width: 76px;
-    padding: 10px 8px;
-    border-radius: var(--glass-radius);
+    width: 44px;
+    padding: 8px 5px;
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: 4px;
     overflow: hidden;
 }
 
 .side-menu button {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 8px 4px;
+    justify-content: center;
+    height: 34px;
+    padding: 0;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--glass-radius-sm);
+    border-radius: 8px;
     cursor: pointer;
-    font-family: inherit;
-    font-size: 11px;
-    font-weight: 500;
     color: var(--text-muted);
     position: relative;
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .side-menu button svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
 }
 
 .side-menu button:hover {
@@ -302,9 +293,9 @@ body {
 .side-menu button.active::before {
     content: '';
     position: absolute;
-    left: -8px;
-    top: 10px;
-    bottom: 10px;
+    left: -5px;
+    top: 8px;
+    bottom: 8px;
     width: 3px;
     border-radius: 0 3px 3px 0;
     background: var(--accent);
@@ -348,7 +339,7 @@ body {
     --dv-drag-over-background-color: rgba(22, 163, 74, 0.18);
     --dv-drag-over-border-color: rgba(22, 163, 74, 0.6);
     --dv-icon-hover-background-color: rgba(255, 255, 255, 0.6);
-    --dv-border-radius: var(--glass-radius);
+    --dv-border-radius: 6px;
     --dv-spacing-padding: 0px;
     font-family: var(--font);
     background: transparent;
@@ -369,6 +360,66 @@ body {
 
 .andromeda-dock .dv-tab.dv-active-tab {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Deploy / Stop at the right of the process tabs (see ProcessHeaderActions) */
+.process-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    padding: 0 6px;
+}
+
+.process-header-actions[hidden] {
+    display: none;
+}
+
+.process-header-action {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 7px;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    transition: filter 0.2s, transform 0.1s;
+}
+
+.process-header-action svg {
+    width: 14px;
+    height: 14px;
+}
+
+.process-header-action:hover {
+    filter: brightness(1.08);
+}
+
+.process-header-action:active {
+    transform: translateY(1px);
+}
+
+.process-header-action:focus-visible {
+    outline: none;
+    box-shadow: var(--accent-ring);
+}
+
+.process-header-action:disabled,
+.process-header-action.busy {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.process-header-deploy {
+    background: var(--tint-deploy);
+}
+
+.process-header-stop {
+    background: rgba(198, 40, 40, 0.8);
 }
 
 .dock-panel {
@@ -412,8 +463,273 @@ body {
     height: 100%;
 }
 
-#xml-editor {
+/* the XML editor sits over the diagram, shown by the corner switch */
+#canvas-container #xml-editor {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
     background: var(--glass-bg-strong);
+}
+
+#canvas-container.xml-mode #xml-editor {
+    display: block;
+}
+
+/* undo/zoom make no sense over the XML - the switch brings the diagram back */
+#canvas-container.xml-mode .diagram-toolbar {
+    display: none;
+}
+
+/* ---------- Diagram / XML switch (bottom-left corner of the editor) ---------- */
+
+.editor-mode-switch {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    z-index: 120;
+    display: flex;
+    align-items: stretch;
+    background: var(--glass-bg-strong);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-left: none;
+    border-bottom: none;
+    border-top-right-radius: 6px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.editor-mode-switch button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 10px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--glass-divider);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: background 0.2s, color 0.2s;
+}
+
+.editor-mode-switch button:last-child {
+    border-right: none;
+}
+
+.editor-mode-switch button svg {
+    width: 14px;
+    height: 14px;
+}
+
+.editor-mode-switch button:hover {
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--text);
+}
+
+.editor-mode-switch button:focus-visible {
+    outline: none;
+    box-shadow: inset var(--accent-ring);
+}
+
+.editor-mode-switch button.active {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--accent);
+}
+
+/* ---------- process tabs ---------- */
+
+/* a process tab hosts the editor while active, else offers to activate */
+.dock-panel-process {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.process-placeholder {
+    padding: 10px 18px;
+    background: var(--glass-control-bg);
+    border: var(--glass-control-border);
+    border-radius: var(--glass-radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: background 0.2s, color 0.2s;
+}
+
+.process-placeholder:hover {
+    background: var(--glass-control-bg-hover);
+    color: var(--text);
+}
+
+.dock-panel-process:has(#canvas-container) .process-placeholder {
+    display: none;
+}
+
+/* ---------- "Add a process" dialog ---------- */
+
+.add-process-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-process-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--glass-overlay);
+    backdrop-filter: blur(4px);
+}
+
+.add-process-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(480px, 94vw);
+    max-height: 86vh;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 18px;
+    box-shadow: 0 24px 70px rgba(31, 35, 64, 0.3);
+    overflow: hidden;
+}
+
+.add-process-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--glass-divider);
+}
+
+.add-process-header h2 {
+    font-size: 17px;
+}
+
+.add-process-close {
+    width: 30px;
+    height: 30px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    font-size: 24px;
+    color: var(--text-subtle);
+    cursor: pointer;
+}
+
+.add-process-close:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text);
+}
+
+.add-process-body {
+    padding: 16px 20px 6px;
+    overflow: auto;
+}
+
+.add-process-sources {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.add-process-source {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.add-process-source input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.add-process-source:hover {
+    background: rgba(22, 163, 74, 0.04);
+}
+
+.add-process-source.selected {
+    border-color: var(--accent);
+    background: rgba(22, 163, 74, 0.08);
+}
+
+.add-process-source-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.add-process-source-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.add-process-body .property-group small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+.add-process-body .property-group code {
+    font-size: 11px;
+}
+
+.add-process-error {
+    min-height: 16px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #c62828;
+}
+
+.add-process-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--glass-divider);
+}
+
+.add-process-confirm {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+}
+
+.add-process-confirm:hover {
+    background: #15803d;
+}
+
+/* "Workflow" / "Process" over the properties of the tree's nodes */
+.properties-kind {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
 }
 
 /* custom palette (superseded by the bpmn-js palette) */

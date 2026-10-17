@@ -5,6 +5,12 @@
 
 import { ConfigurationManager } from './ConfigurationManager';
 
+/** One process's BPMN, as sent to POST /api/compile */
+export interface BpmnFile {
+  name: string;
+  xml: string;
+}
+
 export interface DeploymentResult {
   success: boolean;
   message: string;
@@ -96,26 +102,26 @@ export class DeploymentService {
   }
 
   /**
-   * Deploy BPMN XML to the Andromeda engine
+   * Deploy BPMN XML to the Andromeda engine - one file per process of the
+   * workflow (the engine compiles every file it receives into the container).
    */
-  async deploy(bpmnXml: string, deploymentId?: string): Promise<DeploymentResult> {
+  async deploy(bpmn: string | BpmnFile[], deploymentId?: string): Promise<DeploymentResult> {
     const finalDeploymentId = deploymentId || this.configManager.getDeploymentId() || 'default-deployment';
     const endpoint = this.configManager.getCompileEndpoint();
-    
+    const files: BpmnFile[] = typeof bpmn === 'string' ? [{ name: 'diagram.bpmn', xml: bpmn }] : bpmn;
+
     try {
-      // Create form data with BPMN file and deployment ID
+      // Create form data with the BPMN files and deployment ID
       const formData = new FormData();
-      
-      // Create a Blob from the BPMN XML
-      const bpmnBlob = new Blob([bpmnXml], { type: 'application/xml' });
-      
-      // Append the BPMN file
-      formData.append('bpmnFile', bpmnBlob, 'diagram.bpmn');
-      
+
+      for (const file of files) {
+        formData.append('bpmnFile', new Blob([file.xml], { type: 'application/xml' }), file.name);
+      }
+
       // Append the deployment ID
       formData.append('deploymentId', finalDeploymentId);
-      
-      console.log(`Deploying BPMN to ${endpoint} with deployment ID: ${finalDeploymentId}`);
+
+      console.log(`Deploying ${files.length} BPMN file(s) to ${endpoint} with deployment ID: ${finalDeploymentId}`);
       
       // Send the request
       const response = await fetch(endpoint, {

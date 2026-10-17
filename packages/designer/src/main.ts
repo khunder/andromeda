@@ -1,6 +1,8 @@
 import { BPMNDesigner } from './designer';
 import { BPMN_EXAMPLES, DEFAULT_EXAMPLE } from './designer/examples';
 import { showToast } from './designer/Toast';
+import { AddProcessModal } from './designer/AddProcessModal';
+import { WorkflowModel } from './designer/WorkflowModel';
 import { Workspace } from './layout/Workspace';
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
@@ -21,12 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // The workflow (container id, version, processes) remembered by this
+  // browser - or a fresh one holding the default example
+  const workflow = WorkflowModel.load({ initialXml: DEFAULT_EXAMPLE?.xml ?? '' });
+
   // Lay out the dock first, so bpmn-js is created on a visible canvas
-  const workspace = new Workspace(dockRoot, panelSources, sideMenu);
+  const workspace = new Workspace(dockRoot, panelSources, sideMenu, workflow);
   workspace.init();
 
-  // Create designer instance, opened on the default example
-  const designer = new BPMNDesigner(canvasContainer, DEFAULT_EXAMPLE?.xml);
+  // Create designer instance, opened on the workflow's active process
+  const designer = new BPMNDesigner(canvasContainer, workflow);
 
   // Initialize XML editor
   const xmlEditorContainer = document.getElementById('xml-editor');
@@ -35,6 +41,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   workspace.attachDesigner(designer);
+
+  // the Andromeda panel's + button / context menu
+  const addProcessModal = new AddProcessModal();
+  workspace.onAddProcess = () => {
+    addProcessModal.show({
+      examples: BPMN_EXAMPLES,
+      existingDefs: workflow.processes.map((p) => p.processDef),
+      version: workflow.version,
+      onAdd: (process) => {
+        void designer.addProcess(process).then(() => showToast(`Added process ${process.processDef}`, 'success'));
+      },
+    });
+  };
+  workspace.onRemoveProcess = (process) => {
+    if (window.confirm(`Remove process "${process.processDef}" from the workflow?`)) {
+      void designer.removeProcess(process.id);
+    }
+  };
 
   // Expose designer to window for toolbar interactions and ElementRegistryUI
   (window as any).designer = designer;
@@ -87,9 +111,11 @@ function setupToolbar(designer: BPMNDesigner, workspace: Workspace) {
     });
   }
   
-  // Examples dropdown - loads one of the engine's test scenario diagrams
+  // Examples dropdown - replaces the current process's diagram with one of the
+  // engine's test scenarios (the Andromeda panel adds one as a new process)
   const examplesSelect = document.getElementById('examples-select') as HTMLSelectElement | null;
   if (examplesSelect) {
+    examplesSelect.title = 'Replace the current process with an example diagram';
     for (const example of BPMN_EXAMPLES) {
       const option = document.createElement('option');
       option.value = example.path;
@@ -102,7 +128,7 @@ function setupToolbar(designer: BPMNDesigner, workspace: Workspace) {
       if (example) {
         try {
           await designer.importFromXML(example.xml);
-          showToast(`Loaded example: ${example.label}`, 'success');
+          showToast(`Loaded example: ${example.label} into the current process`, 'success');
         } catch (error) {
           console.error(`Error loading example ${example.path}:`, error);
           showToast(`Could not load example ${example.label}`, 'error');
@@ -129,22 +155,9 @@ function setupToolbar(designer: BPMNDesigner, workspace: Workspace) {
     });
   }
   
-  // Deploy button - compiles the diagram into a container, then starts it
-  const btnDeploy = document.getElementById('btn-deploy') as HTMLButtonElement | null;
-  if (btnDeploy) {
-    btnDeploy.addEventListener('click', async () => {
-      btnDeploy.disabled = true;
-      btnDeploy.classList.add('busy');
-      try {
-        await designer.compileAndDeploy();
-      } finally {
-        btnDeploy.disabled = false;
-        btnDeploy.classList.remove('busy');
-      }
-    });
-  }
+  // Deploy / Stop live in the process tabs' header (see Workspace)
 
-  // Galaxy, Diagram, XML and Properties are opened from the left menu (Workspace)
+  // Galaxy and Andromeda are opened from the left menu (Workspace)
   const btnResetLayout = document.getElementById('btn-reset-layout');
   if (btnResetLayout) {
     btnResetLayout.addEventListener('click', () => {

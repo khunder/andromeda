@@ -67,7 +67,7 @@ export class ConfigurationPanel {
             <div class="config-field">
               <label for="default-deployment-id">Deployment ID:</label>
               <input type="text" id="default-deployment-id" placeholder="my-deployment" value="${this.configManager.getDeploymentId()}">
-              <small>Kept in sync with the diagram's definitions id (also editable from the properties panel)</small>
+              <small>The container the workflow's processes are compiled into (also editable from the Andromeda panel's root node)</small>
             </div>
             <div class="config-field">
               <label for="galaxy-url">Galaxy URL (optional):</label>

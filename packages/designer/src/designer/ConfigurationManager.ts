@@ -17,6 +17,7 @@ export class ConfigurationManager {
   private static readonly DEFAULT_ENGINE_URL = 'http://127.0.0.1:5000';
   private static readonly DEFAULT_GALAXY_URL = 'http://127.0.0.1:5001';
   private static readonly DEFAULT_VERSION = '1.0.0';
+  private static readonly DEFAULT_DEPLOYMENT_ID = 'workflow';
   private static readonly TOKEN_KEY = 'andromeda.accessToken';
   
   private config: EngineConfiguration;
@@ -83,10 +84,11 @@ export class ConfigurationManager {
   }
   
   /**
-   * Get the current deployment ID
+   * Get the current deployment ID - the workflow's container id (see
+   * WorkflowModel, which owns it; this is the copy the deployment calls read)
    */
   getDeploymentId(): string {
-    return this.config.deploymentId || '';
+    return this.config.deploymentId || ConfigurationManager.DEFAULT_DEPLOYMENT_ID;
   }
   
   /**

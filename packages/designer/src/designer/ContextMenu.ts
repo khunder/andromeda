@@ -52,7 +52,6 @@ export class ContextMenu {
   }
 
   show(items: ContextMenuItem[], position: Point, element?: any): void {
-    console.log('ContextMenu.show called with', items.length, 'items at', position);
     // Clear previous items
     this.container.innerHTML = '';
     
@@ -156,7 +155,6 @@ export class ContextMenu {
       // Small delay to ensure the menu is considered "open" for click outside detection
     }, 0);
     
-    console.log('Menu should be visible now');
   }
 
   hide(): void {
