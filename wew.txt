@@ -1,0 +1,70 @@
+- I want to support file as variable
+- when starting a process instance we pass a file as input
+- the file uploaded to storage, /containerId/version/processIntanceId/nodeId/file1....
+- add a genric service, that is compatible with s3 storage service, for now I want a local folder style storage, bu the intrfac could be implemente with S3 comptabile like rustfs, garage ...
+- if the file exceed a fixed limit, the process instance will fail at start
+- add an option to force reading files with limit above fixed limit. but with warning.
+- add files in req.body.files like we do for variables req.body.variables
+
+- I can specify the URL, local file, or full url orr I can enter the base64 reprsentation of the file and can be stored when the size under a (PARAMATER) 256Kb by dfault, or saved as object storage files
+- any webhook based component can upload files, example catch event, human task ...
+- event sourcing should escape logging the whol file, but it sould save the hash of the file.
+
+- in the designer when clicking on the button start with variables add another section to specify wich file to upload
+
+
+- provide OIDC endpoint to validate jwt token,
+- OIDC can be optional, for now optiopnal
+- IN jwt token, roles are defines, if someone as the role he can excute the task, role process-admin can execute anything
+- I want thse roles to be used by humantask now and intemediate events later
+- in designer the role is process-admin
+
+
+In designer
+- I want to declare roles in process just like variables.
+- When I click on human task, I want to specify what I can change as viariables from proces instace
+- human task has 2 status accpet and close
+	- accept will continue the process
+	- close noting will happen
+- in human task i want to use https://github.com/formio/formio.js to build a form
+- I want to bee able to customize the form with formio, the result will be saved in the human aks node, and I can edit it.
+- if one of the form variables has the same name, it will be set from the form
+
+
+
+======================================= REAL TIME EDITOR =================================
+When I ckick on process instance from galaxy panel, open a new modal window,
+open new designer that reflect the status of procss instance,
+- when a process
+- executed nodes in grey,
+- current tasks highlighted ,
+- when I click on human task, open the form and let me validat it
+- for catch event, open a monaco editor that accept joson and files
+
+
+
+==============================================
+Form generator for BPNM
+- I want a form generator similar to formio but with more simplified features,
+- same json logic for saving
+- no extra libraries,
+- types are the same as the process instance variables, string, boolean, File ...
+- root js object called iform
+- iform could be embedded into other objects
+- make inputs customisable via config file using auto registry mecanism
+- input can use exisitng application styles,
+- use a default gnerator to generat the input, but let it possible to support customisation
+- provide I18n integration, if i exisits, use an object calld iform.i18n via generic
+- the root panel could be replaced by native host applications, so make sure to use a rootpane
+=================================================
+
+
+- remove diagram xml and properties from left menu, add a new icon for andromeda panel
+- I want a new panel , andromeda panel with a tree, dont expand it on the whole space, just left side,
+- the root is node with the deploymentId aka containerID and version, default exapmle 1.0.0
+- on click on the root node, we can change the deployment id and the version in properties panel.
+- also move engine url, galxy url, access tokn oidc from process to this view.
+- show + button in the andromda panel, same option via context menu to add a process, it open a dialog, new one or from examples
+- instead if diagram xml in te top of the designer, replace it with the process_def and version, we will manage multiple processs, so show only them
+- move diagram/xml to corner bottom left
+
