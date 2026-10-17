@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
-import FormData from "form-data";
 import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 import {it, expect, describe, beforeAll, afterAll} from 'vitest';
@@ -77,16 +76,11 @@ describe('TimerIntermediateCatchEventRestoreAfterRestart::Integration', () => {
         await EmbeddedContainerService.startEmbeddedContainer(ctx.deploymentId, {port: portA});
 
         const form = new FormData();
-        form.append('bpmnFile', fs.readFileSync(bpmnPath), {
-            filename: 'timer-intermediate-catch-event-restore.bpmn',
-            contentType: 'application/xml'
-        });
         form.append('deploymentId', 'compileBpmn');
 
         const startResponse = await fetch(`http://127.0.0.1:${portA}/TimerIntermediateCatchEventRestore/start`, {
             method: 'POST',
-            body: form,
-            headers: form.getHeaders()
+            body: form
         });
         expect(startResponse.ok).toBe(true);
         const procData = await startResponse.json();

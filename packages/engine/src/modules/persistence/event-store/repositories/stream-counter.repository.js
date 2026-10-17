@@ -38,7 +38,7 @@ export class StreamCounterRepository {
         const doc = await StreamCounterModel.findOneAndUpdate(
             {_id: streamId},
             {$inc: {seq: 1}},
-            {upsert: true, new: true},
+            {upsert: true, returnDocument: 'after'},
         );
         return doc.seq - 1;
     }

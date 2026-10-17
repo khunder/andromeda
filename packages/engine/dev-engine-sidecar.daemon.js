@@ -1,7 +1,7 @@
 import path from "path"
 import {config} from "dotenv";
 import ipc from 'node-ipc';
-import rimraf from "rimraf";
+import fs from "fs";
 import psList from "ps-list";
 import {AndromedaLogger} from "./src/config/andromeda-logger.js";
 const Logger = new AndromedaLogger("dev-engine-sidecar.daemon");
@@ -26,7 +26,7 @@ const socketPath = process.platform === 'win32'
 
 // Only try to remove file-based sockets, not Windows named pipes
 if (process.platform !== 'win32') {
-    rimraf.sync(socketPath);
+    fs.rmSync(socketPath, {force: true});
 }
 
 ipc.config.unlink = false;
@@ -52,7 +52,7 @@ function shutdown(){
     finally {
         // Only try to remove file-based sockets, not Windows named pipes
         if (process.platform !== 'win32') {
-            rimraf.sync(socketPath);
+            fs.rmSync(socketPath, {force: true});
         }
     }
 

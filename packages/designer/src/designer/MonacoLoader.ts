@@ -2,7 +2,7 @@
  * Loads Monaco Editor from CDN once, sharing the in-flight promise across callers.
  */
 
-const MONACO_VERSION = '0.44.0';
+const MONACO_VERSION = '0.57.0';
 
 let loadingPromise: Promise<void> | null = null;
 

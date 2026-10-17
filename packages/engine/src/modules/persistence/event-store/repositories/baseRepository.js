@@ -68,7 +68,7 @@ class BaseRepository {
     Logger.trace(`Base repository: upsert: cond:${loggable(cond)}, item : ${loggable(item)}`);
     const options = {
       upsert: true,
-      new: true,
+      returnDocument: 'after',
     };
     if (!item._id) {
       item['$setOnInsert'] = { _id: v4() };
@@ -80,7 +80,7 @@ class BaseRepository {
   // nothing, unlike upsert which would insert a partial (and unvalidated) doc
   async update(cond, item){
     Logger.trace(`Base repository: update: cond:${loggable(cond)}, item : ${loggable(item)}`);
-    return this._model.findOneAndUpdate(cond, item, { new: true });
+    return this._model.findOneAndUpdate(cond, item, { returnDocument: 'after' });
   }
 
   async createMany(items) {

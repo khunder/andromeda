@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
-import FormData from "form-data";
 import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 import { it, expect, describe, beforeAll, afterAll } from 'vitest';
@@ -84,10 +83,6 @@ describe('TranscodeVariablesWorker::Integration', () => {
 
         // Prepare form data
         const form = new FormData();
-        form.append('bpmnFile', fs.readFileSync(bpmnPath), {
-            filename: 'untouched-boolean-variable.bpmn',
-            contentType: 'application/xml'
-        });
         form.append('deploymentId', 'compileBpmn');
 
         // Make request to start process using native fetch
@@ -96,8 +91,7 @@ describe('TranscodeVariablesWorker::Integration', () => {
         try {
             response = await fetch(`http://127.0.0.1:${testPort}/UntouchedBooleanVariable/start`, {
                 method: 'POST',
-                body: form,
-                headers: form.getHeaders()
+                body: form
             });
 
             expect(response.ok).toBe(true);

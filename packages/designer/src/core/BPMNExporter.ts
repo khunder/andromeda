@@ -1,6 +1,6 @@
 // BPMN XML Exporter using bpmn-moddle
 
-import BpmnModdle from 'bpmn-moddle';
+import { BpmnModdle } from 'bpmn-moddle';
 import { BPMNElement, Connection } from '../types';
 
 export class BPMNExporter {

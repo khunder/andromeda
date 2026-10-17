@@ -4,7 +4,7 @@
  * that both the designer and XML editor use
  */
 
-import BpmnModdle from 'bpmn-moddle';
+import { BpmnModdle } from 'bpmn-moddle';
 
 export class BPMNModdleStore {
   private static instance: BPMNModdleStore;

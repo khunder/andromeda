@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import {fileURLToPath} from "url";
 import {EmbeddedContainerService} from "../../src/modules/engine/embedded/embedded.containers.service.js";
-import FormData from "form-data";
 import PersistenceModule from "../../src/modules/persistence/persistence.module.js";
 
 import {it, expect, describe, beforeAll, afterAll} from 'vitest';
@@ -65,14 +64,9 @@ describe('TwoBpmnSameContainer::Integration', () => {
 
         // start HumanTaskTest
         const humanTaskForm = new FormData();
-        humanTaskForm.append('bpmnFile', fs.readFileSync(humanTaskBpmnPath), {
-            filename: 'human-task.bpmn',
-            contentType: 'application/xml'
-        });
         const humanTaskStartResponse = await fetch(`http://127.0.0.1:${testPort}/HumanTaskTest/start`, {
             method: 'POST',
-            body: humanTaskForm,
-            headers: humanTaskForm.getHeaders()
+            body: humanTaskForm
         });
         expect(humanTaskStartResponse.ok).toBe(true);
         const humanTaskProc = await humanTaskStartResponse.json();
@@ -80,14 +74,9 @@ describe('TwoBpmnSameContainer::Integration', () => {
 
         // start IntermediateCatchEventSignal
         const catchEventForm = new FormData();
-        catchEventForm.append('bpmnFile', fs.readFileSync(catchEventBpmnPath), {
-            filename: 'intermediate-catch-event-signal.bpmn',
-            contentType: 'application/xml'
-        });
         const catchEventStartResponse = await fetch(`http://127.0.0.1:${testPort}/IntermediateCatchEventSignal/start`, {
             method: 'POST',
-            body: catchEventForm,
-            headers: catchEventForm.getHeaders()
+            body: catchEventForm
         });
         expect(catchEventStartResponse.ok).toBe(true);
         const catchEventProc = await catchEventStartResponse.json();

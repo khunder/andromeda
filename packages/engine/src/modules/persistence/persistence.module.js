@@ -27,16 +27,9 @@ export class PersistenceModule {
         return new Promise( (async (resolve, reject) => {
             try {
                 Logger.info(`Mongoose trying to connect...`)
-                this.mongoose = await mongoose.connect(Config.getInstance().mongoDbUri, {
-                    useNewUrlParser: true,
-                    useUnifiedTopology: true,
-                    // useFindAndModify: false,
-                    // useCreateIndex: true,
-                    // reconnectTries: 30,
-                    keepAlive: true,
-                    //poolSize: 30,
-
-                });
+                // the MongoDB driver (6+) rejects the legacy useNewUrlParser /
+                // useUnifiedTopology / keepAlive options - its defaults cover them
+                this.mongoose = await mongoose.connect(Config.getInstance().mongoDbUri);
                 Logger.info(`Mongoose connected`)
                 await PersistenceGateway.init();
                 resolve();
